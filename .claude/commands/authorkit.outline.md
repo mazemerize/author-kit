@@ -5,6 +5,9 @@ handoffs:
     agent: authorkit.chapters
     prompt: Break the outline into chapter tasks
     send: true
+  - label: Build World First
+    agent: authorkit.world.build
+    prompt: Build the world before outlining
   - label: Create Checklist
     agent: authorkit.checklist
     prompt: Create a checklist for...
@@ -37,25 +40,34 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ### Phase 0: Research & World-Building
 
+**Check if World/ folder already exists** (created by `/authorkit.world.build`):
+
+**If World/ exists** (world.build was run before outlining):
+1. Read all existing World/ files as primary context (Characters/, Places/, Organizations/, History/, Systems/, Notes/)
+2. Generate `research.md` as a supplementary file for research that doesn't fit the World/ structure (technical accuracy checks, real-world references, genre conventions)
+3. Generate `characters.md` as a summary index pointing to the detailed `World/Characters/` files, plus any characters not yet in World/
+4. Validate World/ entries against concept.md — flag any inconsistencies
+5. If World/ feels incomplete for the story's needs, suggest running `/authorkit.world.build` again to deepen specific areas
+
+**If World/ does NOT exist** (world.build was skipped):
 1. **Identify research needs** from the concept:
    - For each setting detail -> research task
    - For each historical/technical claim -> accuracy check
    - For each character background -> consistency check
-
 2. **Generate research notes** in `research.md`:
    - Decision: [what was determined]
    - Rationale: [why this choice]
    - Sources: [reference materials or reasoning]
-
 3. **Generate character/subject profiles** in `characters.md`:
    - For fiction: Full character profiles (background, motivation, voice, arc, relationships)
    - For non-fiction: Key concept definitions, relationships between topics, prerequisite knowledge
+4. **Note**: For complex books with extensive world-building needs (fantasy, sci-fi, historical), suggest running `/authorkit.world.build` before proceeding to structural design.
 
-**Output**: research.md, characters.md
+**Output**: research.md, characters.md (+ validated World/ if it exists)
 
 ### Phase 1: Structural Design
 
-**Prerequisites**: research.md and characters.md complete
+**Prerequisites**: research.md and characters.md complete (and World/ validated if it exists)
 
 1. **Determine structure**:
    - Based on genre, concept, and themes

@@ -1,6 +1,9 @@
 ---
 description: Create the book concept from a natural language book idea description.
 handoffs:
+  - label: Build World
+    agent: authorkit.world.build
+    prompt: Build the world for this book concept
   - label: Create Book Outline
     agent: authorkit.outline
     prompt: Create an outline for this book concept.

@@ -44,6 +44,10 @@ Abort with an error message if required files are missing.
 **From characters.md (if exists):**
 - Character profiles, speech patterns, relationships
 
+**From World/ folder (if exists):**
+- All entity files (Characters/, Places/, Organizations/, History/, Systems/, Notes/)
+- Pay attention to chapter tags `(CHxx)` and `(CONCEPT)` for evolution tracking
+
 **From all drafted chapters (chapters/NN/draft.md):**
 - Full prose for consistency checking
 
@@ -96,11 +100,26 @@ Focus on high-signal findings. Limit to 50 findings total.
 - Mysteries raised but never resolved
 - Character relationships that stall
 
+#### H. World-Building Consistency
+
+If a `World/` folder exists in BOOK_DIR, perform these checks by cross-referencing World/ files against all drafted chapters:
+
+- **Setting detail drift**: Locations described differently across chapters (e.g., building changes floors, distances change, weather contradictions)
+- **Character detail contradictions**: Physical descriptions, ages, backgrounds that conflict between chapters or with World/ files
+- **Organization continuity**: Membership, hierarchy, or purpose changes without narrative justification
+- **Timeline/history contradictions**: Past events described differently, contradictory dates or sequences
+- **System rule violations**: Magic/technology/political systems behaving inconsistently with established rules in World/Systems/
+- **Geography contradictions**: Travel times, distances, spatial relationships that don't add up
+- **Cultural inconsistencies**: Customs, language, social norms that change without explanation
+- **(CONCEPT) vs chapter conflicts**: Details tagged `(CONCEPT)` in World/ files that are contradicted by what's actually written in chapters
+
+Each finding should cite the specific World/ file and the chapter(s) where the contradiction occurs.
+
 ### 4. Severity Assignment
 
-- **CRITICAL**: Constitution violation, major plot hole, timeline contradiction, character inconsistency that breaks immersion
-- **HIGH**: Unresolved subplot, significant pacing issue, theme dropped, important foreshadowing unfulfilled
-- **MEDIUM**: Minor continuity error, slight voice drift, pacing could be improved, minor character inconsistency
+- **CRITICAL**: Constitution violation, major plot hole, timeline contradiction, character inconsistency that breaks immersion, world rule violation that breaks established system logic, major geography/timeline contradiction
+- **HIGH**: Unresolved subplot, significant pacing issue, theme dropped, important foreshadowing unfulfilled, character detail contradiction across chapters, significant setting drift
+- **MEDIUM**: Minor continuity error, slight voice drift, pacing could be improved, minor character inconsistency, minor world detail inconsistency, cultural detail mismatch
 - **LOW**: Style nitpick, optional improvement, very minor detail mismatch
 
 ### 5. Produce Analysis Report
@@ -139,6 +158,16 @@ Output a Markdown report (no file writes):
 |-----------|--------|---------------------|
 | [Voice] | PASS | - |
 | [Tense] | FAIL | CH04, CH09 |
+
+### World Consistency (if World/ exists)
+
+| Category | Entries Checked | Conflicts Found | Details |
+|----------|----------------|-----------------|---------|
+| Characters | [N] | [N] | [Brief summary] |
+| Places | [N] | [N] | [Brief summary] |
+| Organizations | [N] | [N] | [Brief summary] |
+| Systems | [N] | [N] | [Brief summary] |
+| (CONCEPT) Conflicts | [N] | [N] | [Pre-writing details contradicted by chapters] |
 
 ### Metrics
 

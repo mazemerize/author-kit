@@ -4,6 +4,9 @@ handoffs:
   - label: Revise This Chapter
     agent: authorkit.chapter.plan
     prompt: Re-plan chapter [N] based on review feedback
+  - label: Update World
+    agent: authorkit.world.update
+    prompt: Update world files for chapter [N]
   - label: Draft Next Chapter
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N+1]
@@ -40,6 +43,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: `/memory/constitution.md` (writing principles)
    - **Recommended**: characters.md (character consistency checks)
    - **Recommended**: outline.md (chapter's role in overall structure)
+   - **Recommended**: `World/` folder files for characters, locations, and systems appearing in this chapter (for world consistency checks)
    - **Optional**: Previous and next chapter drafts (continuity)
    - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)
 
@@ -71,6 +75,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    ### D. Character/Content Consistency
    - **Fiction**: Do characters behave consistently with their profiles? Are voices distinct? Do actions align with motivations?
    - **Non-fiction**: Are claims accurate? Are examples relevant? Is the argument logical?
+   - **World consistency**: If `World/` files exist, cross-check character details (appearance, personality, relationships) and setting details (location descriptions, distances, features) against established World/ entries. Flag any contradictions.
 
    ### E. Continuity (if previous chapters exist)
    - Does this chapter flow naturally from the previous one?

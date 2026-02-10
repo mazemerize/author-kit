@@ -35,6 +35,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Recommended**: characters.md (character profiles for this chapter)
    - **Optional**: research.md (relevant research notes)
    - **Optional**: `/memory/constitution.md` (writing principles)
+   - **Optional**: `World/` folder files relevant to this chapter's characters, locations, and systems (ensures world consistency)
    - **Optional**: Previous chapter drafts in `chapters/NN-1/draft.md` (for continuity)
    - **Optional**: Previous chapter plans in `chapters/NN-1/plan.md` (for context)
 
