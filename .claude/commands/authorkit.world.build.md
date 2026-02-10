@@ -7,6 +7,9 @@ handoffs:
   - label: Deepen World
     agent: authorkit.world.build
     prompt: Expand world-building in the area of...
+  - label: Verify World
+    agent: authorkit.world.verify
+    prompt: Verify the world files for internal consistency
   - label: Clarify Concept
     agent: authorkit.clarify
     prompt: Clarify aspects of the book concept
@@ -209,7 +212,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - Count of entries per category
    - Any consistency warnings or gaps flagged
    - Areas that could benefit from more depth
-   - Suggested next step: `/authorkit.world.build [specific area]` to deepen, or `/authorkit.outline` to proceed to outlining
+   - Suggested next step: `/authorkit.world.build [specific area]` to deepen, `/authorkit.world.verify` to check internal consistency, or `/authorkit.outline` to proceed to outlining
 
 ## Key Rules
 

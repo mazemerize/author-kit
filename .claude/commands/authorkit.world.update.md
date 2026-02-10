@@ -4,6 +4,9 @@ handoffs:
   - label: Plan Next Chapter
     agent: authorkit.chapter.plan
     prompt: Plan the next chapter with updated world context
+  - label: Verify World
+    agent: authorkit.world.verify
+    prompt: Verify world consistency after chapter updates
   - label: Run Analysis
     agent: authorkit.analyze
     prompt: Analyze cross-chapter consistency including world-building
@@ -125,8 +128,8 @@ After drafting or revising chapters, extract new world-building details and orga
    - Any consistency warnings
    - Downstream impact report (if revision mode)
    - Suggested next step:
-     - After fresh extraction: `/authorkit.chapter.plan [N+1]` or `/authorkit.analyze`
-     - After revision: Address flagged chapters, then `/authorkit.analyze`
+     - After fresh extraction: `/authorkit.world.verify` to check consistency, `/authorkit.chapter.plan [N+1]` to continue, or `/authorkit.analyze` for full analysis
+     - After revision: `/authorkit.world.verify` to check consistency of updated entries, address flagged chapters, then `/authorkit.analyze`
 
 ## Key Rules
 

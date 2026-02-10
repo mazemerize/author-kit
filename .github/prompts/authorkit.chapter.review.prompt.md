@@ -32,6 +32,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: `.authorkit/memory/constitution.md` (writing principles)
    - **Recommended**: characters.md (character consistency checks)
    - **Recommended**: outline.md (chapter's role in overall structure)
+   - **Recommended**: `World/` folder — load ALL entity files across all categories (Characters/, Places/, Organizations/, Systems/, History/, Notes/) for entities appearing in or relevant to this chapter
    - **Optional**: Previous and next chapter drafts (continuity)
    - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)
 
@@ -63,6 +64,21 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    ### D. Character/Content Consistency
    - **Fiction**: Do characters behave consistently with their profiles? Are voices distinct? Do actions align with motivations?
    - **Non-fiction**: Are claims accurate? Are examples relevant? Is the argument logical?
+
+   #### D1. World Consistency (if `World/` files exist)
+
+   Cross-check this chapter against ALL relevant World/ categories. For each category, compare what appears in the chapter against the established World/ entries:
+
+   - **Characters**: Compare every character appearing in this chapter against their World/Characters/ profile. Check physical descriptions (appearance, age, distinguishing features), personality traits, speech patterns, relationships, and background details. Flag any contradictions with both `(CONCEPT)` and `(CHxx)` tagged entries.
+   - **Places**: Compare every location described or mentioned in this chapter against its World/Places/ entry. Check physical descriptions, key features, atmosphere, and spatial relationships. Flag setting details that contradict established descriptions.
+   - **Organizations**: Check any organizations referenced in this chapter against their World/Organizations/ entries. Verify membership, hierarchy, purpose, and inter-organization relationships are consistent.
+   - **Systems**: If the chapter involves any system (magic, technology, political, economic), verify that the chapter's depiction follows the rules, limitations, scope, and exceptions defined in World/Systems/. Flag any rule violations.
+   - **History**: If the chapter references past events, verify those references align with the accounts in World/History/ entries. Flag contradictory dates, participants, or outcomes.
+   - **New entities**: Flag characters, places, organizations, systems, or historical events that appear in this chapter but have NO corresponding World/ entry. These are candidates for `authorkit.world.update`.
+
+   For each contradiction found, cite the specific World/ file, the tagged entry, and the location in the chapter draft where the contradiction occurs. Severity:
+   - Contradictions with established entries: **Critical** or **Important** depending on reader-visible impact
+   - Missing World/ entries: **Minor** (informational — these should be captured via `authorkit.world.update`)
 
    ### E. Continuity (if previous chapters exist)
    - Does this chapter flow naturally from the previous one?
@@ -115,6 +131,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    | Character/Content | [A/B/C/D] | [Brief note] |
    | Continuity | [A/B/C/D] | [Brief note] |
    | Theme Integration | [A/B/C/D] | [Brief note] |
+   | World Consistency | [A/B/C/D/N/A] | [Brief note] |
 
    ## Verdict
 

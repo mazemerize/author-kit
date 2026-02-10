@@ -1,5 +1,12 @@
 ---
 description: Perform a read-only cross-chapter consistency and quality analysis across the entire book.
+handoffs:
+  - label: Verify World
+    agent: authorkit.world.verify
+    prompt: Run a dedicated world consistency verification
+  - label: Revise Chapter
+    agent: authorkit.revise
+    prompt: Address the critical issues from the analysis
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireChapters -IncludeChapters
 ---
@@ -183,4 +190,5 @@ Output a Markdown report (no file writes):
 
 - If CRITICAL issues exist: Recommend resolving before drafting more chapters
 - Provide specific `/authorkit.revise` suggestions for top issues
+- If world-building issues dominate: Recommend `/authorkit.world.verify` for deeper world-specific analysis
 - If mostly clean: Suggest continuing with next chapter or moving to final polish
