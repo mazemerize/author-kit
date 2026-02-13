@@ -1,21 +1,5 @@
 ---
-description: Assess chapter progress and route to the next step in the chapter lifecycle.
-handoffs:
-  - label: Plan Chapter
-    agent: authorkit.chapter.plan
-    prompt: Plan chapter [N]
-  - label: Draft Chapter
-    agent: authorkit.chapter.draft
-    prompt: Draft chapter [N]
-  - label: Review Chapter
-    agent: authorkit.chapter.review
-    prompt: Review chapter [N]
-  - label: Revise Chapter
-    agent: authorkit.revise
-    prompt: Revise chapter [N] based on review feedback
-  - label: Update World
-    agent: authorkit.world.update
-    prompt: Update world files for chapter [N]
+description: Automate the full chapter lifecycle — plan, draft, review, and revise until approved.
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
@@ -30,19 +14,17 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Goal
 
-Assess the current state of the book's chapters and route to the next step in the chapter lifecycle. This is a **read-only orchestrator** — it never modifies files, only reads state and recommends the next action.
-
-## Operating Constraints
-
-**STRICTLY READ-ONLY**: Do **not** modify any files. Assess state and present handoff options only.
+Automate the full chapter lifecycle for a single chapter: **plan → draft → review**, looping on **draft → review** until the chapter passes. This command does the actual work — it plans, writes, and reviews the chapter, repeating the draft-review cycle as needed.
 
 ## Outline
+
+### Phase 0: Setup and Target Selection
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse BOOK_DIR and AVAILABLE_DOCS. All paths must be absolute.
 
 2. **Load chapters.md**: Read `BOOK_DIR/chapters.md` and parse all chapter entries.
    - Extract chapter numbers, titles, and status markers: `[ ]` pending, `[P]` planned, `[D]` drafted, `[R]` reviewed/needs revision, `[X]` approved
-   - If chapters.md doesn't exist: ERROR "No chapters.md found. Run `/authorkit.chapters` first to generate the chapter task list."
+   - If chapters.md doesn't exist: ERROR "No chapters.md found. Run `/authorkit.chapters` first."
 
 3. **Determine target chapter**:
 
@@ -53,69 +35,165 @@ Assess the current state of the book's chapters and route to the next step in th
 
    **If no chapter specified — find the frontier:**
    - Scan chapters.md for the first chapter that is NOT `[X]` (approved)
-   - If all chapters are `[X]`: report book is complete (see step 6)
-   - The frontier chapter is the target
+   - If all chapters are `[X]`: report book is complete, recommend `/authorkit.analyze` for cross-chapter analysis, and stop.
 
-4. **Assess target chapter state**:
-
-   Based on the status marker, check for the existence of supporting files and determine the next action:
-
-   | Status | Meaning | Check | Next Action |
-   |--------|---------|-------|-------------|
-   | `[ ]` | Pending | — | `/authorkit.chapter.plan [N]` |
-   | `[P]` | Planned | Verify `chapters/NN/plan.md` exists | `/authorkit.chapter.draft [N]` |
-   | `[D]` | Drafted | Verify `chapters/NN/draft.md` exists | `/authorkit.chapter.review [N]` |
-   | `[R]` | Needs revision | Read `chapters/NN/review.md` for issues | `/authorkit.revise [N]` |
-   | `[X]` | Approved | Check if World/ update needed | `/authorkit.world.update [N]` or next chapter |
-
-   **Special handling for `[R]` (needs revision):**
-   - Read `chapters/NN/review.md` if it exists
-   - Extract the critical and important issues
-   - Present a brief summary of what needs fixing before recommending revision
-
-   **Special handling for `[X]` (approved) when user explicitly requested this chapter:**
-   - Check if `World/` folder exists
-   - Check if any World/ file contains `(CHxx)` tags for this chapter
-   - If World/ exists but no tags for this chapter: recommend `/authorkit.world.update [N]`
-   - If World/ is up to date (or doesn't exist): report chapter is done, suggest next unfinished chapter
-
-5. **Report progress summary**:
-
-   Present a compact overview:
-
+4. **Report initial state** before starting work:
    ```
-   ## Chapter Progress
-
-   **Target**: Chapter [NN] — [Title]
-   **Status**: [Status description]
-
-   ### Book Overview
-   - Approved: [count] of [total] chapters
-   - In progress: Chapter [NN] ([status])
-   - Remaining: [count] chapters
-
-   ### Progress
-   [X] CH01 - Title
-   [X] CH02 - Title
-   [D] CH03 - Title  ← current
-   [ ] CH04 - Title
-   [ ] CH05 - Title
-
-   ### Recommended Next Step
-   [Description of what to do and why]
+   ## Starting Chapter [NN]: [Title]
+   Current status: [status]
+   Book progress: [X] of [total] chapters approved
    ```
 
-6. **Handle edge cases**:
+5. **Resume from current state** — pick up wherever the chapter is:
+   - `[ ]` pending → start at Phase 1 (Plan)
+   - `[P]` planned → skip to Phase 2 (Draft)
+   - `[D]` drafted → skip to Phase 3 (Review)
+   - `[R]` needs revision → skip to Phase 2 (Re-draft with review feedback)
+   - `[X]` approved → report chapter is done, stop.
 
-   - **All chapters `[X]`**: Congratulate completion. Recommend `/authorkit.analyze` for cross-chapter analysis, or `/authorkit.world.verify` if World/ exists.
-   - **No chapters at all**: chapters.md exists but is empty or has no entries. ERROR with guidance.
-   - **Multiple chapters in `[R]`**: Note all chapters needing revision and let the user choose which to tackle.
-   - **Non-sequential progress**: If chapters are being written out of order (e.g., CH01 `[X]`, CH02 `[ ]`, CH03 `[D]`), report this and let the user decide which to continue.
+### Phase 1: Plan the Chapter
+
+Execute the full chapter planning workflow (equivalent to `/authorkit.chapter.plan`):
+
+1. **Load context**:
+   - **Required**: outline.md (this chapter's entry + overall structure)
+   - **Required**: concept.md (voice, tone, themes, characters)
+   - **Required**: chapters.md (chapter status, dependencies)
+   - **Recommended**: characters.md (character profiles)
+   - **Optional**: research.md, `/memory/constitution.md`
+   - **Optional**: `World/` folder files relevant to this chapter's characters, locations, and systems
+   - **Optional**: Previous chapter drafts/plans for continuity
+
+2. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists.
+
+3. **Generate chapter plan** at `BOOK_DIR/chapters/NN/plan.md` using `templates/chapter-plan-template.md`:
+   - Chapter purpose (from outline.md)
+   - Context (previous chapter ending, this chapter's goals, next chapter needs)
+   - Scene/section breakdown with settings, beats, emotional tone
+   - Emotional arc / argument flow
+   - Key revelations and character development
+   - Connections (setups and payoffs)
+   - Opening hook and closing beat
+   - Voice/style notes and target word count
+
+4. **Update status** in chapters.md: `[ ]` → `[P]`
+
+5. **Brief report**: "Chapter [NN] planned. [X] scenes/sections. Proceeding to draft."
+
+→ Continue to Phase 2.
+
+### Phase 2: Draft the Chapter
+
+Execute the full chapter drafting workflow (equivalent to `/authorkit.chapter.draft`):
+
+1. **Load context**:
+   - **Required**: `chapters/NN/plan.md`
+   - **Required**: concept.md, `/memory/constitution.md`
+   - **Recommended**: characters.md, `World/` folder files for this chapter
+   - **Recommended**: Previous chapter draft for continuity
+   - **If re-drafting after review**: Also load `chapters/NN/review.md` and address all critical/important issues
+
+2. **Pre-flight**:
+   - Internalize the constitution's voice/style rules
+   - If re-drafting: read the review feedback carefully and plan how to address each issue
+
+3. **Write the chapter** following the plan's scene/section breakdown:
+   - Execute each planned beat
+   - Apply the constitution's style rules throughout
+   - If re-drafting: specifically address each critical and important issue from the review
+   - Opening hook and closing beat must be effective
+   - Pure prose — no meta-commentary or [TODO] markers
+
+4. **Quality self-check**: Verify constitution compliance, plan adherence, pacing, voice consistency.
+
+5. **Write draft** to `BOOK_DIR/chapters/NN/draft.md`.
+
+6. **Update status** in chapters.md: `[P]` → `[D]` (or keep `[D]`/`[R]` → `[D]` if re-drafting).
+
+7. **Brief report**: "Chapter [NN] drafted. [word count] words. Proceeding to review."
+
+→ Continue to Phase 3.
+
+### Phase 3: Review the Chapter
+
+Execute the full chapter review workflow (equivalent to `/authorkit.chapter.review`):
+
+1. **Load review context**:
+   - **Required**: `chapters/NN/draft.md`, `chapters/NN/plan.md`
+   - **Required**: concept.md, `/memory/constitution.md`
+   - **Recommended**: characters.md, outline.md
+   - **Recommended**: `World/` folder — ALL entity files for entities in this chapter
+   - **Optional**: Previous/next chapter drafts, previous review
+
+2. **Assess the draft** across all dimensions:
+
+   **A. Plan Adherence** — scenes covered, beats executed, deviations assessed
+   **B. Constitution Compliance** — voice, POV, tense, prose style
+   **C. Craft Quality** — pacing, show vs tell, dialogue, description, transitions, opening, closing
+   **D. Character/Content Consistency** — character behavior, knowledge boundaries, narrative necessity
+   **D1. World Consistency** (if World/ exists) — characters, places, headcount & logistics, organizations, systems, history vs World/ entries; flag new entities
+   **E. Continuity** — flow from previous chapter, contradictions, thread continuation
+   **F. Theme Integration** — themes present, organic integration
+
+3. **Generate review** at `BOOK_DIR/chapters/NN/review.md` with dimension scores and issue classifications (Critical/Important/Minor).
+
+4. **Determine verdict**: PASS or NEEDS REVISION
+   - **PASS threshold**: No critical issues, no more than 2 important issues, constitution compliance is B or above
+
+5. **Branch based on verdict**:
+
+   **If PASS:**
+   - Update status in chapters.md: `[D]` → `[X]`
+   - → Proceed to Final Report. Chapter is done.
+
+   **If NEEDS REVISION:**
+   - Update status in chapters.md: `[D]` → `[R]`
+   - Report: "Chapter [NN] NEEDS REVISION (cycle [N] of 3). [count] critical, [count] important issues."
+   - List the critical and important issues briefly.
+   - → Loop back to Phase 2 (re-draft with review feedback).
+
+### Revision Loop Safety
+
+- **Maximum 3 revision cycles** per chapter. If the chapter has not passed after 3 draft-review cycles, stop and report:
+  - "Chapter [NN] has not passed after 3 revision attempts."
+  - Summary of remaining issues
+  - Recommend manual intervention or running `/authorkit.chapter.review [N]` and `/authorkit.revise [N]` separately for more targeted fixes.
+- **Track cycle count**: Log which revision cycle is active (e.g., "Revision 2 of 3").
+- **Each re-draft must specifically address review issues**: Don't just rewrite from scratch — target the identified problems.
+
+## Final Report
+
+When the chapter is approved (or the revision limit is reached), output a summary:
+
+```markdown
+## Chapter [NN] Complete
+
+**Title**: [Chapter title]
+**Status**: [APPROVED / REVISION LIMIT REACHED]
+**Word Count**: [final count]
+**Revision Cycles**: [N]
+
+### Dimension Scores
+| Dimension | Score |
+|-----------|-------|
+| Plan Adherence | [A/B/C/D] |
+| Constitution Compliance | [A/B/C/D] |
+| Craft Quality | [A/B/C/D] |
+| Character/Content | [A/B/C/D] |
+| Continuity | [A/B/C/D] |
+| Theme Integration | [A/B/C/D] |
+| World Consistency | [A/B/C/D/N/A] |
+
+### Book Progress
+[X] of [total] chapters approved
+Next: [suggestion]
+```
 
 ## Key Rules
 
-- **Never modify files.** This is purely a state assessment and routing command.
-- **Be concise.** The user wants to know what to do next, not a lengthy analysis. Keep the progress report compact.
-- **Trust the status markers.** The status in chapters.md is authoritative. Don't second-guess it.
-- **Verify file existence.** A chapter marked `[P]` should have a plan.md — if it doesn't, note the discrepancy and still recommend planning.
-- **Surface review feedback.** When the next step is revision, summarize what needs fixing so the user has context before clicking the handoff.
+- **This command does real work.** It plans, writes, and reviews — it is not read-only.
+- **Follow each sub-workflow faithfully.** The plan, draft, and review phases follow the same logic as their standalone commands (`/authorkit.chapter.plan`, `/authorkit.chapter.draft`, `/authorkit.chapter.review`).
+- **Address review feedback specifically.** When re-drafting, don't ignore the review — directly address each critical and important issue.
+- **Respect the revision limit.** 3 cycles max prevents infinite loops. If the chapter can't pass in 3 tries, it needs manual attention.
+- **Keep inter-phase reports concise.** Between phases, report briefly (1-2 lines). Save detailed output for the final report.
+- **Never skip the review.** Every draft must be reviewed, even re-drafts. The review is the quality gate.

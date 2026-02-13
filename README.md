@@ -109,22 +109,22 @@ Convert the outline into a chapter-level task list with status tracking.
 
 ### 8. Write chapter by chapter
 
-The simplest way to work through chapters is the orchestrator — it reads your progress and tells you what to do next:
+The fastest way is the automated chapter command — it runs the full plan → draft → review cycle for you, looping on draft → review until the chapter passes:
 
 ```
-/authorkit.chapter          # Auto-detect the next chapter and step
-/authorkit.chapter 3        # Check status of chapter 3 specifically
+/authorkit.chapter          # Auto-detect the next chapter and run the full lifecycle
+/authorkit.chapter 3        # Run the full lifecycle for chapter 3 specifically
 ```
 
-Or run each step individually:
+This handles everything: plans the chapter, writes the prose, reviews it, and if the review finds issues, re-drafts and re-reviews (up to 3 cycles). It picks up from wherever the chapter left off — if you already have a plan, it skips to drafting.
+
+Or run each step individually for more control:
 
 ```
 /authorkit.chapter.plan 1     # Plan chapter 1 (scenes, beats, arc)
 /authorkit.chapter.draft 1    # Write the actual prose
 /authorkit.chapter.review 1   # Review against plan and constitution
 ```
-
-If the review passes, move to the next chapter. If it needs revision, re-plan and re-draft.
 
 After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `World/` folder (see [World Maintenance](#world-maintenance)).
 
@@ -225,7 +225,7 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
-| `/authorkit.chapter` | **Orchestrator** — assess chapter progress and route to the next step | Optional chapter number | Progress summary + recommended action |
+| `/authorkit.chapter` | **Automated** — run the full plan → draft → review cycle, looping until approved | Optional chapter number | `plan.md`, `draft.md`, `review.md`, status → `[X]` |
 | `/authorkit.chapter.plan [N]` | Plan a specific chapter in detail (scenes, beats, connections) | Chapter number | `chapters/NN/plan.md`, status → `[P]` |
 | `/authorkit.chapter.draft [N]` | Write the actual chapter prose | Chapter number | `chapters/NN/draft.md`, status → `[D]` |
 | `/authorkit.chapter.review [N]` | Review a drafted chapter against plan, concept, and constitution | Chapter number | `chapters/NN/review.md`, status → `[X]` or `[R]` |
