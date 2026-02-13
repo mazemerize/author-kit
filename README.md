@@ -1,6 +1,6 @@
 # Author Kit
 
-```text
+```
      /\        | | | |                | |/ (_) |  
     /  \  _   _| |_| |__   ___  _ __  | ' / _| |_ 
    / /\ \| | | | __| '_ \ / _ \| '__| |  < | | __|
@@ -189,14 +189,14 @@ The diagram below shows the complete Author Kit workflow, including the primary 
   └─────────────────────────────────────────────────────────────┘
 
   ╔═════════════════════════════════════════════════════════════╗
-  ║             AVAILABLE AT ANY TIME (steps 5-12)             ║
-  ║                                                            ║
-  ║   Pivot ─── Change direction across all artifacts          ║
-  ║   Retcon ── Change an established fact everywhere          ║
-  ║   Park ──── Defer a decision for later                     ║
-  ║   Snapshot ─ Bookmark state before a risky change          ║
-  ║   What-If ── Explore alternatives on a branch              ║
-  ║   Reorder ── Move, split, merge, or insert chapters        ║
+  ║             AVAILABLE AT ANY TIME (steps 5-12)              ║
+  ║                                                             ║
+  ║   Pivot ─── Change direction across all artifacts           ║
+  ║   Retcon ── Change an established fact everywhere           ║
+  ║   Park ──── Defer a decision for later                      ║
+  ║   Snapshot ─ Bookmark state before a risky change           ║
+  ║   What-If ── Explore alternatives on a branch               ║
+  ║   Reorder ── Move, split, merge, or insert chapters         ║
   ╚═════════════════════════════════════════════════════════════╝
 ```
 
@@ -341,8 +341,8 @@ The core innovation of Author Kit is **chapter-level iteration**. Instead of wri
                     ┌─────────────────────────┐
                     │                         │
                     v                         │
-  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-  │  Plan    │──│  Draft   │──│  Review  │───┘ (if needs revision)
+  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+  │  Plan    │──│  Draft   │──│  Review  │───-┘ (if needs revision)
   │ chapter  │  │ chapter  │  │ chapter  │
   └──────────┘  └──────────┘  └──────────┘
                                   │
