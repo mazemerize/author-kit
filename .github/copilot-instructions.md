@@ -49,6 +49,7 @@ Use the prompt files in `.github/prompts/` to trigger structured workflows:
 - `authorkit.chapters` — Generate chapter task breakdown
 
 ### Chapter-Level Commands
+- `authorkit.chapter` — **Orchestrator**: assess chapter progress and route to the next step automatically
 - `authorkit.chapter.plan` — Plan a specific chapter
 - `authorkit.chapter.draft` — Write chapter prose
 - `authorkit.chapter.review` — Review a drafted chapter

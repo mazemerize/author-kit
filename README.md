@@ -109,7 +109,14 @@ Convert the outline into a chapter-level task list with status tracking.
 
 ### 8. Write chapter by chapter
 
-Iterate through each chapter:
+The simplest way to work through chapters is the orchestrator — it reads your progress and tells you what to do next:
+
+```
+/authorkit.chapter          # Auto-detect the next chapter and step
+/authorkit.chapter 3        # Check status of chapter 3 specifically
+```
+
+Or run each step individually:
 
 ```
 /authorkit.chapter.plan 1     # Plan chapter 1 (scenes, beats, arc)
@@ -218,6 +225,7 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
+| `/authorkit.chapter` | **Orchestrator** — assess chapter progress and route to the next step | Optional chapter number | Progress summary + recommended action |
 | `/authorkit.chapter.plan [N]` | Plan a specific chapter in detail (scenes, beats, connections) | Chapter number | `chapters/NN/plan.md`, status → `[P]` |
 | `/authorkit.chapter.draft [N]` | Write the actual chapter prose | Chapter number | `chapters/NN/draft.md`, status → `[D]` |
 | `/authorkit.chapter.review [N]` | Review a drafted chapter against plan, concept, and constitution | Chapter number | `chapters/NN/review.md`, status → `[X]` or `[R]` |
@@ -270,6 +278,8 @@ constitution ──> conceive ──> clarify ──> world.build ──> outlin
 - **Chapters** requires outline.md. Produces the chapter task list.
 
 ### Chapter Iteration (repeat per chapter)
+
+Use `/authorkit.chapter` to auto-detect the next step, or run each command individually:
 
 ```
 chapter.plan N ──> chapter.draft N ──> chapter.review N
@@ -586,6 +596,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
     ├── authorkit.clarify.md
     ├── authorkit.outline.md
     ├── authorkit.chapters.md
+    ├── authorkit.chapter.md
     ├── authorkit.chapter.plan.md
     ├── authorkit.chapter.draft.md
     ├── authorkit.chapter.review.md
@@ -610,6 +621,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
     ├── authorkit.clarify.prompt.md
     ├── authorkit.outline.prompt.md
     ├── authorkit.chapters.prompt.md
+    ├── authorkit.chapter.prompt.md
     ├── authorkit.chapter.plan.prompt.md
     ├── authorkit.chapter.draft.prompt.md
     ├── authorkit.chapter.review.prompt.md
