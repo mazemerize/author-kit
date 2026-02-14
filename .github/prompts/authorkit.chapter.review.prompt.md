@@ -88,6 +88,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - Are there any contradictions with earlier chapters?
    - Is the voice/energy level consistent across chapters?
    - Are ongoing threads properly continued?
+   - **Backstory verification**: For every factual claim this chapter makes about events from prior chapters (flashbacks, references, "he had done X in CH03"), grep the actual draft text of that chapter and verify the claim is accurate. Do not trust the plan or outline — verify against the drafted prose. Flag any claim that contradicts what was actually written. This is especially important for details about how characters arrived, what they said, and who instructed whom.
 
    ### F. Theme Integration
    - Are the book's themes present in this chapter (where they should be)?

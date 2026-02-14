@@ -44,9 +44,19 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - If chapter status is already `[P]`, `[D]`, `[R]`, or `[X]`: warn user that a plan already exists and ask whether to overwrite or skip
    - If previous chapters are not yet drafted and this chapter depends on them: warn but allow proceeding
 
-5. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists (create if needed).
+5. **Reconcile outline against drafted chapters** (critical for mid-book consistency):
+   - Read this chapter's outline entry. Identify every factual claim it makes about events from **already-drafted** chapters (e.g., "arrived with instructions from X to...", "after the argument in CH03...").
+   - For each such claim, grep the actual `chapters/NN/draft.md` text of the referenced chapter to verify the claim matches what was written.
+   - **Drafted chapters are canonical.** If the outline says X happened but the draft says Y, the draft is correct and the outline is stale.
+   - If mismatches are found:
+     - Use the draft's version in the plan, not the outline's.
+     - Note the discrepancy in the plan under a "Reconciliation Notes" section.
+     - After the plan is written, correct the stale outline entry to match the draft.
+   - This step prevents upstream planning documents from introducing continuity errors into new chapters.
 
-6. **Generate chapter plan**: Load `templates/chapter-plan-template.md` and fill it with:
+6. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists (create if needed).
+
+7. **Generate chapter plan**: Load `templates/chapter-plan-template.md` and fill it with:
 
    a. **Chapter Purpose**: Extract from outline.md entry for this chapter
 
@@ -74,13 +84,15 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
    k. **Estimated Length**: Target word count based on the book's overall scope
 
-7. **Write plan** to `BOOK_DIR/chapters/NN/plan.md`.
+8. **Write plan** to `BOOK_DIR/chapters/NN/plan.md`.
 
-8. **Update chapter status**: In chapters.md, change this chapter's status from `[ ]` to `[P]`:
+9. **Update chapter status**: In chapters.md, change this chapter's status from `[ ]` to `[P]`:
    - Find the line matching `- [ ] CHNN`
    - Replace `- [ ]` with `- [P]`
 
-9. **Report completion**:
+10. **Fix stale outline entries**: If step 5 found any mismatches, update the relevant outline.md entries to match the drafted chapters. This keeps the outline accurate for future chapter planning.
+
+11. **Report completion**:
    - Path to chapter plan
    - Summary of scenes/sections planned
    - Key connections to other chapters

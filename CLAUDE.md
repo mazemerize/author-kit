@@ -61,6 +61,7 @@ Use the slash commands in `.claude/commands/` to trigger structured workflows:
 
 ### Quality & Analysis
 - `/authorkit.analyze` — Cross-chapter analysis (read-only)
+- `/authorkit.reconcile` — Check outline, concept, chapters.md, and World/ for drift against drafted chapters
 - `/authorkit.revise` — Apply revisions to chapters
 - `/authorkit.checklist` — Generate quality checklists
 

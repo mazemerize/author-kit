@@ -63,10 +63,16 @@ Execute the full chapter planning workflow (equivalent to `authorkit.chapter.pla
    - **Optional**: `World/` folder files relevant to this chapter's characters, locations, and systems
    - **Optional**: Previous chapter drafts/plans for continuity
 
-2. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists.
+2. **Reconcile outline against drafted chapters** (critical for mid-book consistency):
+   - Read this chapter's outline entry. Identify every factual claim about events from **already-drafted** chapters.
+   - For each such claim, grep the actual draft text of the referenced chapter to verify accuracy.
+   - **Drafted chapters are canonical.** If the outline says X but the draft says Y, the draft is correct.
+   - Use the draft's version in the plan. Note discrepancies and correct the outline entry after planning.
 
-3. **Generate chapter plan** at `BOOK_DIR/chapters/NN/plan.md` using `.authorkit/templates/chapter-plan-template.md`:
-   - Chapter purpose (from outline.md)
+3. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists.
+
+4. **Generate chapter plan** at `BOOK_DIR/chapters/NN/plan.md` using `.authorkit/templates/chapter-plan-template.md`:
+   - Chapter purpose (from outline.md, reconciled against drafts)
    - Context (previous chapter ending, this chapter's goals, next chapter needs)
    - Scene/section breakdown with settings, beats, emotional tone
    - Emotional arc / argument flow
@@ -75,9 +81,11 @@ Execute the full chapter planning workflow (equivalent to `authorkit.chapter.pla
    - Opening hook and closing beat
    - Voice/style notes and target word count
 
-4. **Update status** in chapters.md: `[ ]` → `[P]`
+5. **Update status** in chapters.md: `[ ]` → `[P]`
 
-5. **Brief report**: "Chapter [NN] planned. [X] scenes/sections. Proceeding to draft."
+6. **Fix stale outline entries**: If step 2 found mismatches, update the outline.md entries to match drafted chapters.
+
+7. **Brief report**: "Chapter [NN] planned. [X] scenes/sections. Proceeding to draft."
 
 → Continue to Phase 2.
 
@@ -131,7 +139,7 @@ Execute the full chapter review workflow (equivalent to `authorkit.chapter.revie
    **C. Craft Quality** — pacing, show vs tell, dialogue, description, transitions, opening, closing
    **D. Character/Content Consistency** — character behavior, knowledge boundaries, narrative necessity
    **D1. World Consistency** (if World/ exists) — characters, places, headcount & logistics, organizations, systems, history vs World/ entries; flag new entities
-   **E. Continuity** — flow from previous chapter, contradictions, thread continuation
+   **E. Continuity** — flow from previous chapter, contradictions, thread continuation. **Critically: for every backstory claim about prior chapters, grep the actual draft text to verify — do not trust the outline or plan alone.**
    **F. Theme Integration** — themes present, organic integration
 
 3. **Generate review** at `BOOK_DIR/chapters/NN/review.md` with dimension scores and issue classifications (Critical/Important/Minor).
