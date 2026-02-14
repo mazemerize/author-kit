@@ -26,7 +26,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    - **Insert**: "Insert a new chapter between CH03 and CH04"
    - **Remove**: "Remove CH08" (archives, doesn't delete)
 
-3. **Assess current state**: Read chapters.md, identify existing files, scan World/ for tags, scan plans/drafts for cross-references.
+3. **Assess current state**: Read chapters.md, identify existing files, scan World/ for tags (if `World/_index.md` exists, use the Entity Registry `Chapters` column to find files with affected chapter tags instead of scanning all files), scan plans/drafts for cross-references.
 
 4. **Generate the reorder plan**: Show current structure, proposed structure, file operations, cross-reference updates, and risk assessment. Wait for user approval.
 
@@ -37,6 +37,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    - Phase 4: Update chapters.md with new numbering
    - Phase 5: Update cross-references (outline.md, World/ tags, plans, parked decisions)
    - Phase 6: Update outline.md structure
+   - Phase 7: Update World/ file YAML frontmatter (`chapters` field) for renumbered tags, then run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index
 
 6. **Post-reorder validation**: Verify directories, chapters.md consistency, World/ tag integrity, cross-references.
 

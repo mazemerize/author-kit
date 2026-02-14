@@ -44,6 +44,7 @@ Unlike `authorkit.analyze` (which requires multiple drafted chapters and covers 
    - **Optional**: concept.md (for checking CONCEPT entries against the original concept)
    - **Optional**: `.authorkit/memory/constitution.md` (for naming convention checks)
    - **World+manuscript mode**: All available chapter drafts at `BOOK_DIR/chapters/NN/draft.md`
+   - **If `World/_index.md` exists**: Read it as a starting point. Use the Entity Registry for quick entity enumeration, the Alias Lookup for name resolution, and the Chapter Manifest to identify which entities appear in which chapters. This avoids reading every World/ file upfront.
 
 6. **Execute verification checks**:
 
@@ -96,6 +97,7 @@ Unlike `authorkit.analyze` (which requires multiple drafted chapters and covers 
    - Every `(CHxx-rev)` tag should reference a chapter that has been revised
    - Identify `(CONCEPT)` entries that are contradicted by later `(CHxx)` entries in the same file — flag as potentially stale CONCEPT
    - Identify entities whose World/ files have no chapter tags despite appearing in drafted chapters (world.update may not have been run)
+   - Use the Entity Registry `chapters` column cross-referenced against the file system (check that `chapters/NN/draft.md` exists for each CHxx tag).
 
    ### G. Staleness Detection (World+manuscript mode only)
 
@@ -103,6 +105,7 @@ Unlike `authorkit.analyze` (which requires multiple drafted chapters and covers 
    - Flag entities heavily referenced in early chapters but absent from later chapters (potential forgotten threads)
    - Flag entities with only `(CONCEPT)` tags that appear in chapters but whose World/ files were never updated with chapter tags
    - Flag World/ files that have not been updated since the first few chapters despite many subsequent chapters being drafted
+   - Use the Chapter Manifest to identify entities absent from later chapters.
 
 7. **Severity assignment**:
 

@@ -52,7 +52,8 @@ Abort with an error message if required files are missing.
 - Character profiles, speech patterns, relationships
 
 **From World/ folder (if exists):**
-- All entity files (Characters/, Places/, Organizations/, History/, Systems/, Notes/)
+- **If `World/_index.md` exists**: Read it first. Use the Chapter Manifest to load entity files per chapter (targeted loading) rather than all files at once. Use the Alias Lookup for name resolution when cross-referencing chapter text against World/ entities.
+- If no index: load all entity files (Characters/, Places/, Organizations/, History/, Systems/, Notes/)
 - Pay attention to chapter tags `(CHxx)` and `(CONCEPT)` for evolution tracking
 
 **From all drafted chapters (chapters/NN/draft.md):**

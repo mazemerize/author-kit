@@ -50,6 +50,8 @@ Unlike `/authorkit.analyze` (which requires multiple drafted chapters and covers
    - Report the mode to the user before proceeding.
 
 5. **Load context**:
+   - **If `World/_index.md` exists**: Read it first. Use the Entity Registry for quick entity enumeration, the Alias Lookup for name resolution, and the Chapter Manifest to identify which entities appear in which chapters. This avoids reading every World/ file upfront — load only the files within scope plus their cross-referenced files (identified via Entity Registry file paths).
+   - **If no index**: Fall back to loading all World/ files within scope directly.
    - **Required**: All World/ files within the specified scope
    - **Required**: World/ files outside scope that are cross-referenced by in-scope files (for reciprocal checks)
    - **Optional**: concept.md (for checking CONCEPT entries against the original concept)
@@ -103,15 +105,15 @@ Unlike `/authorkit.analyze` (which requires multiple drafted chapters and covers
 
    ### F. Chapter Tag Integrity (World+manuscript mode only)
 
-   - Every `(CHxx)` tag should reference a chapter that actually exists as `chapters/xx/draft.md`
+   - Every `(CHxx)` tag should reference a chapter that actually exists as `chapters/xx/draft.md`. If `World/_index.md` exists, use the Entity Registry `Chapters` column to enumerate all chapter tags across all entities, then cross-reference against the file system.
    - Every `(CHxx-rev)` tag should reference a chapter that has been revised
    - Identify `(CONCEPT)` entries that are contradicted by later `(CHxx)` entries in the same file — flag as potentially stale CONCEPT
    - Identify entities whose World/ files have no chapter tags despite appearing in drafted chapters (world.update may not have been run)
 
    ### G. Staleness Detection (World+manuscript mode only)
 
-   - For each World/ entity in scope: scan chapter text for mentions of that entity (by name, title, or key descriptors)
-   - Flag entities heavily referenced in early chapters but absent from later chapters (potential forgotten threads)
+   - For each World/ entity in scope: scan chapter text for mentions of that entity (by name, title, or key descriptors). If `World/_index.md` exists, use the Alias Lookup to search for all name variants.
+   - Flag entities heavily referenced in early chapters but absent from later chapters (potential forgotten threads). If `World/_index.md` exists, use the Chapter Manifest to compare entity presence across early vs. late chapters.
    - Flag entities with only `(CONCEPT)` tags that appear in chapters but whose World/ files were never updated with chapter tags
    - Flag World/ files that have not been updated since the first few chapters despite many subsequent chapters being drafted
 

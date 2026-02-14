@@ -26,6 +26,8 @@ This is more specific than `authorkit.pivot` (which handles broad direction chan
    - Accept formats: explicit ("Elena was 42 -> Elena is 38"), natural language ("Change Marcus from a soldier to a spy"), complex ("The magic system costs blood -> The magic system costs memories")
 
 3. **Comprehensive search** across all artifacts:
+   - **If `World/_index.md` exists**: Read it first. Use the Alias Lookup table to find ALL name variants for the entity being retconned. Use the Entity Registry `Chapters` column to identify exactly which chapter files reference this entity — search only those files instead of all chapters. Read the entity's frontmatter `relationships` field to identify connected entities for indirect reference searching.
+   - **If no index**: Fall back to searching all World/ files and chapters by name.
    - **Direct references**: Exact mentions of the old fact
    - **Indirect references**: Implications, consequences, reactions based on the old fact
    - **Derivative details**: Things that logically follow from the old fact
@@ -44,6 +46,7 @@ This is more specific than `authorkit.pivot` (which handles broad direction chan
    - Update concept, outline, characters, chapter plans
    - Update chapter drafts while preserving voice and style
    - Reset modified chapter statuses to `[D]` for re-review
+   - After modifying World/ files, update their YAML frontmatter: add `RETCON-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
 
 7. **Post-retcon consistency check**: Scan for remaining old references and new contradictions.
 

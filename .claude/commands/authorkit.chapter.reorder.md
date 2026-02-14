@@ -45,7 +45,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    a. Read chapters.md for the full chapter list and statuses.
    b. Identify which chapters have existing files (plan.md, draft.md, review.md).
    c. Read outline.md for chapter descriptions and connections.
-   d. Scan World/ files for `(CHxx)` tags that reference affected chapters.
+   d. Scan World/ files for `(CHxx)` tags that reference affected chapters. **If `World/_index.md` exists**: Use the Entity Registry `Chapters` column to find all files with tags for the affected chapter numbers — no need to scan every World/ file.
    e. Scan chapter plans and drafts for cross-references to other chapters.
 
 4. **Generate the reorder plan**:
@@ -154,6 +154,10 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    f. **Phase 6 — Update outline.md**:
       - Reorder chapter entries to match new structure
       - Update arc and theme maps if chapters moved between parts/acts
+
+   g. **Phase 7 — Update World/ frontmatter and rebuild index**:
+      - For every World/ file whose `(CHxx)` tags were renumbered: update the YAML frontmatter `chapters` field to reflect the new chapter numbers. Update `last_updated`.
+      - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `World/_index.md`.
 
 7. **Post-reorder validation**:
    - Verify all chapter directories exist at their new locations

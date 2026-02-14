@@ -28,7 +28,8 @@ After drafting or revising chapters, extract new world-building details and orga
    - If no chapter specified: ERROR "Please specify chapter number(s) (e.g., authorkit.world.update 3)"
 
 3. **Determine mode** for each chapter:
-   - Check if World/ files already contain entries tagged `(CHxx)` for this chapter number
+   - If `World/_index.md` exists, read it. Check the Entity Registry `Chapters` column for `CHxx` matching this chapter number — this tells you which entities already have tags for this chapter without scanning every file.
+   - If `_index.md` does not exist, fall back to scanning World/ files for `(CHxx)` tags.
    - **If no existing tags for this chapter**: Fresh extraction mode
    - **If existing tags found**: Revision reconciliation mode
    - Report the mode to the user before proceeding
@@ -51,9 +52,9 @@ After drafting or revising chapters, extract new world-building details and orga
       - **Systems**: Rules revealed, limitations discovered, new applications, exceptions
 
    c. For each detail found:
-      - Check if a World/ file already exists for this entity
+      - Check if a World/ file already exists for this entity. If `World/_index.md` exists, use the Alias Lookup table to resolve the entity name (handles variants like "Dr. Voss" → `char-elena-voss`), then get the file path from the Entity Registry. If no index, search World/ files directly.
       - **If exists**: Add the new detail to the appropriate section, tagged `(CHxx)`
-      - **If new entity**: Create a new file in the appropriate category folder, with all details tagged `(CHxx)`
+      - **If new entity**: Create a new file in the appropriate category folder, with all details tagged `(CHxx)`. Include YAML frontmatter following the schema in `.authorkit/templates/world-entity-frontmatter.md`.
 
    d. Follow the file format established by `authorkit.world.build`:
       - Characters: Identity, Appearance, Personality, Relationships, Background, Arc
@@ -109,7 +110,11 @@ After drafting or revising chapters, extract new world-building details and orga
    - Flag if any details from this chapter conflict with details from other chapters
    - These are not automatically fixed — just flagged for the user
 
-8. **Report completion**:
+8. **Update frontmatter and rebuild index**:
+   - For every World/ file that was created or modified, update its YAML frontmatter: add the new chapter tag to `chapters`, update `last_updated`, add any new `relationships` or `aliases` discovered.
+   - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `World/_index.md`.
+
+9. **Report completion**:
    - Mode used (fresh extraction or revision reconciliation)
    - World/ files created or updated (list with paths)
    - New entities discovered

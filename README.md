@@ -240,6 +240,7 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 | `/authorkit.world.build` | Build the book's world — establish rules, geography, characters, history, and systems | Optional focus areas | `World/` folder with entity files |
 | `/authorkit.world.update [N]` | Extract world-building details from drafted chapters into the `World/` folder | Chapter number(s) | Updated `World/` files, impact report |
 | `/authorkit.world.verify` | Verify `World/` files for internal consistency and manuscript alignment | Optional scope | Verification report (read-only) |
+| `/authorkit.world.index` | Build or rebuild the `World/_index.md` entity index for fast lookups | Optional: `add-frontmatter` | `World/_index.md`, stats |
 
 ### Quality & Analysis
 
@@ -421,12 +422,13 @@ As your book grows, keeping track of world details becomes harder. Was the taver
 
 ```
 World/
-├── Characters/     # One file per major character (identity, appearance, relationships, arc)
-├── Organizations/  # Factions, guilds, governments, companies
-├── Places/         # Locations with descriptions, significance, geography
-├── History/        # Past events, backstory, timeline
-├── Systems/        # Magic systems, technology, social structures, frameworks
-└── Notes/          # Miscellaneous world notes
+├── _index.md           # Auto-generated entity index (Entity Registry, Alias Lookup, Chapter Manifest)
+├── Characters/         # One file per major character (identity, appearance, relationships, arc)
+├── Organizations/      # Factions, guilds, governments, companies
+├── Places/             # Locations with descriptions, significance, geography
+├── History/            # Past events, backstory, timeline
+├── Systems/            # Magic systems, technology, social structures, frameworks
+└── Notes/              # Miscellaneous world notes
 ```
 
 Only relevant categories are created — a contemporary novel won't need a `Systems/` folder for magic.
@@ -483,6 +485,46 @@ World/ files track how details evolve across the manuscript:
 | `(CHxx-rev)` | Updated when chapter xx was revised |
 | `(PIVOT-YYYY-MM-DD)` | Changed as part of a direction pivot |
 | `(RETCON-YYYY-MM-DD)` | Changed as part of a retroactive fact change |
+
+### Entity index
+
+As a book's world grows, finding the right information becomes increasingly expensive — every World/-touching command would need to scan all files. Author Kit solves this with a **PowerShell-generated central index** at `World/_index.md`, which costs zero LLM tokens to maintain.
+
+Every World/ entity file includes **YAML frontmatter** with structured metadata:
+
+```yaml
+---
+id: char-elena-voss
+type: character
+name: Elena Voss
+aliases: [Elena, Dr. Voss, the Doctor, Voss]
+chapters: [CONCEPT, CH01, CH03, CH05]
+first_appearance: CH01
+relationships:
+  - target: char-marcus-reid
+    type: mentor-of
+    since: CONCEPT
+tags: [protagonist, magic-user]
+last_updated: 2025-02-14
+---
+```
+
+The index (`World/_index.md`) contains three lookup tables:
+
+| Section | Purpose | Example Query |
+|---------|---------|---------------|
+| **Entity Registry** | All entities with their IDs, names, file paths, and chapter tags | "Where is Elena's file?" |
+| **Alias Lookup** | Maps every name variant to its entity (flags ambiguous aliases) | "Who is 'the Doctor'?" |
+| **Chapter Manifest** | Inverted index: which entities appear in which chapter | "What World/ files do I need for CH05?" |
+
+**Rebuilding the index:**
+
+```
+/authorkit.world.index                  # Full rebuild
+/authorkit.world.index add-frontmatter  # Add YAML frontmatter to files that lack it
+```
+
+The index is rebuilt automatically by `world.build`, `world.update`, `retcon`, `pivot`, and `chapter.reorder`. You only need to run `world.index` manually if you've edited World/ files by hand.
 
 ---
 
@@ -587,14 +629,16 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 │       ├── common.ps1               # Shared functions
 │       ├── create-new-book.ps1      # Create book directory + branch
 │       ├── setup-outline.ps1        # Initialize outline artifacts
-│       └── check-prerequisites.ps1  # Validate required files
+│       ├── check-prerequisites.ps1  # Validate required files
+│       └── build-world-index.ps1    # Build World/_index.md entity index
 └── templates/
     ├── concept-template.md
     ├── outline-template.md
     ├── chapters-template.md
     ├── chapter-plan-template.md
     ├── checklist-template.md
-    └── agent-file-template.md
+    ├── agent-file-template.md
+    └── world-entity-frontmatter.md  # YAML frontmatter schema for World/ files
 
 .claude/                                 # Claude Code commands
 └── commands/
@@ -615,6 +659,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
     ├── authorkit.world.build.md
     ├── authorkit.world.update.md
     ├── authorkit.world.verify.md
+    ├── authorkit.world.index.md
     ├── authorkit.pivot.md
     ├── authorkit.retcon.md
     ├── authorkit.park.md
@@ -641,6 +686,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
     ├── authorkit.world.build.prompt.md
     ├── authorkit.world.update.prompt.md
     ├── authorkit.world.verify.prompt.md
+    ├── authorkit.world.index.prompt.md
     ├── authorkit.pivot.prompt.md
     ├── authorkit.retcon.prompt.md
     ├── authorkit.park.prompt.md
@@ -665,7 +711,8 @@ books/
     ├── pivots/                      # Pivot and retcon logs
     ├── snapshots/                   # State bookmarks with narrative context
     ├── World/                       # World-building reference files
-    │   ├── Characters/             # Character profiles
+    │   ├── _index.md               # Auto-generated entity index
+    │   ├── Characters/             # Character profiles (with YAML frontmatter)
     │   ├── Organizations/          # Factions, groups, institutions
     │   ├── Places/                 # Locations and geography
     │   ├── History/                # Past events and timeline

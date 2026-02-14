@@ -38,7 +38,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: concept.md (voice, tone, overall themes)
    - **Required**: `/memory/constitution.md` (writing principles - this is your style guide)
    - **Recommended**: characters.md (character voices, speech patterns, physical descriptions)
-   - **Recommended**: `World/` folder files for characters and locations appearing in this chapter (ensures setting/character detail consistency with established world)
+   - **Recommended**: `World/` folder files for characters and locations appearing in this chapter (ensures setting/character detail consistency with established world). **If `World/_index.md` exists**: Read it. Use the Chapter Manifest to find entities from the previous chapter. Resolve character/location names from the chapter plan via the Alias Lookup. Load only the World/ files identified by these lookups, rather than all World/ files.
    - **Recommended**: Previous chapter draft `chapters/NN-1/draft.md` (for continuity of voice, scene transitions, and ongoing threads)
    - **Optional**: outline.md (overall structure context)
    - **Optional**: research.md (accuracy details)

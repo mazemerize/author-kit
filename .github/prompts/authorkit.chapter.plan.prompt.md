@@ -26,7 +26,8 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: chapters.md (chapter status, dependencies)
    - **Recommended**: characters.md (character profiles for this chapter)
    - **Optional**: research.md (relevant research notes)
-   - **Optional**: `.authorkit/memory/constitution.md` (writing principles)
+   - **Optional**: `/memory/constitution.md` (writing principles)
+   - **Optional**: `World/` folder files relevant to this chapter's characters, locations, and systems (ensures world consistency). **If `World/_index.md` exists**: Read it. Use the Chapter Manifest to find entities from the previous chapter (carry-over context). Resolve entity names mentioned in the outline entry for this chapter via the Alias Lookup. Load only the World/ files identified by these lookups, rather than all World/ files.
    - **Optional**: Previous chapter drafts in `chapters/NN-1/draft.md` (for continuity)
    - **Optional**: Previous chapter plans in `chapters/NN-1/plan.md` (for context)
 

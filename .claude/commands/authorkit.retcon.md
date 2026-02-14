@@ -45,6 +45,9 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
 
 3. **Comprehensive search** across all artifacts:
 
+   - **If `World/_index.md` exists**: Read it first. Use the Alias Lookup table to find ALL name variants for the entity being retconned. Use the Entity Registry `Chapters` column to identify exactly which chapter files reference this entity — search only those files instead of all chapters. Read the entity's frontmatter `relationships` field to identify connected entities for indirect reference searching.
+   - **If no index**: Fall back to searching all World/ files and chapters by name.
+
    For the old fact, search for:
    - **Direct references**: Exact mentions of the old fact
    - **Indirect references**: Implications, consequences, or reactions based on the old fact
@@ -124,6 +127,8 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
       - Do NOT reset to `[P]` unless the chapter's structure changed
 
    c. Update chapters.md with new statuses.
+
+   d. After modifying World/ files, update their YAML frontmatter: add `RETCON-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
 
 7. **Post-retcon consistency check**:
 

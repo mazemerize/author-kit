@@ -52,7 +52,7 @@ This is different from `/authorkit.revise` (which fixes issues found by review/a
    b. **outline.md**: Which chapter entries, arcs, and thematic maps are affected?
    c. **chapters.md**: Which chapter summaries reference the changing elements?
    d. **characters.md**: Which profiles need updating?
-   e. **World/ files**: Which entity files reference the changing elements? (Search across all categories)
+   e. **World/ files**: Which entity files reference the changing elements? **If `World/_index.md` exists**: Use the Alias Lookup to find all name variants for the affected entities. Read their frontmatter `relationships` fields to identify connected entities. Use the Entity Registry to get file paths. Search only the identified files, rather than all World/ files.
    f. **Chapter plans** (`chapters/NN/plan.md`): Which plans reference the changing elements?
    g. **Chapter drafts** (`chapters/NN/draft.md`): Which drafted chapters contain the changing elements?
    h. **Chapter reviews** (`chapters/NN/review.md`): Which reviews reference the changing elements?
@@ -119,7 +119,7 @@ This is different from `/authorkit.revise` (which fixes issues found by review/a
 
    d. **Update characters.md**: Modify affected character profiles.
 
-   e. **Update World/ files**: Modify affected entity files. Tag changes with `(PIVOT-[DATE])` to distinguish from chapter-driven updates. Add cross-references as needed.
+   e. **Update World/ files**: Modify affected entity files. Tag changes with `(PIVOT-[DATE])` to distinguish from chapter-driven updates. Add cross-references as needed. After modifying World/ files, update their YAML frontmatter: add `PIVOT-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
 
    f. **Update chapter plans**: Modify affected plans. Reset chapter status to `[P]` if the plan changed significantly.
 

@@ -76,6 +76,7 @@ For each chapter entry that corresponds to a **not-yet-drafted** chapter:
 
 #### 2d. World/ Files
 
+- **If `World/_index.md` exists**: Read it. Use the Entity Registry `Chapters` column to identify entities tagged with `(CONCEPT)` that may need drift checks — these are the entities whose pre-writing assumptions may have been superseded by drafted chapters. Use the Chapter Manifest to find entities tagged for the in-scope chapters. Only read those specific World/ files, rather than all World/ files.
 - For each World/ file that references events from drafted chapters (tagged with `(CHxx)`):
   - Verify the tagged claim against the draft.
 - For each World/ file that references events from concept/outline only (tagged `(CONCEPT)`):

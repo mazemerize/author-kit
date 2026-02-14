@@ -36,6 +36,8 @@ At any point during steps 5-12, mid-process commands can be used to change direc
 - The constitution is the authoritative style guide — all writing must comply with it
 - Use absolute paths when working with files
 - PowerShell scripts in `.authorkit/scripts/powershell/` handle book setup and prerequisite validation
+- World/ entity files use YAML frontmatter for structured metadata (`id`, `type`, `name`, `aliases`, `chapters`, `relationships`). See `.authorkit/templates/world-entity-frontmatter.md` for the schema.
+- `World/_index.md` is a PowerShell-generated index (Entity Registry, Alias Lookup, Chapter Manifest). Rebuild with `/authorkit.world.index` after modifying World/ files.
 
 ## Available Commands
 
@@ -58,6 +60,7 @@ Use the slash commands in `.claude/commands/` to trigger structured workflows:
 - `/authorkit.world.build` — Build the book's world (rules, geography, characters, history, systems)
 - `/authorkit.world.update` — Extract world details from drafted chapters into World/ folder
 - `/authorkit.world.verify` — Verify World/ files for consistency and manuscript alignment
+- `/authorkit.world.index` — Build/rebuild the World/ entity index (`_index.md`) for fast lookups
 
 ### Quality & Analysis
 - `/authorkit.analyze` — Cross-chapter analysis (read-only)

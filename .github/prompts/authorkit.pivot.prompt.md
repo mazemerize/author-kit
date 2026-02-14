@@ -38,7 +38,7 @@ This is different from `authorkit.revise` (which fixes issues found by review/an
    b. **outline.md**: Which chapter entries, arcs, and thematic maps are affected?
    c. **chapters.md**: Which chapter summaries reference the changing elements?
    d. **characters.md**: Which profiles need updating?
-   e. **World/ files**: Which entity files reference the changing elements?
+   e. **World/ files**: Which entity files reference the changing elements? **If `World/_index.md` exists**: Use the Alias Lookup to find all name variants for the affected entities. Read their frontmatter `relationships` fields to identify connected entities. Use the Entity Registry to get file paths. Search only the identified files, rather than all World/ files.
    f. **Chapter plans** (`chapters/NN/plan.md`): Which plans reference the changing elements?
    g. **Chapter drafts** (`chapters/NN/draft.md`): Which drafted chapters contain the changing elements?
    h. **Chapter reviews** (`chapters/NN/review.md`): Which reviews reference the changing elements?
@@ -84,7 +84,7 @@ This is different from `authorkit.revise` (which fixes issues found by review/an
 
 6. **Execute the pivot** top-down (upstream artifacts first):
    - Update concept.md, outline.md, chapters.md, characters.md
-   - Update World/ files (tag changes with `(PIVOT-YYYY-MM-DD)`)
+   - Update World/ files (tag changes with `(PIVOT-YYYY-MM-DD)`). After modifying World/ files, update their YAML frontmatter: add `PIVOT-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
    - Update chapter plans and drafts (minor: targeted edits; major: reset to `[P]`)
    - Reset chapter statuses as appropriate
 
