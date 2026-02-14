@@ -190,6 +190,8 @@ The diagram below shows the complete Author Kit workflow, including the primary 
   │                                                             │
   │   Analyze ──> Revise ──> Analyze (repeat until clean)       │
   │                                                             │
+  │   Reconcile ──> Fix drift ──> Reconcile                     │
+  │                                                             │
   │   World Verify ──> World Build (fix) ──> World Verify       │
   │                                                             │
   │   Checklist ──> Manual review                               │
@@ -244,6 +246,7 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `/authorkit.analyze` | Cross-chapter consistency and quality analysis (read-only) | Optional context | Analysis report |
+| `/authorkit.reconcile` | Check outline, concept, chapters.md, and World/ for drift against drafted chapters | Optional scope | Drift report, optional fixes |
 | `/authorkit.revise` | Apply revisions to specific chapters based on feedback | Chapter(s) and issues | Updated drafts, ripple effect report |
 | `/authorkit.checklist` | Generate custom quality checklists (craft, continuity, pacing, etc.) | Checklist type | `checklists/[type].md` |
 
@@ -302,10 +305,13 @@ chapter.plan N ──> chapter.draft N ──> chapter.review N
 ```
 analyze ──> revise ──> chapter.review ──> analyze (repeat)
    │
-   └──> world.verify ──> world.build (fix) ──> world.verify
+   ├──> world.verify ──> world.build (fix) ──> world.verify
+   │
+   └──> reconcile ──> fix drift ──> reconcile (repeat)
 ```
 
 - **Analyze** is read-only. It identifies issues across all drafted chapters.
+- **Reconcile** is read-first. It checks upstream documents (outline, concept, chapters.md, World/) for drift against drafted chapters, then optionally fixes stale entries.
 - **Revise** applies fixes. It may recommend re-reviewing affected chapters.
 - **World Verify** is read-only. It checks World/ consistency.
 - Run analyze → revise → analyze until critical issues reach zero.
@@ -563,6 +569,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 | Save your current state before a big change | `/authorkit.snapshot` |
 | Try something without committing | `/authorkit.whatif` |
 | Move, split, or merge chapters | `/authorkit.chapter.reorder` |
+| Check if outline/concept drifted from drafts | `/authorkit.reconcile` |
 | Fix issues found by review or analysis | `/authorkit.revise` |
 
 ---
@@ -602,6 +609,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
     ├── authorkit.chapter.review.md
     ├── authorkit.chapter.reorder.md
     ├── authorkit.analyze.md
+    ├── authorkit.reconcile.md
     ├── authorkit.revise.md
     ├── authorkit.checklist.md
     ├── authorkit.world.build.md
@@ -627,6 +635,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
     ├── authorkit.chapter.review.prompt.md
     ├── authorkit.chapter.reorder.prompt.md
     ├── authorkit.analyze.prompt.md
+    ├── authorkit.reconcile.prompt.md
     ├── authorkit.revise.prompt.md
     ├── authorkit.checklist.prompt.md
     ├── authorkit.world.build.prompt.md
