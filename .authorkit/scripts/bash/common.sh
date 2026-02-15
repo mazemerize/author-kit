@@ -1,6 +1,12 @@
 ﻿#!/usr/bin/env bash
 # Common shell functions for Author Kit
 
+# Canonical book directory names (lowercase).
+AUTHORKIT_WORLD_DIR="world"
+AUTHORKIT_CHAPTERS_DIR="chapters"
+AUTHORKIT_CHECKLISTS_DIR="checklists"
+AUTHORKIT_DIST_DIR="dist"
+
 get_repo_root() {
   if git_root=$(git rev-parse --show-toplevel 2>/dev/null); then
     echo "$git_root"
@@ -123,7 +129,10 @@ OUTLINE='$book_dir/outline.md'
 CHAPTERS='$book_dir/chapters.md'
 RESEARCH='$book_dir/research.md'
 CHARACTERS='$book_dir/characters.md'
-CHAPTERS_DIR='$book_dir/chapters'
+WORLD_DIR='$book_dir/$AUTHORKIT_WORLD_DIR'
+CHAPTERS_DIR='$book_dir/$AUTHORKIT_CHAPTERS_DIR'
+CHECKLISTS_DIR='$book_dir/$AUTHORKIT_CHECKLISTS_DIR'
+DIST_DIR='$book_dir/$AUTHORKIT_DIST_DIR'
 EOF
 }
 

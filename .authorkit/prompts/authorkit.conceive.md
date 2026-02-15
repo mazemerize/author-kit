@@ -120,7 +120,7 @@ Given that book description, do this:
       - [ ] Premise is compelling and clear in one sentence
       - [ ] Genre and audience are well-defined
       - [ ] Themes are distinct and relevant to the premise
-      - [ ] Characters/subjects have clear roles and motivations
+      - [ ] characters/subjects have clear roles and motivations
       - [ ] Voice and tone are specific and consistent with genre
 
       ## Completeness

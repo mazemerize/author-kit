@@ -26,11 +26,17 @@ source "$SCRIPT_DIR/common.sh"
 eval "$(get_book_paths)"
 test_book_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 
-WORLD_DIR="$BOOK_DIR/World"
+WORLD_DIR="$BOOK_DIR/world"
+LEGACY_WORLD_DIR="$BOOK_DIR/World"
 INDEX_FILE="$WORLD_DIR/_index.md"
 
 if [[ ! -d "$WORLD_DIR" ]]; then
-  echo "ERROR: World/ directory not found at $WORLD_DIR"
+  if [[ -d "$LEGACY_WORLD_DIR" ]]; then
+    echo "ERROR: Legacy world directory casing detected at $LEGACY_WORLD_DIR"
+    echo "Rename it to lowercase 'world/' before running world commands."
+    exit 1
+  fi
+  echo "ERROR: world/ directory not found at $WORLD_DIR"
   echo "Run /authorkit.world.build first to create the world."
   exit 1
 fi
@@ -48,14 +54,14 @@ add_frontmatter = sys.argv[3].lower() == "true"
 json_mode = sys.argv[4].lower() == "true"
 book_dir = sys.argv[5]
 
-sub_dirs = ["Characters", "Places", "Organizations", "History", "Systems", "Notes"]
+sub_dirs = ["characters", "places", "organizations", "history", "systems", "notes"]
 type_map = {
-    "Characters": ("char-", "character"),
-    "Places": ("place-", "place"),
-    "Organizations": ("org-", "organization"),
-    "History": ("event-", "event"),
-    "Systems": ("sys-", "system"),
-    "Notes": ("note-", "note"),
+    "characters": ("char-", "character"),
+    "places": ("place-", "place"),
+    "organizations": ("org-", "organization"),
+    "history": ("event-", "event"),
+    "systems": ("sys-", "system"),
+    "notes": ("note-", "note"),
 }
 
 def kebab(s: str) -> str:

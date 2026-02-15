@@ -10,6 +10,8 @@ from rich.table import Table
 
 from .book_audio import generate_audiobook
 from .book_core import (
+    CHAPTERS_DIR_NAME,
+    DIST_DIR_NAME,
     discover_chapter_drafts,
     find_repo_root,
     parse_book_config,
@@ -56,9 +58,9 @@ def build(
 
     drafts = discover_chapter_drafts(book_dir)
     if not drafts:
-        raise typer.BadParameter(f"No draft chapters found in {book_dir / 'chapters'}")
+        raise typer.BadParameter(f"No draft chapters found in {book_dir / CHAPTERS_DIR_NAME}")
 
-    dist_dir = Path(output_dir).resolve() if output_dir else (book_dir / "dist")
+    dist_dir = Path(output_dir).resolve() if output_dir else (book_dir / DIST_DIR_NAME)
     dist_dir.mkdir(parents=True, exist_ok=True)
 
     manuscript_markdown = build_manuscript_markdown(config, drafts)
@@ -103,7 +105,7 @@ def audio(
     if not drafts:
         raise typer.BadParameter("No matching draft chapters found for audio generation.")
 
-    audio_dir = Path(output_dir).resolve() if output_dir else (book_dir / "dist" / "audio")
+    audio_dir = Path(output_dir).resolve() if output_dir else (book_dir / DIST_DIR_NAME / "audio")
 
     result = generate_audiobook(
         drafts=drafts,
@@ -139,7 +141,7 @@ def stats(
     if not drafts:
         raise typer.BadParameter("No draft chapters found for stats.")
 
-    resolved_audio_dir = Path(audio_dir).resolve() if audio_dir else (book_dir / "dist" / "audio")
+    resolved_audio_dir = Path(audio_dir).resolve() if audio_dir else (book_dir / DIST_DIR_NAME / "audio")
     stat_payload = collect_stats(drafts=drafts, config=config, audio_dir=resolved_audio_dir)
 
     rendered = output.lower().strip()

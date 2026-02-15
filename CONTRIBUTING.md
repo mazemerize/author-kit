@@ -34,6 +34,7 @@ Do not re-introduce duplicated prompt sources across agent folders in this repo.
 - Keep script behavior aligned across shell flavors (`.sh` and `.ps1`) when applicable.
 - Preserve backward-compatible CLI behavior unless the change explicitly updates docs and migration expectations.
 - Avoid destructive behavior in installer updates; managed files should be tracked through `.authorkit/install-manifest.json`.
+- Use lowercase directory names under `books/<book>/...` (`world/`, `chapters/`, `checklists/`, `dist/` and `world/<entity-subdirs>/`).
 
 ## Running Local Checks
 

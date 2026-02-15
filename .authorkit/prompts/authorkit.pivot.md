@@ -52,7 +52,7 @@ This is different from `/authorkit.revise` (which fixes issues found by review/a
    b. **outline.md**: Which chapter entries, arcs, and thematic maps are affected?
    c. **chapters.md**: Which chapter summaries reference the changing elements?
    d. **characters.md**: Which profiles need updating?
-   e. **World/ files**: Which entity files reference the changing elements? **If `World/_index.md` exists**: Use the Alias Lookup to find all name variants for the affected entities. Read their frontmatter `relationships` fields to identify connected entities. Use the Entity Registry to get file paths. Search only the identified files, rather than all World/ files.
+   e. **world/ files**: Which entity files reference the changing elements? **If `world/_index.md` exists**: Use the Alias Lookup to find all name variants for the affected entities. Read their frontmatter `relationships` fields to identify connected entities. Use the Entity Registry to get file paths. Search only the identified files, rather than all world/ files.
    f. **Chapter plans** (`chapters/NN/plan.md`): Which plans reference the changing elements?
    g. **Chapter drafts** (`chapters/NN/draft.md`): Which drafted chapters contain the changing elements?
    h. **Chapter reviews** (`chapters/NN/review.md`): Which reviews reference the changing elements?
@@ -81,7 +81,7 @@ This is different from `/authorkit.revise` (which fixes issues found by review/a
    | outline.md | [None/Minor/Major] | [What needs to change] |
    | chapters.md | [None/Minor/Major] | [What needs to change] |
    | characters.md | [None/Minor/Major] | [What needs to change] |
-   | World/ | [None/Minor/Major] | [N files affected: list] |
+   | world/ | [None/Minor/Major] | [N files affected: list] |
    | Chapter plans | [None/Minor/Major] | [N plans affected: list] |
    | Chapter drafts | [None/Minor/Major] | [N drafts affected: list] |
    | Constitution | [None/Conflict] | [Any conflicts] |
@@ -119,7 +119,7 @@ This is different from `/authorkit.revise` (which fixes issues found by review/a
 
    d. **Update characters.md**: Modify affected character profiles.
 
-   e. **Update World/ files**: Modify affected entity files. Tag changes with `(PIVOT-[DATE])` to distinguish from chapter-driven updates. Add cross-references as needed. After modifying World/ files, update their YAML frontmatter: add `PIVOT-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
+   e. **Update world/ files**: Modify affected entity files. Tag changes with `(PIVOT-[DATE])` to distinguish from chapter-driven updates. Add cross-references as needed. After modifying world/ files, update their YAML frontmatter: add `PIVOT-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
 
    f. **Update chapter plans**: Modify affected plans. Reset chapter status to `[P]` if the plan changed significantly.
 
@@ -179,7 +179,7 @@ This is different from `/authorkit.revise` (which fixes issues found by review/a
 - **Top-down propagation**: Always update upstream artifacts (concept, outline) before downstream ones (plans, drafts). This prevents cascading inconsistencies.
 - **Snapshot first for large pivots**: If the impact analysis shows 5+ artifacts affected, recommend creating a snapshot before proceeding.
 - **Preserve what works**: Don't rewrite sections unaffected by the pivot. Targeted edits over wholesale replacement.
-- **Tag changes**: Use `(PIVOT-YYYY-MM-DD)` tags in World/ files to distinguish pivot-driven changes from chapter-driven updates.
+- **Tag changes**: Use `(PIVOT-YYYY-MM-DD)` tags in world/ files to distinguish pivot-driven changes from chapter-driven updates.
 - **Flag, don't force**: For chapters with approved `[X]` status, flag them for user attention rather than silently resetting.
 - **Log everything**: The pivot log is the historical record. It should capture both what changed and what was deliberately left unchanged.
 - **Constitution check**: If the pivot conflicts with writing principles (e.g., changing POV mid-book), flag the conflict and suggest a constitution amendment.

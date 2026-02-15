@@ -232,7 +232,7 @@ Or run each step individually for more control:
 /authorkit.chapter.review 1   # Review against plan and constitution
 ```
 
-After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `World/` folder (see [World Maintenance](#world-maintenance)).
+After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
 
 ### 9. Analyze the full manuscript
 
@@ -244,7 +244,7 @@ After drafting several chapters (or all of them), run a cross-chapter analysis:
 
 This checks for continuity errors, plot holes, pacing problems, unresolved threads, and constitution violations across all drafted chapters.
 
-You can also run `/authorkit.world.verify` at any point to check the `World/` folder for internal consistency and alignment with the manuscript.
+You can also run `/authorkit.world.verify` at any point to check the `world/` folder for internal consistency and alignment with the manuscript.
 
 ### 10. Revise as needed
 
@@ -354,17 +354,17 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
-| `/authorkit.world.build` | Build the book's world — establish rules, geography, characters, history, and systems | Optional focus areas | `World/` folder with entity files |
-| `/authorkit.world.update [N]` | Extract world-building details from drafted chapters into the `World/` folder | Chapter number(s) | Updated `World/` files, impact report |
-| `/authorkit.world.verify` | Verify `World/` files for internal consistency and manuscript alignment | Optional scope | Verification report (read-only) |
-| `/authorkit.world.index` | Build or rebuild the `World/_index.md` entity index for fast lookups | Optional: `add-frontmatter` | `World/_index.md`, stats |
+| `/authorkit.world.build` | Build the book's world — establish rules, geography, characters, history, and systems | Optional focus areas | `world/` folder with entity files |
+| `/authorkit.world.update [N]` | Extract world-building details from drafted chapters into the `world/` folder | Chapter number(s) | Updated `world/` files, impact report |
+| `/authorkit.world.verify` | Verify `world/` files for internal consistency and manuscript alignment | Optional scope | Verification report (read-only) |
+| `/authorkit.world.index` | Build or rebuild the `world/_index.md` entity index for fast lookups | Optional: `add-frontmatter` | `world/_index.md`, stats |
 
 ### Quality & Analysis
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `/authorkit.analyze` | Cross-chapter consistency and quality analysis (read-only) | Optional context | Analysis report |
-| `/authorkit.reconcile` | Check outline, concept, chapters.md, and World/ for drift against drafted chapters | Optional scope | Drift report, optional fixes |
+| `/authorkit.reconcile` | Check outline, concept, chapters.md, and world/ for drift against drafted chapters | Optional scope | Drift report, optional fixes |
 | `/authorkit.revise` | Apply revisions to specific chapters based on feedback | Chapter(s) and issues | Updated drafts, ripple effect report |
 | `/authorkit.checklist` | Generate custom quality checklists (craft, continuity, pacing, etc.) | Checklist type | `checklists/[type].md` |
 
@@ -414,7 +414,7 @@ chapter.plan N ──> chapter.draft N ──> chapter.review N
 
 - **Plan** requires the outline and concept. Loads previous chapters for continuity.
 - **Draft** requires the plan. Follows the constitution as its style guide.
-- **Review** grades the draft against plan, constitution, characters, and World/ files.
+- **Review** grades the draft against plan, constitution, characters, and world/ files.
   - **PASS** → status becomes `[X]`. Run `world.update` to capture new world details, then move to the next chapter.
   - **NEEDS REVISION** → status becomes `[R]`. Re-plan with feedback, re-draft, re-review.
 
@@ -429,9 +429,9 @@ analyze ──> revise ──> chapter.review ──> analyze (repeat)
 ```
 
 - **Analyze** is read-only. It identifies issues across all drafted chapters.
-- **Reconcile** is read-first. It checks upstream documents (outline, concept, chapters.md, World/) for drift against drafted chapters, then optionally fixes stale entries.
+- **Reconcile** is read-first. It checks upstream documents (outline, concept, chapters.md, world/) for drift against drafted chapters, then optionally fixes stale entries.
 - **Revise** applies fixes. It may recommend re-reviewing affected chapters.
-- **World Verify** is read-only. It checks World/ consistency.
+- **World Verify** is read-only. It checks world/ consistency.
 - Run analyze → revise → analyze until critical issues reach zero.
 
 ### Mid-Process Commands (available anytime after outlining)
@@ -523,7 +523,7 @@ If you need to rearrange the chapter order, use `/authorkit.chapter.reorder`:
 /authorkit.chapter.reorder Remove CH08
 ```
 
-This handles all renumbering — file directories, chapters.md entries, outline references, World/ chapter tags, and cross-references in plans. Removed chapters are archived (never deleted).
+This handles all renumbering — file directories, chapters.md entries, outline references, world/ chapter tags, and cross-references in plans. Removed chapters are archived (never deleted).
 
 ---
 
@@ -533,22 +533,22 @@ Author Kit includes a dedicated world-building system that tracks every detail o
 
 ### Why?
 
-As your book grows, keeping track of world details becomes harder. Was the tavern called The Iron Flagon or The Iron Flask? Did Elena have green eyes in chapter 2 and blue eyes in chapter 9? World maintenance prevents these consistency problems by maintaining a structured `World/` folder alongside your chapters.
+As your book grows, keeping track of world details becomes harder. Was the tavern called The Iron Flagon or The Iron Flask? Did Elena have green eyes in chapter 2 and blue eyes in chapter 9? World maintenance prevents these consistency problems by maintaining a structured `world/` folder alongside your chapters.
 
-### The World/ Folder
+### The `world/` Folder
 
 ```
-World/
+world/
 ├── _index.md           # Auto-generated entity index (Entity Registry, Alias Lookup, Chapter Manifest)
-├── Characters/         # One file per major character (identity, appearance, relationships, arc)
-├── Organizations/      # Factions, guilds, governments, companies
-├── Places/             # Locations with descriptions, significance, geography
-├── History/            # Past events, backstory, timeline
-├── Systems/            # Magic systems, technology, social structures, frameworks
-└── Notes/              # Miscellaneous world notes
+├── characters/         # One file per major character (identity, appearance, relationships, arc)
+├── organizations/      # Factions, guilds, governments, companies
+├── places/             # Locations with descriptions, significance, geography
+├── history/            # Past events, backstory, timeline
+├── systems/            # Magic systems, technology, social structures, frameworks
+└── notes/              # Miscellaneous world notes
 ```
 
-Only relevant categories are created — a contemporary novel won't need a `Systems/` folder for magic.
+Only relevant categories are created — a contemporary novel won't need a `systems/` folder for magic.
 
 ### Workflow
 
@@ -575,8 +575,8 @@ New details are tagged with their source chapter (e.g., `(CH03)`). If a chapter 
 
 ```
 /authorkit.world.verify                  # Verify everything
-/authorkit.world.verify Characters/      # Verify just character files
-/authorkit.world.verify Systems/ Places/ # Verify specific categories
+/authorkit.world.verify characters/      # Verify just character files
+/authorkit.world.verify systems/ places/ # Verify specific categories
 ```
 
 This is a **read-only** diagnostic that checks for:
@@ -587,13 +587,13 @@ This is a **read-only** diagnostic that checks for:
 - **Geographic plausibility** — travel times, climate, and spatial relationships should make sense
 - **Timeline consistency** — causes precede effects, ages match historical events
 - **Chapter tag integrity** — every `(CHxx)` tag should reference an actual drafted chapter
-- **Staleness detection** — entities referenced in chapters but never updated in `World/`
+- **Staleness detection** — entities referenced in chapters but never updated in `world/`
 
 Issues are rated by severity (Critical, High, Medium, Low) with specific file paths and actionable recommendations.
 
 ### Evolution tags
 
-World/ files track how details evolve across the manuscript:
+world/ files track how details evolve across the manuscript:
 
 | Tag | Meaning |
 |-----|---------|
@@ -605,9 +605,9 @@ World/ files track how details evolve across the manuscript:
 
 ### Entity index
 
-As a book's world grows, finding the right information becomes increasingly expensive — every World/-touching command would need to scan all files. Author Kit solves this with a **PowerShell-generated central index** at `World/_index.md`, which costs zero LLM tokens to maintain.
+As a book's world grows, finding the right information becomes increasingly expensive — every world/-touching command would need to scan all files. Author Kit solves this with a **PowerShell-generated central index** at `world/_index.md`, which costs zero LLM tokens to maintain.
 
-Every World/ entity file includes **YAML frontmatter** with structured metadata:
+Every world/ entity file includes **YAML frontmatter** with structured metadata:
 
 ```yaml
 ---
@@ -626,13 +626,13 @@ last_updated: 2025-02-14
 ---
 ```
 
-The index (`World/_index.md`) contains three lookup tables:
+The index (`world/_index.md`) contains three lookup tables:
 
 | Section | Purpose | Example Query |
 |---------|---------|---------------|
 | **Entity Registry** | All entities with their IDs, names, file paths, and chapter tags | "Where is Elena's file?" |
 | **Alias Lookup** | Maps every name variant to its entity (flags ambiguous aliases) | "Who is 'the Doctor'?" |
-| **Chapter Manifest** | Inverted index: which entities appear in which chapter | "What World/ files do I need for CH05?" |
+| **Chapter Manifest** | Inverted index: which entities appear in which chapter | "What world/ files do I need for CH05?" |
 
 **Rebuilding the index:**
 
@@ -641,7 +641,7 @@ The index (`World/_index.md`) contains three lookup tables:
 /authorkit.world.index add-frontmatter  # Add YAML frontmatter to files that lack it
 ```
 
-The index is rebuilt automatically by `world.build`, `world.update`, `retcon`, `pivot`, and `chapter.reorder`. You only need to run `world.index` manually if you've edited World/ files by hand.
+The index is rebuilt automatically by `world.build`, `world.update`, `retcon`, `pivot`, and `chapter.reorder`. You only need to run `world.index` manually if you've edited world/ files by hand.
 
 ---
 
@@ -659,7 +659,7 @@ When your vision for the book changes — a character needs cutting, a subplot s
 /authorkit.pivot Change the ending so the protagonist fails
 ```
 
-Pivot performs an **impact analysis** across concept, outline, chapters.md, World/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made.
+Pivot performs an **impact analysis** across concept, outline, chapters.md, world/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made.
 
 Changes are logged in `pivots/YYYY-MM-DD-[description].md` for traceability.
 
@@ -795,14 +795,14 @@ books/
     |-- checklists/
     |-- pivots/
     |-- snapshots/
-    |-- World/
+    |-- world/
     |   |-- _index.md
-    |   |-- Characters/
-    |   |-- Organizations/
-    |   |-- Places/
-    |   |-- History/
-    |   |-- Systems/
-    |   `-- Notes/
+    |   |-- characters/
+    |   |-- organizations/
+    |   |-- places/
+    |   |-- history/
+    |   |-- systems/
+    |   `-- notes/
     `-- chapters/
         |-- 01/
         |   |-- plan.md

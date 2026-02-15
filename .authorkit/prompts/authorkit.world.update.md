@@ -1,5 +1,5 @@
 ﻿---
-description: Extract and organize world-building details from drafted chapters into the World/ folder.
+description: Extract and organize world-building details from drafted chapters into the world/ folder.
 handoffs:
   - label: Plan Next Chapter
     agent: authorkit.chapter.plan
@@ -24,9 +24,9 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Goal
 
-After drafting or revising chapters, extract new world-building details and organize them into the `World/` folder. This command operates in two modes:
+After drafting or revising chapters, extract new world-building details and organize them into the `world/` folder. This command operates in two modes:
 
-- **Fresh extraction** (after drafting a new chapter): Scan the chapter for new world details and create/update World/ entries.
+- **Fresh extraction** (after drafting a new chapter): Scan the chapter for new world details and create/update world/ entries.
 - **Revision reconciliation** (after revising an existing chapter): Re-scan the revised chapter, update/remove changed entries, and flag downstream impacts.
 
 ## Outline
@@ -39,15 +39,15 @@ After drafting or revising chapters, extract new world-building details and orga
    - If no chapter specified: ERROR "Please specify chapter number(s) (e.g., /authorkit.world.update 3)"
 
 3. **Determine mode** for each chapter:
-   - If `World/_index.md` exists, read it. Check the Entity Registry `Chapters` column for `CHxx` matching this chapter number — this tells you which entities already have tags for this chapter without scanning every file.
-   - If `_index.md` does not exist, fall back to scanning World/ files for `(CHxx)` tags.
+   - If `world/_index.md` exists, read it. Check the Entity Registry `Chapters` column for `CHxx` matching this chapter number — this tells you which entities already have tags for this chapter without scanning every file.
+   - If `_index.md` does not exist, fall back to scanning world/ files for `(CHxx)` tags.
    - **If no existing tags for this chapter**: Fresh extraction mode
    - **If existing tags found**: Revision reconciliation mode
    - Report the mode to the user before proceeding
 
 4. **Load context**:
    - **Required**: The specified chapter draft(s) at `BOOK_DIR/chapters/NN/draft.md`
-   - **Required**: Existing World/ folder and all files within (if exists)
+   - **Required**: Existing world/ folder and all files within (if exists)
    - **Optional**: concept.md (for understanding the world's baseline)
    - **Optional**: constitution (for understanding naming/style conventions)
 
@@ -59,11 +59,11 @@ After drafting or revising chapters, extract new world-building details and orga
       - **Characters**: New introductions, physical descriptions, personality reveals, relationship changes, backstory reveals, speech patterns
       - **Organizations**: New factions, membership reveals, hierarchy details, alliances/conflicts
       - **Places**: New locations, descriptions of existing places, geographic relationships, atmosphere details
-      - **History/Events**: Past events mentioned, historical context, backstory events
+      - **history/events**: Past events mentioned, historical context, backstory events
       - **Systems**: Rules revealed, limitations discovered, new applications, exceptions
 
    c. For each detail found:
-      - Check if a World/ file already exists for this entity. If `World/_index.md` exists, use the Alias Lookup table to resolve the entity name (handles variants like "Dr. Voss" → `char-elena-voss`), then get the file path from the Entity Registry. If no index, search World/ files directly.
+      - Check if a world/ file already exists for this entity. If `world/_index.md` exists, use the Alias Lookup table to resolve the entity name (handles variants like "Dr. Voss" → `char-elena-voss`), then get the file path from the Entity Registry. If no index, search world/ files directly.
       - **If exists**: Add the new detail to the appropriate section, tagged `(CHxx)`
       - **If new entity**: Create a new file in the appropriate category folder, with all details tagged `(CHxx)`. Include YAML frontmatter following the schema in `.authorkit/templates/world-entity-frontmatter.md`.
 
@@ -78,7 +78,7 @@ After drafting or revising chapters, extract new world-building details and orga
 
 6. **For each chapter — Revision Reconciliation Mode**:
 
-   a. **Catalog existing entries**: Find all details in World/ files tagged with `(CHxx)` where `xx` is the revised chapter.
+   a. **Catalog existing entries**: Find all details in world/ files tagged with `(CHxx)` where `xx` is the revised chapter.
 
    b. Re-read the revised chapter draft.
 
@@ -117,17 +117,17 @@ After drafting or revising chapters, extract new world-building details and orga
       ```
 
 7. **Consistency check** (both modes):
-   - After updating World/ files, do a quick scan for internal contradictions
+   - After updating world/ files, do a quick scan for internal contradictions
    - Flag if any details from this chapter conflict with details from other chapters
    - These are not automatically fixed — just flagged for the user
 
 8. **Update frontmatter and rebuild index**:
-   - For every World/ file that was created or modified, update its YAML frontmatter: add the new chapter tag to `chapters`, update `last_updated`, add any new `relationships` or `aliases` discovered.
-   - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `World/_index.md`.
+   - For every world/ file that was created or modified, update its YAML frontmatter: add the new chapter tag to `chapters`, update `last_updated`, add any new `relationships` or `aliases` discovered.
+   - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `world/_index.md`.
 
 9. **Report completion**:
    - Mode used (fresh extraction or revision reconciliation)
-   - World/ files created or updated (list with paths)
+   - world/ files created or updated (list with paths)
    - New entities discovered
    - Details added to existing entities
    - Any consistency warnings
@@ -138,7 +138,7 @@ After drafting or revising chapters, extract new world-building details and orga
 
 ## Key Rules
 
-- **Reference format, not narrative.** World/ entries should be factual and concise.
+- **Reference format, not narrative.** world/ entries should be factual and concise.
 - **Every detail MUST be chapter-tagged.** This is the core mechanism for tracking evolution. Use `(CHxx)` for fresh extraction, `(CHxx-rev)` for revision updates, `(CONCEPT)` entries from world.build are left as-is unless contradicted.
 - **Don't speculate.** Only record what is explicitly established in the chapter text. If a character's eye color isn't mentioned, don't infer it.
 - **Update incrementally.** Add to existing files rather than rewriting them. Preserve all existing entries from other chapters.

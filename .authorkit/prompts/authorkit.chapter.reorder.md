@@ -6,7 +6,7 @@ handoffs:
     prompt: Update the outline to reflect the restructured chapters
   - label: Verify World Tags
     agent: authorkit.world.verify
-    prompt: Verify chapter tags in World/ files after reorder
+    prompt: Verify chapter tags in world/ files after reorder
   - label: Run Analysis
     agent: authorkit.analyze
     prompt: Analyze consistency after chapter restructuring
@@ -24,7 +24,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Goal
 
-Handle structural rearrangements of the chapter order — moves, splits, and merges — with automatic renumbering of files, chapter IDs, cross-references, and World/ tags. This avoids the error-prone manual process of renaming folders, updating chapters.md, and fixing all references.
+Handle structural rearrangements of the chapter order — moves, splits, and merges — with automatic renumbering of files, chapter IDs, cross-references, and world/ tags. This avoids the error-prone manual process of renaming folders, updating chapters.md, and fixing all references.
 
 ## Outline
 
@@ -45,7 +45,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    a. Read chapters.md for the full chapter list and statuses.
    b. Identify which chapters have existing files (plan.md, draft.md, review.md).
    c. Read outline.md for chapter descriptions and connections.
-   d. Scan World/ files for `(CHxx)` tags that reference affected chapters. **If `World/_index.md` exists**: Use the Entity Registry `Chapters` column to find all files with tags for the affected chapter numbers — no need to scan every World/ file.
+   d. Scan world/ files for `(CHxx)` tags that reference affected chapters. **If `world/_index.md` exists**: Use the Entity Registry `Chapters` column to find all files with tags for the affected chapter numbers — no need to scan every world/ file.
    e. Scan chapter plans and drafts for cross-references to other chapters.
 
 4. **Generate the reorder plan**:
@@ -86,7 +86,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    | File | Current Reference | New Reference |
    |------|------------------|---------------|
    | chapters/01/plan.md | "CH05" | "CH02" |
-   | World/Characters/elena.md | "(CH05)" | "(CH02)" |
+   | world/characters/elena.md | "(CH05)" | "(CH02)" |
    | outline.md | "Chapter 5" | "Chapter 2" |
    | ... |
 
@@ -94,7 +94,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
    - **Drafted chapters affected**: [N]
    - **Approved chapters affected**: [N]
-   - **World/ tags to update**: [N]
+   - **world/ tags to update**: [N]
    - **Cross-references to update**: [N]
    ```
 
@@ -145,7 +145,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
    e. **Phase 5 — Update cross-references**:
       - **outline.md**: Update all chapter references
-      - **World/ files**: Update all `(CHxx)`, `(CHxx-rev)`, `(RETCON-date)` tags
+      - **world/ files**: Update all `(CHxx)`, `(CHxx-rev)`, `(RETCON-date)` tags
       - **Chapter plans**: Update references to other chapters (e.g., "continues from CH03")
       - **Chapter drafts**: Update any explicit chapter references in prose (rare but possible in non-fiction)
       - **parked-decisions.md** (if exists): Update deadline references (e.g., "Before CH12")
@@ -155,14 +155,14 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
       - Reorder chapter entries to match new structure
       - Update arc and theme maps if chapters moved between parts/acts
 
-   g. **Phase 7 — Update World/ frontmatter and rebuild index**:
-      - For every World/ file whose `(CHxx)` tags were renumbered: update the YAML frontmatter `chapters` field to reflect the new chapter numbers. Update `last_updated`.
-      - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `World/_index.md`.
+   g. **Phase 7 — Update world/ frontmatter and rebuild index**:
+      - For every world/ file whose `(CHxx)` tags were renumbered: update the YAML frontmatter `chapters` field to reflect the new chapter numbers. Update `last_updated`.
+      - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `world/_index.md`.
 
 7. **Post-reorder validation**:
    - Verify all chapter directories exist at their new locations
    - Verify chapters.md has the correct count and no duplicate IDs
-   - Verify no orphaned World/ tags (tags referencing chapters that no longer exist at that number)
+   - Verify no orphaned world/ tags (tags referencing chapters that no longer exist at that number)
    - Verify no broken cross-references in plans
 
 8. **Report completion**:
@@ -182,7 +182,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    ### Cross-References Updated
 
    - [N] references in outline.md
-   - [N] tags in World/ files
+   - [N] tags in world/ files
    - [N] references in chapter plans
    - [N] entries in chapters.md
 
@@ -190,13 +190,13 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
    - All chapter directories: OK
    - chapters.md consistency: OK
-   - World/ tag integrity: OK
+   - world/ tag integrity: OK
    - Cross-references: OK
 
    ### Next Steps
 
    - `/authorkit.analyze` — verify cross-chapter consistency after restructure
-   - `/authorkit.world.verify` — check World/ tag integrity
+   - `/authorkit.world.verify` — check world/ tag integrity
    - [For splits]: `/authorkit.chapter.plan [N]` — plan the new chapter(s)
    - [For merges]: `/authorkit.chapter.review [N]` — review the combined chapter
    ```
@@ -234,7 +234,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
 - **Use temp directories.** Never rename directly from old to new — this causes collisions when numbers overlap.
 - **Archive, never delete.** Removed or merged-away chapters go to `chapters/archived/`, not the trash.
-- **Update everything.** The value of this command is that it handles ALL the renumbering — chapters.md, outline.md, World/ tags, plan cross-references, parked decision deadlines.
+- **Update everything.** The value of this command is that it handles ALL the renumbering — chapters.md, outline.md, world/ tags, plan cross-references, parked decision deadlines.
 - **Validate after.** Always run the post-reorder validation to catch any missed references.
 - **Recommend snapshot for large reorders.** If 5+ chapters are affected, suggest `/authorkit.snapshot` first.
 

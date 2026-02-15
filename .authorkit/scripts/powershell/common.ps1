@@ -1,6 +1,12 @@
 #!/usr/bin/env pwsh
 # Common PowerShell functions for Author Kit
 
+# Canonical book directory names (lowercase).
+$AUTHORKIT_WORLD_DIR = 'world'
+$AUTHORKIT_CHAPTERS_DIR = 'chapters'
+$AUTHORKIT_CHECKLISTS_DIR = 'checklists'
+$AUTHORKIT_DIST_DIR = 'dist'
+
 function Get-RepoRoot {
     try {
         $result = git rev-parse --show-toplevel 2>$null
@@ -152,7 +158,10 @@ function Get-BookPaths {
         CHAPTERS       = Join-Path $bookDir 'chapters.md'
         RESEARCH       = Join-Path $bookDir 'research.md'
         CHARACTERS     = Join-Path $bookDir 'characters.md'
-        CHAPTERS_DIR   = Join-Path $bookDir 'chapters'
+        WORLD_DIR      = Join-Path $bookDir $AUTHORKIT_WORLD_DIR
+        CHAPTERS_DIR   = Join-Path $bookDir $AUTHORKIT_CHAPTERS_DIR
+        CHECKLISTS_DIR = Join-Path $bookDir $AUTHORKIT_CHECKLISTS_DIR
+        DIST_DIR       = Join-Path $bookDir $AUTHORKIT_DIST_DIR
     }
 }
 

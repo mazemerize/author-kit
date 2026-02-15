@@ -5,6 +5,7 @@ Author:
 """
 
 import json
+import re
 from pathlib import Path
 
 import authorkit_cli as cli
@@ -220,3 +221,42 @@ def test_audio_instruction_mentions_markers():
     assert "do not say the marker" in instructions
     assert book_audio.PAUSE_MARKER in instructions
     assert book_audio.DIALOG_MARKER in instructions
+
+
+def test_docs_and_prompts_use_lowercase_world_paths():
+    """Verify canonical lowercase world path casing in docs/prompts/templates."""
+    repo_root = Path(__file__).resolve().parents[2]
+    targets: list[Path] = []
+    targets.extend((repo_root / ".authorkit" / "prompts").glob("*.md"))
+    targets.extend((repo_root / ".authorkit" / "instructions").glob("*.md.tmpl"))
+    targets.append(repo_root / ".authorkit" / "templates" / "world-entity-frontmatter.md")
+    targets.append(repo_root / "README.md")
+
+    disallowed = [
+        r"\bWorld/",
+        r"\bworld/Characters/",
+        r"\bworld/Places/",
+        r"\bworld/Organizations/",
+        r"\bworld/History/",
+        r"\bworld/Systems/",
+        r"\bworld/Notes/",
+    ]
+
+    for path in targets:
+        text = path.read_text(encoding="utf-8")
+        for pattern in disallowed:
+            assert re.search(pattern, text) is None, f"Found disallowed path casing '{pattern}' in {path}"
+
+
+def test_world_index_scripts_assume_lowercase_world_layout():
+    """Verify world index scripts are configured for lowercase world directories."""
+    repo_root = Path(__file__).resolve().parents[2]
+    ps_script = (repo_root / ".authorkit" / "scripts" / "powershell" / "build-world-index.ps1").read_text(encoding="utf-8")
+    sh_script = (repo_root / ".authorkit" / "scripts" / "bash" / "build-world-index.sh").read_text(encoding="utf-8")
+
+    assert "Join-Path $bookDir 'world'" in ps_script
+    assert "WORLD_DIR=\"$BOOK_DIR/world\"" in sh_script
+
+    for token in ["characters", "places", "organizations", "history", "systems", "notes"]:
+        assert token in ps_script
+        assert token in sh_script

@@ -12,6 +12,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+BOOKS_DIR_NAME = "books"
+WORLD_DIR_NAME = "world"
+CHAPTERS_DIR_NAME = "chapters"
+CHECKLISTS_DIR_NAME = "checklists"
+DIST_DIR_NAME = "dist"
+
 
 def ensure_python_package(
     import_name: str,
@@ -125,7 +131,7 @@ def _branch_name(repo_root: Path) -> str | None:
 
 def resolve_book_dir(repo_root: Path, requested_book: str | None = None) -> Path:
     """Resolve the active book directory."""
-    books_root = repo_root / "books"
+    books_root = repo_root / BOOKS_DIR_NAME
     books_root.mkdir(parents=True, exist_ok=True)
 
     if requested_book:
@@ -205,7 +211,7 @@ def parse_book_config(book_dir: Path) -> BookConfig:
 
 def discover_chapter_drafts(book_dir: Path, from_chapter: int | None = None, to_chapter: int | None = None) -> list[ChapterDraft]:
     """Load chapter draft files in numeric order."""
-    chapters_root = book_dir / "chapters"
+    chapters_root = book_dir / CHAPTERS_DIR_NAME
     if not chapters_root.exists():
         return []
 

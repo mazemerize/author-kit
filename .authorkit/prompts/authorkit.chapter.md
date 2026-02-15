@@ -61,7 +61,7 @@ Execute the full chapter planning workflow (equivalent to `/authorkit.chapter.pl
    - **Required**: chapters.md (chapter status, dependencies)
    - **Recommended**: characters.md (character profiles)
    - **Optional**: research.md, `/memory/constitution.md`
-   - **Optional**: `World/` folder files relevant to this chapter's characters, locations, and systems
+   - **Optional**: `world/` folder files relevant to this chapter's characters, locations, and systems
    - **Optional**: Previous chapter drafts/plans for continuity
 
 2. **Reconcile outline against drafted chapters** (critical for mid-book consistency):
@@ -97,7 +97,7 @@ Execute the full chapter drafting workflow (equivalent to `/authorkit.chapter.dr
 1. **Load context**:
    - **Required**: `chapters/NN/plan.md`
    - **Required**: concept.md, `/memory/constitution.md`
-   - **Recommended**: characters.md, `World/` folder files for this chapter
+   - **Recommended**: characters.md, `world/` folder files for this chapter
    - **Recommended**: Previous chapter draft for continuity
    - **If re-drafting after review**: Also load `chapters/NN/review.md` and address all critical/important issues
 
@@ -130,7 +130,7 @@ Execute the full chapter review workflow (equivalent to `/authorkit.chapter.revi
    - **Required**: `chapters/NN/draft.md`, `chapters/NN/plan.md`
    - **Required**: concept.md, `/memory/constitution.md`
    - **Recommended**: characters.md, outline.md
-   - **Recommended**: `World/` folder — ALL entity files for entities in this chapter
+   - **Recommended**: `world/` folder — ALL entity files for entities in this chapter
    - **Optional**: Previous/next chapter drafts, previous review
 
 2. **Assess the draft** across all dimensions:
@@ -139,7 +139,7 @@ Execute the full chapter review workflow (equivalent to `/authorkit.chapter.revi
    **B. Constitution Compliance** — voice, POV, tense, prose style
    **C. Craft Quality** — pacing, show vs tell, dialogue, description, transitions, opening, closing
    **D. Character/Content Consistency** — character behavior, knowledge boundaries, narrative necessity
-   **D1. World Consistency** (if World/ exists) — characters, places, headcount & logistics, organizations, systems, history vs World/ entries; flag new entities
+   **D1. World Consistency** (if world/ exists) — characters, places, headcount & logistics, organizations, systems, history vs world/ entries; flag new entities
    **E. Continuity** — flow from previous chapter, contradictions, thread continuation. **Critically: for every backstory claim about prior chapters, grep the actual draft text to verify — do not trust the outline or plan alone.**
    **F. Theme Integration** — themes present, organic integration
 

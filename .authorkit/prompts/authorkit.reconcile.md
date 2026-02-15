@@ -1,5 +1,5 @@
 ﻿---
-description: Check upstream documents (outline, concept, chapters.md, World/) for drift against drafted chapters.
+description: Check upstream documents (outline, concept, chapters.md, world/) for drift against drafted chapters.
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireChapters -IncludeChapters
 ---
@@ -16,13 +16,13 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Goal
 
-Scan all upstream planning documents — outline.md, concept.md, chapters.md, and World/ files — for factual claims that have been **superseded by drafted chapters**. Drafted chapters are the canonical source of truth. Everything else may be stale. This command produces a drift report and optionally fixes the discrepancies.
+Scan all upstream planning documents — outline.md, concept.md, chapters.md, and world/ files — for factual claims that have been **superseded by drafted chapters**. Drafted chapters are the canonical source of truth. Everything else may be stale. This command produces a drift report and optionally fixes the discrepancies.
 
 This is a **read-then-fix** command: it reads everything, reports what's stale, and asks the user whether to apply corrections.
 
 ## Why This Exists
 
-The outline is written before chapters are drafted. During drafting, creative choices diverge from the outline — characters act differently, events unfold differently, details shift. These are good changes (the draft is always better-informed than the plan). But the outline, concept, chapters.md summaries, and World/ files don't update themselves. When the next chapter is planned using a stale outline, the stale details propagate into new drafts as continuity errors.
+The outline is written before chapters are drafted. During drafting, creative choices diverge from the outline — characters act differently, events unfold differently, details shift. These are good changes (the draft is always better-informed than the plan). But the outline, concept, chapters.md summaries, and world/ files don't update themselves. When the next chapter is planned using a stale outline, the stale details propagate into new drafts as continuity errors.
 
 ## Outline
 
@@ -74,12 +74,12 @@ For each chapter entry that corresponds to a **not-yet-drafted** chapter:
 - Check each chapter's summary text (after the title) against the draft.
 - These summaries are brief, but key details (who does what, what happens) should match.
 
-#### 2d. World/ Files
+#### 2d. world/ Files
 
-- **If `World/_index.md` exists**: Read it. Use the Entity Registry `Chapters` column to identify entities tagged with `(CONCEPT)` that may need drift checks — these are the entities whose pre-writing assumptions may have been superseded by drafted chapters. Use the Chapter Manifest to find entities tagged for the in-scope chapters. Only read those specific World/ files, rather than all World/ files.
-- For each World/ file that references events from drafted chapters (tagged with `(CHxx)`):
+- **If `world/_index.md` exists**: Read it. Use the Entity Registry `Chapters` column to identify entities tagged with `(CONCEPT)` that may need drift checks — these are the entities whose pre-writing assumptions may have been superseded by drafted chapters. Use the Chapter Manifest to find entities tagged for the in-scope chapters. Only read those specific world/ files, rather than all world/ files.
+- For each world/ file that references events from drafted chapters (tagged with `(CHxx)`):
   - Verify the tagged claim against the draft.
-- For each World/ file that references events from concept/outline only (tagged `(CONCEPT)`):
+- For each world/ file that references events from concept/outline only (tagged `(CONCEPT)`):
   - Check if a draft now covers that event. If so, verify the `(CONCEPT)` claim still holds, or flag it as needing a source upgrade to `(CHxx)`.
 
 ### Phase 3: Generate Drift Report
@@ -100,7 +100,7 @@ Output a structured report:
 - **Outline drift**: [N] issues
 - **Concept drift**: [N] issues
 - **Chapters.md drift**: [N] issues
-- **World/ drift**: [N] issues
+- **world/ drift**: [N] issues
 
 ## Outline Drift
 
@@ -124,7 +124,7 @@ Output a structured report:
 |---------|---------------|---------------|----------|
 | CH[NN] | [claim] | [reality] | [severity] |
 
-## World/ Drift
+## world/ Drift
 
 | File | Claim | Draft Reality | Severity |
 |------|-------|---------------|----------|
@@ -147,7 +147,7 @@ After presenting the report:
    - For outline entries: rewrite the specific claim to match the draft's version.
    - For concept entries: update or add a clarification note.
    - For chapters.md: update the summary text.
-   - For World/ files: update the tagged entry and change the source tag from `(CONCEPT)` to `(CHxx)` where applicable.
+   - For world/ files: update the tagged entry and change the source tag from `(CONCEPT)` to `(CHxx)` where applicable.
 
 3. **Report fixes applied**: List each file modified and what changed.
 
