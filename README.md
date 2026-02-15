@@ -43,10 +43,14 @@ Author Kit uses an installer CLI and supports **Claude Code**, **GitHub Copilot*
 
 ### Prerequisites
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/)
-- Git
-- Access to a coding agent (Claude, Copilot, Codex)
+- **Python 3.11+**
+- **uv** (`uvx` and `uv tool install`)
+- **Git**
+- **Linux/macOS or Windows**
+- One of the following AI agents:
+  - **[Claude Code](https://www.anthropic.com/claude-code)**
+  - **[GitHub Copilot](https://github.com/features/copilot)**
+  - **[Codex CLI](https://github.com/openai/codex)**
 
 ### 1. Set up the project
 
@@ -722,14 +726,18 @@ books/
 
 ---
 
-## Prerequisites
+## Editor(s) in Chief
 
-- **Python 3.11+**
-- **uv** (`uvx` and `uv tool install`)
-- **Git**
-- **Linux/macOS or Windows**
-- One of the following AI agents:
-  - **[Claude Code](https://www.anthropic.com/claude-code)**
-  - **[GitHub Copilot](https://github.com/features/copilot)**
-  - **[Codex CLI](https://github.com/openai/codex)**
+- Mathieu Demarne (`@mdemarne`)
 
+---
+
+## Acknowledgement
+
+The structure of this kit is in part inspired by [spec-kit](https://github.com/github/spec-kit), with a twist for book and novel development.
+
+---
+
+## Support
+
+Need help? Open a [GitHub issue](https://github.com/mazemerize/author-kit/issues). Bug reports, odd behaviors, feature ideas, and questions about using Author kit are all welcome.
