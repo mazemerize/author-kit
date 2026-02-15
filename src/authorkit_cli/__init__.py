@@ -35,7 +35,7 @@ TAGLINE = "Write books with structured AI assistance."
 # Supported AI targets and CLI requirements.
 AGENT_CONFIG = {
     "claude": {"name": "Claude Code", "folder": ".claude", "requires_cli": True, "tool": "claude"},
-    "copilot": {"name": "GitHub Copilot", "folder": ".github", "requires_cli": False, "tool": None},
+    "copilot": {"name": "GitHub Copilot", "folder": ".github", "requires_cli": False, "tool": None, "optional_cli_tool": "copilot"},
     "codex": {"name": "Codex CLI", "folder": ".codex", "requires_cli": True, "tool": "codex"},
 }
 
@@ -535,7 +535,16 @@ def init(
                     missing_tools.append(tool)
         if missing_tools:
             missing_display = ", ".join(sorted(set(missing_tools)))
-            raise typer.BadParameter(f"Required tool(s) not found in PATH: {missing_display}. Use --ignore-agent-tools to skip check.")
+            details = (
+                f"Required tool(s) not found in PATH: {missing_display}. "
+                "Use --ignore-agent-tools to skip check."
+            )
+            if "codex" in missing_tools:
+                details += (
+                    " Note: this PATH check is about the Codex executable; "
+                    "CODEX_HOME is a separate setting used after install."
+                )
+            raise typer.BadParameter(details)
 
     remove_old_managed_paths(project_path, previous)
 
@@ -592,6 +601,7 @@ def check() -> None:
     console.print(f"- git: {'ok' if tool_exists('git') else 'missing'}")
     console.print(f"- claude: {'ok' if tool_exists('claude') else 'missing'}")
     console.print(f"- codex: {'ok' if tool_exists('codex') else 'missing'}")
+    console.print(f"- copilot (optional for Copilot CLI workflows): {'ok' if tool_exists('copilot') else 'missing'}")
 
 
 @app.command()

@@ -77,6 +77,24 @@ authorkit init --here --force --ai codex --script sh
 
 For Codex, set `CODEX_HOME` to `<repo>/.codex` after install.
 
+### Agent tool checks
+
+By default, `authorkit init` checks for required CLI tools for selected AI flavors:
+
+- `claude` requires `claude` on PATH
+- `codex` requires `codex` on PATH
+- `copilot` does not require a dedicated binary for prompt installation
+
+If you prefer to install prompts/files without tool checks, use `--ignore-agent-tools`:
+
+```bash
+authorkit init . --ai claude,copilot,codex --script sh --ignore-agent-tools
+```
+
+Important for Codex: PATH check and `CODEX_HOME` are different.
+- PATH check validates the `codex` executable exists.
+- `CODEX_HOME` points Codex to the repo-local `.codex` folder after install.
+
 ### 2. Establish your writing principles
 
 Define the voice, tone, and style rules for your book. This becomes the "style bible" that all chapters are written and reviewed against.
