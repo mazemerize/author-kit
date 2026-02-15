@@ -19,8 +19,11 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from .book_commands import book_app
+
 console = Console()
 app = typer.Typer(add_completion=False, help="Author Kit project installer")
+app.add_typer(book_app, name="book")
 
 # CLI banner (ASCII only).
 BANNER = r"""
@@ -602,6 +605,8 @@ def check() -> None:
     console.print(f"- claude: {'ok' if tool_exists('claude') else 'missing'}")
     console.print(f"- codex: {'ok' if tool_exists('codex') else 'missing'}")
     console.print(f"- copilot (optional for Copilot CLI workflows): {'ok' if tool_exists('copilot') else 'missing'}")
+    console.print(f"- pandoc (book build): {'ok' if tool_exists('pandoc') else 'missing'}")
+    console.print(f"- ffmpeg (book audio): {'ok' if tool_exists('ffmpeg') else 'missing'}")
 
 
 @app.command()

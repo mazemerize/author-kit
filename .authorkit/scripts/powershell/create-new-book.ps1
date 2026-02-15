@@ -234,12 +234,67 @@ New-Item -ItemType Directory -Path $chaptersDir -Force | Out-Null
 # Set the AUTHORKIT_BOOK environment variable for the current session
 $env:AUTHORKIT_BOOK = $branchName
 
+function Read-MetadataValue {
+    param(
+        [string]$Label,
+        [string]$DefaultValue
+    )
+    $inputValue = Read-Host "$Label [$DefaultValue]"
+    if ([string]::IsNullOrWhiteSpace($inputValue)) {
+        return $DefaultValue
+    }
+    return $inputValue.Trim()
+}
+
+# Initialize canonical publish metadata file.
+$bookTomlPath = Join-Path $bookDir 'book.toml'
+$defaultTitle = (($branchSuffix -split '-') | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_) }) -join ' '
+$defaultAuthor = 'Unknown Author'
+$defaultLanguage = 'en-US'
+
+if ($Json) {
+    $bookTitle = $defaultTitle
+    $bookAuthor = $defaultAuthor
+    $bookLanguage = $defaultLanguage
+} else {
+    Write-Output "Initialize book metadata (book.toml):"
+    $bookTitle = Read-MetadataValue -Label 'Title' -DefaultValue $defaultTitle
+    $bookAuthor = Read-MetadataValue -Label 'Author' -DefaultValue $defaultAuthor
+    $bookLanguage = Read-MetadataValue -Label 'Language' -DefaultValue $defaultLanguage
+}
+
+$bookToml = @"
+[book]
+title = "$bookTitle"
+author = "$bookAuthor"
+language = "$bookLanguage"
+subtitle = ""
+
+[build]
+default_formats = ["docx"]
+reference_docx = ""
+epub_css = ""
+
+[audio]
+provider = "openai"
+model = "gpt-4o-mini-tts"
+voice = "onyx"
+speaking_rate_wpm = 170
+
+[stats]
+reading_wpm = 200
+tts_cost_per_1m_chars = 0.0
+"@
+
+Set-Content -Path $bookTomlPath -Value $bookToml -Encoding UTF8 -NoNewline
+
 if ($Json) {
     $obj = [PSCustomObject]@{
         BRANCH_NAME  = $branchName
         CONCEPT_FILE = $conceptFile
         BOOK_NUM     = $bookNum
         BOOK_DIR     = $bookDir
+        BOOK_TOML    = $bookTomlPath
         HAS_GIT      = $hasGit
     }
     $obj | ConvertTo-Json -Compress
@@ -248,6 +303,7 @@ if ($Json) {
     Write-Output "CONCEPT_FILE: $conceptFile"
     Write-Output "BOOK_NUM: $bookNum"
     Write-Output "BOOK_DIR: $bookDir"
+    Write-Output "BOOK_TOML: $bookTomlPath"
     Write-Output "HAS_GIT: $hasGit"
     Write-Output "AUTHORKIT_BOOK environment variable set to: $branchName"
 }

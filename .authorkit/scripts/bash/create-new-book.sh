@@ -111,14 +111,56 @@ fi
 
 export AUTHORKIT_BOOK="$BRANCH_NAME"
 
+default_title="$(echo "$BRANCH_SUFFIX" | tr '-' ' ')"
+default_author="Unknown Author"
+default_language="en-US"
+
 if $JSON_MODE; then
-  printf '{"BRANCH_NAME":"%s","CONCEPT_FILE":"%s","BOOK_NUM":"%s","BOOK_DIR":"%s","HAS_GIT":%s}\n' \
-    "$BRANCH_NAME" "$BOOK_DIR/concept.md" "$BOOK_NUM" "$BOOK_DIR" "$HAS_GIT"
+  BOOK_TITLE="$default_title"
+  BOOK_AUTHOR="$default_author"
+  BOOK_LANGUAGE="$default_language"
+else
+  read -r -p "Initialize book metadata (book.toml). Title [$default_title]: " input_title
+  read -r -p "Author [$default_author]: " input_author
+  read -r -p "Language [$default_language]: " input_language
+  BOOK_TITLE="${input_title:-$default_title}"
+  BOOK_AUTHOR="${input_author:-$default_author}"
+  BOOK_LANGUAGE="${input_language:-$default_language}"
+fi
+
+BOOK_TOML="$BOOK_DIR/book.toml"
+cat > "$BOOK_TOML" <<EOF
+[book]
+title = "$BOOK_TITLE"
+author = "$BOOK_AUTHOR"
+language = "$BOOK_LANGUAGE"
+subtitle = ""
+
+[build]
+default_formats = ["docx"]
+reference_docx = ""
+epub_css = ""
+
+[audio]
+provider = "openai"
+model = "gpt-4o-mini-tts"
+voice = "onyx"
+speaking_rate_wpm = 170
+
+[stats]
+reading_wpm = 200
+tts_cost_per_1m_chars = 0.0
+EOF
+
+if $JSON_MODE; then
+  printf '{"BRANCH_NAME":"%s","CONCEPT_FILE":"%s","BOOK_NUM":"%s","BOOK_DIR":"%s","BOOK_TOML":"%s","HAS_GIT":%s}\n' \
+    "$BRANCH_NAME" "$BOOK_DIR/concept.md" "$BOOK_NUM" "$BOOK_DIR" "$BOOK_TOML" "$HAS_GIT"
 else
   echo "BRANCH_NAME: $BRANCH_NAME"
   echo "CONCEPT_FILE: $BOOK_DIR/concept.md"
   echo "BOOK_NUM: $BOOK_NUM"
   echo "BOOK_DIR: $BOOK_DIR"
+  echo "BOOK_TOML: $BOOK_TOML"
   echo "HAS_GIT: $HAS_GIT"
   echo "AUTHORKIT_BOOK environment variable set to: $BRANCH_NAME"
 fi

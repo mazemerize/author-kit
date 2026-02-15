@@ -95,6 +95,25 @@ Important for Codex: PATH check and `CODEX_HOME` are different.
 - PATH check validates the `codex` executable exists.
 - `CODEX_HOME` points Codex to the repo-local `.codex` folder after install.
 
+### 1.1 Book Build/Audio/Stats CLI
+
+Author Kit now provides publishing commands directly in the installer CLI:
+
+```bash
+authorkit book build --format docx --format epub
+authorkit book audio --merge
+authorkit book stats --output json
+```
+
+Defaults:
+- Source: `books/<active-book>/chapters/*/draft.md`
+- Output: `books/<active-book>/dist/` (audio in `dist/audio/`)
+- Metadata: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
+
+Audio authentication:
+- Set `OPENAI_API_KEY` in your environment (or a local `.env` file)
+- Do not commit secrets into repository files
+
 ### 2. Establish your writing principles
 
 Define the voice, tone, and style rules for your book. This becomes the "style bible" that all chapters are written and reviewed against.
