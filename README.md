@@ -57,13 +57,13 @@ Author Kit uses an installer CLI and supports **Claude Code**, **GitHub Copilot*
 One-shot install (always latest):
 
 ```bash
-uvx --from git+https://github.com/<org>/author-kit.git authorkit init . --ai claude --script sh
+uvx --from git+https://github.com/mazemerize/author-kit.git authorkit init . --ai claude --script sh
 ```
 
 Persistent PATH install:
 
 ```bash
-uv tool install --from git+https://github.com/<org>/author-kit.git authorkit
+uv tool install --from git+https://github.com/mazemerize/author-kit.git authorkit
 authorkit init . --ai copilot --script sh
 authorkit init . --ai codex --script sh
 authorkit init . --ai claude --script ps
