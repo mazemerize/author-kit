@@ -1,4 +1,10 @@
-﻿from __future__ import annotations
+"""Author Kit CLI installer and updater.
+
+Author:
+    Mazemerize contributors.
+"""
+
+from __future__ import annotations
 
 import json
 import os
@@ -6,6 +12,7 @@ import platform
 import re
 import shutil
 import subprocess
+from importlib import metadata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,6 +22,7 @@ from rich.console import Console
 console = Console()
 app = typer.Typer(add_completion=False, help="Author Kit project installer")
 
+# Supported AI targets and CLI requirements.
 AGENT_CONFIG = {
     "claude": {"name": "Claude Code", "folder": ".claude", "requires_cli": True, "tool": "claude"},
     "copilot": {"name": "GitHub Copilot", "folder": ".github", "requires_cli": False, "tool": None},
@@ -25,15 +33,27 @@ SCRIPT_CHOICES = {"sh": "POSIX Shell", "ps": "PowerShell"}
 
 
 def package_root() -> Path:
+    """Return the package module directory.
+
+    Returns:
+        Path: Directory containing this module.
+    """
     return Path(__file__).resolve().parent
 
 
 def asset_root() -> Path:
+    """Resolve toolkit asset root.
+
+    Prefers packaged wheel assets and falls back to repository root assets
+    when running from source.
+
+    Returns:
+        Path: Root path that contains `.authorkit` assets.
+    """
     packaged = package_root() / "assets"
     if (packaged / ".authorkit").exists():
         return packaged
 
-    # Dev fallback: use repository root .authorkit when running from source.
     for parent in package_root().parents:
         candidate = parent / ".authorkit"
         if candidate.exists():
@@ -43,22 +63,54 @@ def asset_root() -> Path:
 
 
 def read_text(path: Path) -> str:
+    """Read UTF-8 text file.
+
+    Args:
+        path: File path to read.
+
+    Returns:
+        str: File contents.
+    """
     return path.read_text(encoding="utf-8")
 
 
 def record_managed(path: Path, root: Path, managed: set[str]) -> None:
+    """Record a managed path relative to the project root.
+
+    Args:
+        path: Absolute path of a managed file.
+        root: Project root used for relative path conversion.
+        managed: Mutable set of managed relative paths.
+    """
     managed.add(str(path.relative_to(root).as_posix()))
 
 
 def write_text(path: Path, content: str, root: Path, managed: set[str]) -> None:
+    """Write file content and track it as managed.
+
+    Args:
+        path: Destination file path.
+        content: UTF-8 content to write.
+        root: Project root.
+        managed: Mutable set of managed paths.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     record_managed(path, root, managed)
 
 
 def copy_tree(src: Path, dst: Path, root: Path, managed: set[str]) -> None:
+    """Copy directory tree and track copied files as managed.
+
+    Args:
+        src: Source directory.
+        dst: Destination directory.
+        root: Project root.
+        managed: Mutable set of managed paths.
+    """
     if not src.exists():
         return
+
     for p in src.rglob("*"):
         rel = p.relative_to(src)
         target = dst / rel
@@ -71,6 +123,14 @@ def copy_tree(src: Path, dst: Path, root: Path, managed: set[str]) -> None:
 
 
 def parse_frontmatter(text: str) -> tuple[list[str], str]:
+    """Split markdown frontmatter from body.
+
+    Args:
+        text: Full markdown prompt content.
+
+    Returns:
+        tuple[list[str], str]: Frontmatter lines and body markdown.
+    """
     if not text.startswith("---\n"):
         return [], text
     end = text.find("\n---\n", 4)
@@ -82,6 +142,15 @@ def parse_frontmatter(text: str) -> tuple[list[str], str]:
 
 
 def remove_block(lines: list[str], key: str) -> list[str]:
+    """Remove a YAML-style key block and its indented children.
+
+    Args:
+        lines: Frontmatter lines.
+        key: Key name to remove.
+
+    Returns:
+        list[str]: Filtered lines.
+    """
     out: list[str] = []
     i = 0
     while i < len(lines):
@@ -97,18 +166,35 @@ def remove_block(lines: list[str], key: str) -> list[str]:
 
 
 def extract_script_path(frontmatter_lines: list[str]) -> str | None:
+    """Extract script command from prompt frontmatter.
+
+    Args:
+        frontmatter_lines: Frontmatter line list.
+
+    Returns:
+        str | None: Script command string, if present.
+    """
     for i, line in enumerate(frontmatter_lines):
         if line.strip() == "scripts:" and i + 1 < len(frontmatter_lines):
             j = i + 1
             while j < len(frontmatter_lines) and re.match(r"^\s{2,}", frontmatter_lines[j]):
-                m = re.match(r"^\s{2,}(?:ps|sh):\s*(.+)$", frontmatter_lines[j])
-                if m:
-                    return m.group(1).strip()
+                match = re.match(r"^\s{2,}(?:ps|sh):\s*(.+)$", frontmatter_lines[j])
+                if match:
+                    return match.group(1).strip()
                 j += 1
     return None
 
 
 def resolve_script(path_from_frontmatter: str | None, script_type: str) -> str:
+    """Map frontmatter script path to selected script flavor path.
+
+    Args:
+        path_from_frontmatter: Script command extracted from frontmatter.
+        script_type: Selected script flavor (`sh` or `ps`).
+
+    Returns:
+        str: Script path used in rendered prompts.
+    """
     if not path_from_frontmatter:
         return ""
     script_name = Path(path_from_frontmatter).name
@@ -119,6 +205,15 @@ def resolve_script(path_from_frontmatter: str | None, script_type: str) -> str:
 
 
 def resolve_token_script(token: str, script_type: str) -> str:
+    """Resolve canonical script token to flavored script path.
+
+    Args:
+        token: Canonical prompt token.
+        script_type: Selected script flavor (`sh` or `ps`).
+
+    Returns:
+        str: Script path replacement string.
+    """
     token_map = {
         "{{SCRIPT_CHECK_PREREQ}}": "check-prerequisites",
         "{{SCRIPT_CREATE_BOOK}}": "create-new-book",
@@ -134,13 +229,28 @@ def resolve_token_script(token: str, script_type: str) -> str:
 
 
 def render_prompt(raw: str, ai: str, script_type: str) -> str:
+    """Render canonical prompt for a target AI and script flavor.
+
+    Args:
+        raw: Canonical prompt markdown.
+        ai: Target AI flavor.
+        script_type: Script flavor (`sh` or `ps`).
+
+    Returns:
+        str: Rendered prompt content.
+    """
     fm, body = parse_frontmatter(raw)
     script = resolve_script(extract_script_path(fm), script_type)
 
     if ai == "claude":
         body = body.replace("{{USER_INPUT_TOKEN}}", "$ARGUMENTS")
         body = body.replace("{SCRIPT}", script)
-        for token in ["{{SCRIPT_CHECK_PREREQ}}", "{{SCRIPT_CREATE_BOOK}}", "{{SCRIPT_SETUP_OUTLINE}}", "{{SCRIPT_BUILD_WORLD_INDEX}}"]:
+        for token in [
+            "{{SCRIPT_CHECK_PREREQ}}",
+            "{{SCRIPT_CREATE_BOOK}}",
+            "{{SCRIPT_SETUP_OUTLINE}}",
+            "{{SCRIPT_BUILD_WORLD_INDEX}}",
+        ]:
             body = body.replace(token, resolve_token_script(token, script_type))
         if script:
             has_scripts = any(x.strip() == "scripts:" for x in fm)
@@ -158,7 +268,12 @@ def render_prompt(raw: str, ai: str, script_type: str) -> str:
     body = body.replace("{{USER_INPUT_TOKEN}}", "${input}")
     body = body.replace("$ARGUMENTS", "${input}")
     body = body.replace("{SCRIPT}", script)
-    for token in ["{{SCRIPT_CHECK_PREREQ}}", "{{SCRIPT_CREATE_BOOK}}", "{{SCRIPT_SETUP_OUTLINE}}", "{{SCRIPT_BUILD_WORLD_INDEX}}"]:
+    for token in [
+        "{{SCRIPT_CHECK_PREREQ}}",
+        "{{SCRIPT_CREATE_BOOK}}",
+        "{{SCRIPT_SETUP_OUTLINE}}",
+        "{{SCRIPT_BUILD_WORLD_INDEX}}",
+    ]:
         body = body.replace(token, resolve_token_script(token, script_type))
 
     fm_text = "\n".join(fm)
@@ -166,6 +281,15 @@ def render_prompt(raw: str, ai: str, script_type: str) -> str:
 
 
 def instruction_text(ai: str, script_type: str) -> tuple[str, str]:
+    """Render AI-specific instruction file from canonical templates.
+
+    Args:
+        ai: Target AI flavor.
+        script_type: Script flavor (`sh` or `ps`).
+
+    Returns:
+        tuple[str, str]: Output relative path and rendered content.
+    """
     script_dir = ".authorkit/scripts/bash/" if script_type == "sh" else ".authorkit/scripts/powershell/"
     command_source = {
         "claude": ".claude/commands/",
@@ -184,6 +308,15 @@ def instruction_text(ai: str, script_type: str) -> tuple[str, str]:
 
 
 def prompt_out_path(ai: str, prompt_name: str) -> str:
+    """Return output prompt path for a target AI flavor.
+
+    Args:
+        ai: Target AI flavor.
+        prompt_name: Canonical prompt filename.
+
+    Returns:
+        str: Destination relative path.
+    """
     if ai == "claude":
         return f".claude/commands/{prompt_name}"
     if ai == "copilot":
@@ -192,6 +325,11 @@ def prompt_out_path(ai: str, prompt_name: str) -> str:
 
 
 def ensure_shell_exec_bits(root: Path) -> None:
+    """Ensure bash scripts are executable on non-Windows systems.
+
+    Args:
+        root: Project root.
+    """
     if os.name == "nt":
         return
     bash_root = root / ".authorkit" / "scripts" / "bash"
@@ -203,10 +341,27 @@ def ensure_shell_exec_bits(root: Path) -> None:
 
 
 def tool_exists(tool: str) -> bool:
+    """Check if a CLI tool is available in PATH.
+
+    Args:
+        tool: Executable name.
+
+    Returns:
+        bool: True when tool exists.
+    """
     return shutil.which(tool) is not None
 
 
 def normalize_ai_selection(ai_values: list[str] | None, previous: dict) -> list[str]:
+    """Normalize AI selections from flags and manifest defaults.
+
+    Args:
+        ai_values: Raw `--ai` option values.
+        previous: Previous install manifest data.
+
+    Returns:
+        list[str]: Ordered unique AI flavor list.
+    """
     if not ai_values:
         prev = previous.get("ais")
         if isinstance(prev, list) and prev:
@@ -231,6 +386,14 @@ def normalize_ai_selection(ai_values: list[str] | None, previous: dict) -> list[
 
 
 def load_manifest(project_path: Path) -> dict:
+    """Load installer manifest from project if present.
+
+    Args:
+        project_path: Target project root.
+
+    Returns:
+        dict: Parsed manifest or empty dictionary.
+    """
     manifest = project_path / ".authorkit" / "install-manifest.json"
     if not manifest.exists():
         return {}
@@ -241,6 +404,12 @@ def load_manifest(project_path: Path) -> dict:
 
 
 def remove_old_managed_paths(project_path: Path, previous: dict) -> None:
+    """Remove files tracked by previous installation manifest.
+
+    Args:
+        project_path: Target project root.
+        previous: Parsed previous manifest.
+    """
     for rel in previous.get("managed_paths", []):
         p = project_path / rel
         if p.is_file():
@@ -248,6 +417,14 @@ def remove_old_managed_paths(project_path: Path, previous: dict) -> None:
 
 
 def write_manifest(project_path: Path, ais: list[str], script: str, managed: set[str]) -> None:
+    """Write installation manifest for future updates.
+
+    Args:
+        project_path: Target project root.
+        ais: Installed AI flavor list.
+        script: Installed script flavor.
+        managed: Managed relative path set.
+    """
     manifest_path = project_path / ".authorkit" / "install-manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -261,6 +438,24 @@ def write_manifest(project_path: Path, ais: list[str], script: str, managed: set
     manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def get_cli_version() -> str:
+    """Resolve CLI version from package metadata with source fallback.
+
+    Returns:
+        str: Version string.
+    """
+    try:
+        return metadata.version("authorkit-cli")
+    except Exception:
+        pyproject = package_root().parents[1] / "pyproject.toml"
+        if pyproject.exists():
+            text = read_text(pyproject)
+            match = re.search(r'(?m)^version\s*=\s*"([^"]+)"\s*$', text)
+            if match:
+                return match.group(1)
+    return "unknown"
+
+
 @app.command()
 def init(
     project_name: str | None = typer.Argument(None, help="Project directory name, or '.' for current directory"),
@@ -271,6 +466,17 @@ def init(
     here: bool = typer.Option(False, "--here"),
     force: bool = typer.Option(False, "--force"),
 ) -> None:
+    """Install or update Author Kit in a target directory.
+
+    Args:
+        project_name: New target directory name or "." for current directory.
+        ai: One or more AI flavors.
+        script: Script flavor (`sh` or `ps`).
+        ignore_agent_tools: Skip AI tool checks.
+        no_git: Skip git initialization.
+        here: Install in current directory.
+        force: Skip non-empty directory confirmation.
+    """
     if project_name == ".":
         here = True
         project_name = None
@@ -319,9 +525,7 @@ def init(
 
     copy_tree(assets / ".authorkit" / "templates", project_path / ".authorkit" / "templates", project_path, managed)
     copy_tree(assets / ".authorkit" / "memory", project_path / ".authorkit" / "memory", project_path, managed)
-
-    prompts_dir = project_path / ".authorkit" / "prompts"
-    copy_tree(assets / ".authorkit" / "prompts", prompts_dir, project_path, managed)
+    copy_tree(assets / ".authorkit" / "prompts", project_path / ".authorkit" / "prompts", project_path, managed)
 
     selected_script_src = assets / ".authorkit" / "scripts" / ("bash" if selected_script == "sh" else "powershell")
     copy_tree(
@@ -363,6 +567,7 @@ def init(
 
 @app.command()
 def check() -> None:
+    """Check local environment for supported tools."""
     console.print("Tool checks:")
     console.print(f"- git: {'ok' if tool_exists('git') else 'missing'}")
     console.print(f"- claude: {'ok' if tool_exists('claude') else 'missing'}")
@@ -371,11 +576,13 @@ def check() -> None:
 
 @app.command()
 def version() -> None:
-    console.print("authorkit-cli 0.1.0")
+    """Print CLI and Python runtime versions."""
+    console.print(f"authorkit-cli {get_cli_version()}")
     console.print(f"Python {platform.python_version()}")
 
 
 def main() -> None:
+    """Run Typer application."""
     app()
 
 
