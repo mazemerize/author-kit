@@ -5,6 +5,9 @@ param(
     [switch]$Json,
     [string]$ShortName,
     [int]$Number = 0,
+    [string]$Title,
+    [string]$Author,
+    [string]$Language,
     [switch]$Help,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$BookDescription
@@ -13,12 +16,15 @@ $ErrorActionPreference = 'Stop'
 
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] [-Number N] <book description>"
+    Write-Host "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] [-Number N] [-Title <title>] [-Author <author>] [-Language <language>] <book description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
+    Write-Host "  -Title <title>      Set initial book title for book.toml"
+    Write-Host "  -Author <author>    Set initial author for book.toml"
+    Write-Host "  -Language <lang>    Set language (default: en-US)"
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"
@@ -29,7 +35,7 @@ if ($Help) {
 
 # Check if book description provided
 if (-not $BookDescription -or $BookDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] <book description>"
+    Write-Error "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] [-Title <title>] [-Author <author>] [-Language <language>] <book description>"
     exit 1
 }
 
@@ -253,14 +259,14 @@ $defaultAuthor = 'Unknown Author'
 $defaultLanguage = 'en-US'
 
 if ($Json) {
-    $bookTitle = $defaultTitle
-    $bookAuthor = $defaultAuthor
-    $bookLanguage = $defaultLanguage
+    $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { $defaultTitle } else { $Title.Trim() }
+    $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { $defaultAuthor } else { $Author.Trim() }
+    $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { $defaultLanguage } else { $Language.Trim() }
 } else {
     Write-Output "Initialize book metadata (book.toml):"
-    $bookTitle = Read-MetadataValue -Label 'Title' -DefaultValue $defaultTitle
-    $bookAuthor = Read-MetadataValue -Label 'Author' -DefaultValue $defaultAuthor
-    $bookLanguage = Read-MetadataValue -Label 'Language' -DefaultValue $defaultLanguage
+    $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { Read-MetadataValue -Label 'Title' -DefaultValue $defaultTitle } else { $Title.Trim() }
+    $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { Read-MetadataValue -Label 'Author' -DefaultValue $defaultAuthor } else { $Author.Trim() }
+    $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { Read-MetadataValue -Label 'Language' -DefaultValue $defaultLanguage } else { $Language.Trim() }
 }
 
 $bookToml = @"

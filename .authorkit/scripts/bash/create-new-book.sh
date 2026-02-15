@@ -4,19 +4,25 @@ set -e
 JSON_MODE=false
 SHORT_NAME=""
 NUMBER=0
+TITLE=""
+AUTHOR=""
+LANGUAGE=""
 
 show_help() {
   cat <<'EOF'
-Usage: ./create-new-book.sh [--json] [--short-name NAME] [--number N] <book description>
+Usage: ./create-new-book.sh [--json] [--short-name NAME] [--number N] [--title TITLE] [--author AUTHOR] [--language LANG] <book description>
 EOF
 }
 
 BOOK_DESC_PARTS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --json) JSON_MODE=true; shift ;;
-    --short-name) SHORT_NAME="$2"; shift 2 ;;
-    --number) NUMBER="$2"; shift 2 ;;
+    --json|-Json) JSON_MODE=true; shift ;;
+    --short-name|-ShortName) SHORT_NAME="$2"; shift 2 ;;
+    --number|-Number) NUMBER="$2"; shift 2 ;;
+    --title|-Title) TITLE="$2"; shift 2 ;;
+    --author|-Author) AUTHOR="$2"; shift 2 ;;
+    --language|-Language) LANGUAGE="$2"; shift 2 ;;
     --help|-h) show_help; exit 0 ;;
     *) BOOK_DESC_PARTS+=("$1"); shift ;;
   esac
@@ -116,16 +122,30 @@ default_author="Unknown Author"
 default_language="en-US"
 
 if $JSON_MODE; then
-  BOOK_TITLE="$default_title"
-  BOOK_AUTHOR="$default_author"
-  BOOK_LANGUAGE="$default_language"
+  BOOK_TITLE="${TITLE:-$default_title}"
+  BOOK_AUTHOR="${AUTHOR:-$default_author}"
+  BOOK_LANGUAGE="${LANGUAGE:-$default_language}"
 else
-  read -r -p "Initialize book metadata (book.toml). Title [$default_title]: " input_title
-  read -r -p "Author [$default_author]: " input_author
-  read -r -p "Language [$default_language]: " input_language
-  BOOK_TITLE="${input_title:-$default_title}"
-  BOOK_AUTHOR="${input_author:-$default_author}"
-  BOOK_LANGUAGE="${input_language:-$default_language}"
+  if [[ -n "$TITLE" ]]; then
+    BOOK_TITLE="$TITLE"
+  else
+    read -r -p "Initialize book metadata (book.toml). Title [$default_title]: " input_title
+    BOOK_TITLE="${input_title:-$default_title}"
+  fi
+
+  if [[ -n "$AUTHOR" ]]; then
+    BOOK_AUTHOR="$AUTHOR"
+  else
+    read -r -p "Author [$default_author]: " input_author
+    BOOK_AUTHOR="${input_author:-$default_author}"
+  fi
+
+  if [[ -n "$LANGUAGE" ]]; then
+    BOOK_LANGUAGE="$LANGUAGE"
+  else
+    read -r -p "Language [$default_language]: " input_language
+    BOOK_LANGUAGE="${input_language:-$default_language}"
+  fi
 fi
 
 BOOK_TOML="$BOOK_DIR/book.toml"

@@ -55,9 +55,14 @@ Given that book description, do this:
       - Find the highest number N
       - Use N+1 for the new branch number
 
-   d. Run the script `{{SCRIPT_CREATE_BOOK}}` with the calculated number and short-name:
-      - Pass `-Number N+1` and `-ShortName "your-short-name"` along with the book description
-      - Example: `{{SCRIPT_CREATE_BOOK}} -Number 1 -ShortName "victorian-mystery" "A mystery novel set in Victorian London"`
+   d. Ask the user for initial metadata before creating the book:
+      - `Title` (suggest a strong default based on the concept)
+      - `Author` (default to the user's preferred pen name or "Unknown Author" if not provided)
+      - `Language` (default `en-US`)
+
+   e. Run the script `{{SCRIPT_CREATE_BOOK}}` with the calculated number, short-name, and metadata:
+      - Pass branch args plus metadata args along with the book description
+      - Example: `{{SCRIPT_CREATE_BOOK}} -Number 1 -ShortName "victorian-mystery" -Title "The Observatory Cipher" -Author "Jane Doe" -Language "en-US" "A mystery novel set in Victorian London"`
 
    **IMPORTANT**:
    - Check all three sources (remote branches, local branches, books directories) to find the highest number
