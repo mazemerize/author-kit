@@ -22,6 +22,16 @@ from rich.console import Console
 console = Console()
 app = typer.Typer(add_completion=False, help="Author Kit project installer")
 
+# CLI banner (ASCII only).
+BANNER = r"""
+    /  \  _   _| |_| |__   ___  _ __  | ' / _| |_
+   / /\ \| | | | __| '_ \ / _ \| '__| |  < | | __|
+  / ____ \ |_| | |_| | | | (_) | |    | . \| | |_
+ /_/    \_\__,_|\__|_| |_|\___/|_|    |_|\_\_|\__|
+"""
+
+TAGLINE = "Write books with structured AI assistance."
+
 # Supported AI targets and CLI requirements.
 AGENT_CONFIG = {
     "claude": {"name": "Claude Code", "folder": ".claude", "requires_cli": True, "tool": "claude"},
@@ -30,6 +40,13 @@ AGENT_CONFIG = {
 }
 
 SCRIPT_CHOICES = {"sh": "POSIX Shell", "ps": "PowerShell"}
+
+
+def show_banner() -> None:
+    """Render Author Kit ASCII banner."""
+    console.print(BANNER)
+    console.print(TAGLINE)
+    console.print()
 
 
 def package_root() -> Path:
@@ -477,6 +494,8 @@ def init(
         here: Install in current directory.
         force: Skip non-empty directory confirmation.
     """
+    show_banner()
+
     if project_name == ".":
         here = True
         project_name = None
@@ -568,6 +587,7 @@ def init(
 @app.command()
 def check() -> None:
     """Check local environment for supported tools."""
+    show_banner()
     console.print("Tool checks:")
     console.print(f"- git: {'ok' if tool_exists('git') else 'missing'}")
     console.print(f"- claude: {'ok' if tool_exists('claude') else 'missing'}")
@@ -577,6 +597,7 @@ def check() -> None:
 @app.command()
 def version() -> None:
     """Print CLI and Python runtime versions."""
+    show_banner()
     console.print(f"authorkit-cli {get_cli_version()}")
     console.print(f"Python {platform.python_version()}")
 
