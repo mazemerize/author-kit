@@ -206,6 +206,30 @@ def tool_exists(tool: str) -> bool:
     return shutil.which(tool) is not None
 
 
+def normalize_ai_selection(ai_values: list[str] | None, previous: dict) -> list[str]:
+    if not ai_values:
+        prev = previous.get("ais")
+        if isinstance(prev, list) and prev:
+            return [str(x) for x in prev if str(x) in AGENT_CONFIG]
+        old = previous.get("ai")
+        if isinstance(old, str) and old in AGENT_CONFIG:
+            return [old]
+        return ["copilot"]
+
+    expanded: list[str] = []
+    for item in ai_values:
+        parts = [x.strip() for x in item.split(",") if x.strip()]
+        expanded.extend(parts)
+
+    unique: list[str] = []
+    seen: set[str] = set()
+    for ai in expanded:
+        if ai not in seen:
+            seen.add(ai)
+            unique.append(ai)
+    return unique
+
+
 def load_manifest(project_path: Path) -> dict:
     manifest = project_path / ".authorkit" / "install-manifest.json"
     if not manifest.exists():
@@ -223,13 +247,14 @@ def remove_old_managed_paths(project_path: Path, previous: dict) -> None:
             p.unlink(missing_ok=True)
 
 
-def write_manifest(project_path: Path, ai: str, script: str, managed: set[str]) -> None:
+def write_manifest(project_path: Path, ais: list[str], script: str, managed: set[str]) -> None:
     manifest_path = project_path / ".authorkit" / "install-manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "installed_at": datetime.now(timezone.utc).isoformat(),
         "version": "0.1.0",
-        "ai": ai,
+        "ai": ais[0] if ais else "copilot",
+        "ais": ais,
         "script": script,
         "managed_paths": sorted(managed),
     }
@@ -239,7 +264,7 @@ def write_manifest(project_path: Path, ai: str, script: str, managed: set[str]) 
 @app.command()
 def init(
     project_name: str | None = typer.Argument(None, help="Project directory name, or '.' for current directory"),
-    ai: str | None = typer.Option(None, "--ai", help="claude, copilot, or codex"),
+    ai: list[str] | None = typer.Option(None, "--ai", help="One or more of: claude, copilot, codex (repeat --ai or pass comma-separated)"),
     script: str | None = typer.Option(None, "--script", help="sh or ps"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools"),
     no_git: bool = typer.Option(False, "--no-git"),
@@ -254,10 +279,6 @@ def init(
         raise typer.BadParameter("Cannot pass both project name and --here")
     if not here and not project_name:
         raise typer.BadParameter("Provide project name, '.' or --here")
-
-    selected_ai = ai or "copilot"
-    if selected_ai not in AGENT_CONFIG:
-        raise typer.BadParameter(f"Invalid --ai. Use one of: {', '.join(AGENT_CONFIG)}")
 
     selected_script = script or ("ps" if os.name == "nt" else "sh")
     if selected_script not in SCRIPT_CHOICES:
@@ -274,12 +295,23 @@ def init(
             raise typer.BadParameter(f"Directory already exists: {project_path}")
         project_path.mkdir(parents=True)
 
-    if not ignore_agent_tools and AGENT_CONFIG[selected_ai]["requires_cli"]:
-        tool = AGENT_CONFIG[selected_ai]["tool"]
-        if tool and not tool_exists(tool):
-            raise typer.BadParameter(f"Required tool not found in PATH: {tool}. Use --ignore-agent-tools to skip check.")
-
     previous = load_manifest(project_path)
+    selected_ais = normalize_ai_selection(ai, previous)
+    invalid = [x for x in selected_ais if x not in AGENT_CONFIG]
+    if invalid:
+        raise typer.BadParameter(f"Invalid --ai value(s): {', '.join(invalid)}. Use: {', '.join(AGENT_CONFIG)}")
+
+    if not ignore_agent_tools:
+        missing_tools: list[str] = []
+        for selected_ai in selected_ais:
+            if AGENT_CONFIG[selected_ai]["requires_cli"]:
+                tool = AGENT_CONFIG[selected_ai]["tool"]
+                if tool and not tool_exists(tool):
+                    missing_tools.append(tool)
+        if missing_tools:
+            missing_display = ", ".join(sorted(set(missing_tools)))
+            raise typer.BadParameter(f"Required tool(s) not found in PATH: {missing_display}. Use --ignore-agent-tools to skip check.")
+
     remove_old_managed_paths(project_path, previous)
 
     managed: set[str] = set()
@@ -299,16 +331,17 @@ def init(
         managed,
     )
 
-    for prompt in sorted((assets / ".authorkit" / "prompts").glob("authorkit*.md")):
-        raw = read_text(prompt)
-        rendered = render_prompt(raw, selected_ai, selected_script)
-        out_rel = prompt_out_path(selected_ai, prompt.name)
-        write_text(project_path / out_rel, rendered, project_path, managed)
+    for selected_ai in selected_ais:
+        for prompt in sorted((assets / ".authorkit" / "prompts").glob("authorkit*.md")):
+            raw = read_text(prompt)
+            rendered = render_prompt(raw, selected_ai, selected_script)
+            out_rel = prompt_out_path(selected_ai, prompt.name)
+            write_text(project_path / out_rel, rendered, project_path, managed)
 
-    instr_rel, instr_content = instruction_text(selected_ai, selected_script)
-    write_text(project_path / instr_rel, instr_content, project_path, managed)
+        instr_rel, instr_content = instruction_text(selected_ai, selected_script)
+        write_text(project_path / instr_rel, instr_content, project_path, managed)
 
-    write_manifest(project_path, selected_ai, selected_script, managed)
+    write_manifest(project_path, selected_ais, selected_script, managed)
 
     if not no_git:
         try:
@@ -319,8 +352,8 @@ def init(
     ensure_shell_exec_bits(project_path)
 
     console.print(f"Installed Author Kit in [bold]{project_path}[/bold]")
-    console.print(f"AI flavor: [bold]{selected_ai}[/bold], script flavor: [bold]{selected_script}[/bold]")
-    if selected_ai == "codex":
+    console.print(f"AI flavors: [bold]{', '.join(selected_ais)}[/bold], script flavor: [bold]{selected_script}[/bold]")
+    if "codex" in selected_ais:
         codex_home = project_path / ".codex"
         if os.name == "nt":
             console.print(f"Set CODEX_HOME: setx CODEX_HOME {codex_home}")

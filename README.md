@@ -49,6 +49,12 @@ This works for **any genre**: literary fiction, thrillers, non-fiction guides, m
 
 Author Kit uses an installer CLI and supports **Claude Code**, **GitHub Copilot**, and **Codex**.
 
+### Prerequisites
+
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/)
+- Git
+
 ### 1. Set up the project
 
 One-shot install (always latest):
