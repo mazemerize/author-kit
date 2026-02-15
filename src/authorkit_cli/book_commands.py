@@ -89,7 +89,7 @@ def audio(
     to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
     """Generate audiobook files from chapter drafts."""
-    _, book_dir = _resolve_context(book)
+    repo_root, book_dir = _resolve_context(book)
     config = parse_book_config(book_dir)
 
     if provider:
@@ -112,6 +112,7 @@ def audio(
         merge_output=merge,
         force=force,
         yes=yes,
+        dotenv_search_roots=[book_dir, repo_root],
     )
 
     console.print(f"Audio directory: {audio_dir}")

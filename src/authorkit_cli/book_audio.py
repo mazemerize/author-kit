@@ -20,6 +20,32 @@ DIALOG_MARKER = "[DIALOG]"
 console = Console()
 
 
+def _extract_key_from_dotenv(dotenv_path: Path) -> str | None:
+    """Extract OPENAI_API_KEY from dotenv file with encoding fallbacks."""
+    if not dotenv_path.exists() or not dotenv_path.is_file():
+        return None
+
+    contents: str | None = None
+    for encoding in ("utf-8", "utf-8-sig", "utf-16"):
+        try:
+            contents = dotenv_path.read_text(encoding=encoding)
+            break
+        except Exception:
+            continue
+
+    if not contents:
+        return None
+
+    for line in contents.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        if key.strip() == "OPENAI_API_KEY":
+            return value.strip().strip('"').strip("'")
+    return None
+
+
 def _strip_inline_markdown(text: str) -> str:
     """Strip common inline markdown syntax while preserving prose."""
     text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
@@ -156,6 +182,7 @@ def generate_audiobook(
     merge_output: bool,
     force: bool,
     yes: bool,
+    dotenv_search_roots: list[Path] | None = None,
 ) -> dict[str, object]:
     """Generate chapter audio files and optional merged audiobook file."""
     if config.audio_provider != "openai":
@@ -167,8 +194,27 @@ def generate_audiobook(
     from dotenv import load_dotenv
     from openai import OpenAI
 
-    load_dotenv()
+    dotenv_candidates: list[Path] = [Path.cwd() / ".env"]
+    for root in dotenv_search_roots or []:
+        dotenv_candidates.append(root / ".env")
+
+    seen: set[Path] = set()
+    for candidate in dotenv_candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if resolved.exists():
+            load_dotenv(dotenv_path=resolved, override=False)
+
     api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        for candidate in dotenv_candidates:
+            key = _extract_key_from_dotenv(candidate)
+            if key:
+                os.environ["OPENAI_API_KEY"] = key
+                api_key = key
+                break
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set. Set it in your environment or .env file before running audio generation.")
 
