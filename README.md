@@ -823,6 +823,60 @@ books/
 
 ---
 
+## Troubleshooting Book CLI
+
+### `authorkit book build` fails with Pandoc errors
+
+- Symptom: missing binary or conversion failure mentioning `pandoc`.
+- Cause: Pandoc is not installed or not on PATH.
+- Fix:
+  - Windows: `winget install --id JohnMacFarlane.Pandoc -e`
+  - macOS: `brew install pandoc`
+  - Ubuntu/Debian: `sudo apt-get install pandoc`
+- Verify: `authorkit check` should show `pandoc: ok`.
+
+### `authorkit book audio` fails with FFmpeg errors
+
+- Symptom: concat/merge errors mentioning `ffmpeg`.
+- Cause: FFmpeg is missing from PATH.
+- Fix:
+  - Windows: `winget install --id Gyan.FFmpeg -e`
+  - macOS: `brew install ffmpeg`
+  - Ubuntu/Debian: `sudo apt-get install ffmpeg`
+- Verify: `authorkit check` should show `ffmpeg: ok`.
+
+### `authorkit book audio` fails with authentication errors
+
+- Symptom: error about missing API key or failed OpenAI auth.
+- Cause: `OPENAI_API_KEY` is not set (or invalid/expired).
+- Fix:
+  - Set env var for current shell/session, or
+  - Store it in a local `.env` file (do not commit).
+- Verify in shell:
+  - PowerShell: `echo $env:OPENAI_API_KEY`
+  - bash/zsh: `echo $OPENAI_API_KEY`
+
+### Audio voice/model are not what you expect
+
+- Selection precedence:
+  1. CLI flags: `--voice`, `--model`
+  2. `books/<book>/book.toml` (`[audio].voice`, `[audio].model`)
+  3. Defaults: `voice = "onyx"`, `model = "gpt-4o-mini-tts"`
+
+### Existing audio files are not overwritten
+
+- Default behavior is interactive prompt per existing chapter file.
+- Use `--force` to bypass prompt logic.
+- Use `--yes` for non-interactive acceptance (CI-friendly).
+
+### Marker behavior seems absent
+
+- Marker shaping (`[DIALOG]`, `[PAUSE]`) is internal and instruction-driven.
+- Markers are not intended to appear in final spoken output.
+- If delivery sounds flat, verify the selected voice/model and try regenerating with `--force`.
+
+---
+
 ## Editor(s) in Chief
 
 - Mathieu Demarne (`@mdemarne`)
