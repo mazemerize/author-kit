@@ -1,0 +1,22 @@
+[project]
+name = "authorkit-cli"
+version = "0.1.0"
+description = "Author Kit CLI installer and updater"
+requires-python = ">=3.11"
+dependencies = [
+    "typer",
+    "rich",
+]
+
+[project.scripts]
+authorkit = "authorkit_cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/authorkit_cli"]
+
+[tool.hatch.build.targets.wheel.force-include]
+".authorkit" = "authorkit_cli/assets/.authorkit"
