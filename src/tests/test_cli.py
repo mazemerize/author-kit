@@ -142,7 +142,7 @@ def test_version_command_outputs_version():
     """
     result = runner.invoke(cli.app, ["version"])
     assert result.exit_code == 0
-    assert "authorkit-cli 0.1.0" in result.output
+    assert f"authorkit-cli {cli.get_cli_version()}" in result.output
 
 
 def _seed_book_tree(book_name: str = "001-test-book") -> Path:
