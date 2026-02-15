@@ -31,7 +31,7 @@
 <!-- Example: Content & Thematic Boundaries, Research Standards, Sensitivity Guidelines, etc. -->
 
 [SECTION_2_CONTENT]
-<!-- Example: Historical accuracy requirements, sensitivity considerations, content warnings policy, etc. -->
+<!-- Example: Historical accuracy requirements, sensitivity considerations, content warnings policy, and naming originality rules (avoid generic/common stock names; require distinctive names suited to the setting). -->
 
 ## [SECTION_3_NAME]
 <!-- Example: Structural Guidelines, Chapter Standards, Pacing Requirements, etc. -->
