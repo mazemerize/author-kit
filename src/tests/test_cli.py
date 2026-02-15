@@ -9,6 +9,7 @@ from pathlib import Path
 
 import authorkit_cli as cli
 import authorkit_cli.book_commands as book_commands
+import authorkit_cli.book_audio as book_audio
 from typer.testing import CliRunner
 
 
@@ -195,3 +196,27 @@ def test_book_audio_command_uses_generator(monkeypatch):
         assert result.exit_code == 0, result.output
         assert called["audio_dir"] == (book_dir / "dist" / "audio").resolve()
         assert "Generated: 1" in result.output
+
+
+def test_audio_enhancer_adds_dialog_and_pause_markers():
+    """Verify speech enhancer inserts dialog and pause markers."""
+    markdown = """# Chapter One
+
+> _An opening epigraph line_
+> — Someone
+
+"I know this is a trap," she said.
+"""
+    enhanced = book_audio._enhance_text_for_speech(markdown)
+
+    assert book_audio.PAUSE_MARKER in enhanced
+    assert book_audio.DIALOG_MARKER in enhanced
+
+
+def test_audio_instruction_mentions_markers():
+    """Verify marker-aware instruction text is generated."""
+    chunk = f"{book_audio.PAUSE_MARKER} {book_audio.DIALOG_MARKER} Hello."
+    instructions = book_audio._speech_instructions(chunk)
+    assert "do not say the marker" in instructions
+    assert book_audio.PAUSE_MARKER in instructions
+    assert book_audio.DIALOG_MARKER in instructions

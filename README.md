@@ -105,17 +105,59 @@ authorkit book audio --merge
 authorkit book stats --output json
 ```
 
-Defaults:
-- Source: `books/<active-book>/chapters/*/draft.md`
-- Output: `books/<active-book>/dist/` (audio in `dist/audio/`)
-- Metadata: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
-- Styling: bundled defaults in `.authorkit/templates/publishing/` are used automatically:
-  - DOCX: `reference.docx`
-  - EPUB: `epub.css`
+Defaults and behavior:
+- Source manuscript: `books/<active-book>/chapters/*/draft.md`
+- Output directory: `books/<active-book>/dist/` (audio in `dist/audio/`)
+- Metadata source: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
+- Built-in style assets:
+  - DOCX fallback: `.authorkit/templates/publishing/reference.docx`
+  - EPUB fallback: `.authorkit/templates/publishing/epub.css`
 
-Audio authentication:
-- Set `OPENAI_API_KEY` in your environment (or a local `.env` file)
-- Do not commit secrets into repository files
+`book.toml` baseline (created automatically):
+
+```toml
+[book]
+title = "..."
+author = "..."
+language = "en-US"
+subtitle = ""
+
+[build]
+default_formats = ["docx"]
+reference_docx = ".authorkit/templates/publishing/reference.docx"
+epub_css = ".authorkit/templates/publishing/epub.css"
+
+[audio]
+provider = "openai"
+model = "gpt-4o-mini-tts"
+voice = "onyx"
+speaking_rate_wpm = 170
+
+[stats]
+reading_wpm = 200
+tts_cost_per_1m_chars = 0.0
+```
+
+`authorkit book build` format options:
+- Repeatable `--format` flag: `docx`, `pdf`, `epub`
+- Example: `authorkit book build --format docx --format epub`
+- If omitted, formats come from `[build].default_formats`
+
+`authorkit book audio` provider/auth and selection precedence:
+- Current provider: OpenAI (`[audio].provider = "openai"`)
+- Required auth: `OPENAI_API_KEY` in environment or local `.env`
+- Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `onyx`
+- Model selection order: `--model` CLI flag, then `[audio].model`, then default `gpt-4o-mini-tts`
+
+Audio marker behavior (internal speech shaping):
+- Markers used: `[DIALOG]` and `[PAUSE]`
+- Dialogue-like lines are prefixed with `[DIALOG]`
+- Epigraph attribution lines and chapter transitions inject `[PAUSE]`
+- Marker-aware instructions are sent to TTS so markers are not read aloud and delivery is adjusted
+
+Future provider support:
+- The marker pipeline is provider-agnostic; other TTS providers can map markers to instruction text or SSML equivalents.
+- This preserves narration behavior while changing only provider integration/auth.
 
 ### 2. Establish your writing principles
 
@@ -276,6 +318,17 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 ---
 
 ## Available Commands
+
+### Installer CLI Commands (`authorkit`)
+
+| Command | Description | Inputs | Outputs |
+|---------|-------------|--------|---------|
+| `authorkit init` | Install/update Author Kit assets for selected AI(s) | Target dir, `--ai`, `--script` | `.authorkit/`, AI prompt folders, manifest |
+| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `pandoc`, `ffmpeg`) |
+| `authorkit version` | Print CLI and Python versions | — | Version report |
+| `authorkit book build` | Build manuscript outputs | Optional `--book`, repeat `--format`, `--force` | `dist/manuscript.md` + rendered docs |
+| `authorkit book audio` | Generate chapter audio and optional merged audiobook | Optional `--book`, `--voice`, `--model`, `--merge` | `dist/audio/*.mp3` (+ optional merged file) |
+| `authorkit book stats` | Compute chapter/global manuscript metrics | Optional `--book`, `--output`, `--wpm` | Table/JSON/Markdown stats |
 
 ### Core Workflow
 
@@ -714,6 +767,9 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 |   |-- chapter-plan-template.md
 |   |-- checklist-template.md
 |   |-- agent-file-template.md
+|   |-- publishing/
+|   |   |-- reference.docx
+|   |   `-- epub.css
 |   `-- world-entity-frontmatter.md
 `-- install-manifest.json            # Written by `authorkit init`
 
@@ -763,6 +819,7 @@ books/
 |----------|-------------|
 | `AUTHORKIT_BOOK` | Override book detection for non-Git repositories. |
 | `CODEX_HOME` | For Codex usage, set to `<repo>/.codex`. |
+| `OPENAI_API_KEY` | Required for `authorkit book audio` when using OpenAI TTS provider. |
 
 ---
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -12,6 +13,78 @@ from .book_core import BookConfig, ChapterDraft, chapter_title, ensure_python_pa
 from .book_render import ensure_system_tool
 
 MAX_CHARS_PER_REQUEST = 3500
+PAUSE_MARKER = "[PAUSE]"
+DIALOG_MARKER = "[DIALOG]"
+
+
+def _strip_inline_markdown(text: str) -> str:
+    """Strip common inline markdown syntax while preserving prose."""
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"`([^`]*)`", r"\1", text)
+    text = re.sub(r"[*_~]", "", text)
+    return text.strip()
+
+
+def _enhance_text_for_speech(markdown: str) -> str:
+    """Enhance markdown prose with speech markers for better narration."""
+    lines = markdown.splitlines()
+    enhanced_lines: list[str] = []
+    in_epigraph = False
+
+    for raw_line in lines:
+        stripped = raw_line.strip()
+        if not stripped:
+            enhanced_lines.append("")
+            continue
+
+        if stripped.startswith("# "):
+            # Chapter title is handled separately in the audio intro.
+            continue
+
+        is_blockquote = stripped.startswith(">")
+        working = stripped[1:].strip() if is_blockquote else stripped
+        clean_line = _strip_inline_markdown(working)
+        if not clean_line:
+            continue
+
+        if is_blockquote and (working.startswith("_") or working.startswith("*")) and not in_epigraph:
+            in_epigraph = True
+            enhanced_lines.append(clean_line)
+            continue
+
+        if in_epigraph and (clean_line.startswith("—") or clean_line.startswith("--")):
+            enhanced_lines.append(clean_line)
+            enhanced_lines.append(PAUSE_MARKER)
+            in_epigraph = False
+            continue
+
+        if in_epigraph and is_blockquote:
+            enhanced_lines.append(clean_line)
+            continue
+
+        quote_count = clean_line.count('"')
+        if quote_count >= 2:
+            enhanced_lines.append(f"{DIALOG_MARKER} {clean_line}")
+        else:
+            enhanced_lines.append(clean_line)
+
+    compact = "\n".join(enhanced_lines)
+    compact = re.sub(r"\n{3,}", "\n\n", compact)
+    return compact.strip()
+
+
+def _speech_instructions(chunk: str) -> str:
+    """Build TTS instructions for a chunk based on included markers."""
+    instructions = [
+        "You are the narrator for an audiobook.",
+        "Speak clearly with steady pacing and natural expression.",
+        "Do not read markdown syntax.",
+    ]
+    if PAUSE_MARKER in chunk:
+        instructions.append(f"When you encounter {PAUSE_MARKER}, take a deliberate 2-3 second pause and do not say the marker.")
+    if DIALOG_MARKER in chunk:
+        instructions.append(f"When you encounter {DIALOG_MARKER}, shift to a conversational tone and do not say the marker.")
+    return " ".join(instructions)
 
 
 def _chunk_text(text: str, max_chars: int = MAX_CHARS_PER_REQUEST) -> list[str]:
@@ -32,7 +105,12 @@ def _chunk_text(text: str, max_chars: int = MAX_CHARS_PER_REQUEST) -> list[str]:
 
 def _synthesize_openai_chunk(client: object, model: str, voice: str, chunk: str, out_file: Path) -> None:
     """Generate one chunk of speech audio to a file."""
-    response = client.audio.speech.create(model=model, voice=voice, input=chunk)
+    response = client.audio.speech.create(
+        model=model,
+        voice=voice,
+        input=chunk,
+        instructions=_speech_instructions(chunk),
+    )
     response.stream_to_file(str(out_file))
 
 
@@ -112,12 +190,17 @@ def generate_audiobook(
                 chapter_outputs.append(chapter_out)
                 continue
 
-        plain_text = markdown_to_plain_text(draft.text)
-        if not plain_text:
+        clean_title = chapter_title(draft.text, f"Chapter {draft.chapter_number:02d}")
+        enhanced_text = _enhance_text_for_speech(draft.text)
+        if not enhanced_text:
             skipped += 1
             continue
 
-        chunks = _chunk_text(plain_text)
+        # Add a short title prelude and pause to improve chapter transitions.
+        title_prefix = f"{PAUSE_MARKER}\n{clean_title}\n{PAUSE_MARKER}\n\n"
+        speech_input = title_prefix + enhanced_text
+        speech_input = markdown_to_plain_text(speech_input)
+        chunks = _chunk_text(speech_input)
         temp_files: list[Path] = []
         for idx, chunk in enumerate(chunks, start=1):
             temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
