@@ -158,17 +158,16 @@ def generate_audiobook(
     if config.audio_provider != "openai":
         raise ValueError(f"Unsupported audio provider: {config.audio_provider}")
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not set. Set it in your environment or .env file before running audio generation.")
-
-    ensure_python_package("openai")
     ensure_python_package("dotenv", "python-dotenv")
+    ensure_python_package("openai")
 
     from dotenv import load_dotenv
     from openai import OpenAI
 
     load_dotenv()
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set. Set it in your environment or .env file before running audio generation.")
 
     audio_dir.mkdir(parents=True, exist_ok=True)
     client = OpenAI(api_key=api_key)
