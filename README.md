@@ -54,6 +54,7 @@ Author Kit uses an installer CLI and supports **Claude Code**, **GitHub Copilot*
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/)
 - Git
+- Access to a coding agent (Claude, Copilot, Codex)
 
 ### 1. Set up the project
 
