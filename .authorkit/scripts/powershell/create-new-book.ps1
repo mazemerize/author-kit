@@ -177,6 +177,21 @@ Set-Location $repoRoot
 $booksDir = Join-Path $repoRoot 'books'
 New-Item -ItemType Directory -Path $booksDir -Force | Out-Null
 
+# Ensure repo-level .gitignore protects local environment secrets.
+$gitignorePath = Join-Path $repoRoot '.gitignore'
+if (-not (Test-Path $gitignorePath)) {
+    Set-Content -Path $gitignorePath -Value ".env`n" -Encoding UTF8 -NoNewline
+} else {
+    $gitignoreText = Get-Content -Path $gitignorePath -Raw -Encoding UTF8
+    if ($gitignoreText -notmatch '(?m)^\.env$') {
+        if ($gitignoreText -and -not $gitignoreText.EndsWith("`n")) {
+            Add-Content -Path $gitignorePath -Value "`n.env" -Encoding UTF8
+        } else {
+            Add-Content -Path $gitignorePath -Value ".env" -Encoding UTF8
+        }
+    }
+}
+
 # Generate branch name
 if ($ShortName) {
     $branchSuffix = ConvertTo-CleanBranchName -Name $ShortName

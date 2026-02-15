@@ -43,6 +43,20 @@ cd "$REPO_ROOT"
 BOOKS_DIR="$REPO_ROOT/books"
 mkdir -p "$BOOKS_DIR"
 
+# Ensure repo-level .gitignore protects local environment secrets.
+GITIGNORE_PATH="$REPO_ROOT/.gitignore"
+if [[ ! -f "$GITIGNORE_PATH" ]]; then
+  printf ".env\n" > "$GITIGNORE_PATH"
+else
+  if ! grep -qxF ".env" "$GITIGNORE_PATH"; then
+    if [[ -s "$GITIGNORE_PATH" ]]; then
+      printf "\n.env\n" >> "$GITIGNORE_PATH"
+    else
+      printf ".env\n" > "$GITIGNORE_PATH"
+    fi
+  fi
+fi
+
 clean_branch_name() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/-+/-/g; s/^-//; s/-$//'
 }
