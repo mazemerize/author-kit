@@ -741,3 +741,9 @@ The structure of this kit is in part inspired by [spec-kit](https://github.com/g
 ## Support
 
 Need help? Open a [GitHub issue](https://github.com/mazemerize/author-kit/issues). Bug reports, odd behaviors, feature ideas, and questions about using Author kit are all welcome.
+
+---
+
+## Beyond the Code Editor: The Future of Author Kit
+
+Interested in seeing the capacity from Author Kit as a full-fledge book editor experience that does not require being tech-savvy in code editors and AIs? [Contact us](mailto:mazemerize@outlook.com), we would like to hear from you.
