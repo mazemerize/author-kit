@@ -63,7 +63,7 @@ uvx --from git+https://github.com/mazemerize/author-kit.git authorkit init . --a
 Persistent PATH install:
 
 ```bash
-uv tool install --from git+https://github.com/mazemerize/author-kit.git authorkit
+uv tool install authorkit-cli --from git+https://github.com/mazemerize/author-kit.git
 authorkit init . --ai copilot --script sh
 authorkit init . --ai codex --script sh
 authorkit init . --ai claude --script ps
