@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 
 import typer
+from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 
 from .book_core import BookConfig, ChapterDraft, chapter_title, ensure_python_package, markdown_to_plain_text
 from .book_render import ensure_system_tool
@@ -15,6 +17,7 @@ from .book_render import ensure_system_tool
 MAX_CHARS_PER_REQUEST = 3500
 PAUSE_MARKER = "[PAUSE]"
 DIALOG_MARKER = "[DIALOG]"
+console = Console()
 
 
 def _strip_inline_markdown(text: str) -> str:
@@ -176,45 +179,64 @@ def generate_audiobook(
     generated = 0
     skipped = 0
 
-    for draft in drafts:
-        title = chapter_title(draft.text, f"CH{draft.chapter_number:02d}")
-        filename = f"{draft.chapter_number:02d}-{title.lower().replace(' ', '-')}.mp3"
-        filename = "".join(ch for ch in filename if ch.isalnum() or ch in "-._")
-        chapter_out = audio_dir / filename
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    ) as progress:
+        chapter_task = progress.add_task("Generating chapter audio...", total=len(drafts))
+        for draft in drafts:
+            title = chapter_title(draft.text, f"CH{draft.chapter_number:02d}")
+            filename = f"{draft.chapter_number:02d}-{title.lower().replace(' ', '-')}.mp3"
+            filename = "".join(ch for ch in filename if ch.isalnum() or ch in "-._")
+            chapter_out = audio_dir / filename
 
-        if chapter_out.exists() and not force:
-            overwrite = yes or typer.confirm(f"Audio already exists for CH{draft.chapter_number:02d}: overwrite?", default=False)
-            if not overwrite:
+            if chapter_out.exists() and not force:
+                overwrite = yes or typer.confirm(f"Audio already exists for CH{draft.chapter_number:02d}: overwrite?", default=False)
+                if not overwrite:
+                    skipped += 1
+                    chapter_outputs.append(chapter_out)
+                    progress.advance(chapter_task)
+                    continue
+
+            clean_title = chapter_title(draft.text, f"Chapter {draft.chapter_number:02d}")
+            enhanced_text = _enhance_text_for_speech(draft.text)
+            if not enhanced_text:
                 skipped += 1
-                chapter_outputs.append(chapter_out)
+                progress.advance(chapter_task)
                 continue
 
-        clean_title = chapter_title(draft.text, f"Chapter {draft.chapter_number:02d}")
-        enhanced_text = _enhance_text_for_speech(draft.text)
-        if not enhanced_text:
-            skipped += 1
-            continue
+            # Add a short title prelude and pause to improve chapter transitions.
+            title_prefix = f"{PAUSE_MARKER}\n{clean_title}\n{PAUSE_MARKER}\n\n"
+            speech_input = title_prefix + enhanced_text
+            speech_input = markdown_to_plain_text(speech_input)
+            chunks = _chunk_text(speech_input)
+            temp_files: list[Path] = []
+            for idx, chunk in enumerate(chunks, start=1):
+                progress.update(
+                    chapter_task,
+                    description=f"CH{draft.chapter_number:02d}: synthesizing chunk {idx}/{len(chunks)}",
+                )
+                temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
+                _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk)
+                temp_files.append(temp_chunk)
 
-        # Add a short title prelude and pause to improve chapter transitions.
-        title_prefix = f"{PAUSE_MARKER}\n{clean_title}\n{PAUSE_MARKER}\n\n"
-        speech_input = title_prefix + enhanced_text
-        speech_input = markdown_to_plain_text(speech_input)
-        chunks = _chunk_text(speech_input)
-        temp_files: list[Path] = []
-        for idx, chunk in enumerate(chunks, start=1):
-            temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
-            _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk)
-            temp_files.append(temp_chunk)
+            progress.update(chapter_task, description=f"CH{draft.chapter_number:02d}: combining chunks")
+            _concat_mp3_files(temp_files, chapter_out)
+            for temp in temp_files:
+                temp.unlink(missing_ok=True)
 
-        _concat_mp3_files(temp_files, chapter_out)
-        for temp in temp_files:
-            temp.unlink(missing_ok=True)
-
-        generated += 1
-        chapter_outputs.append(chapter_out)
+            generated += 1
+            chapter_outputs.append(chapter_out)
+            progress.advance(chapter_task)
 
     merged_path: Path | None = None
     if merge_output and chapter_outputs:
+        console.print("Merging chapter audio files into full audiobook...")
         merged_path = audio_dir / "audiobook-full.mp3"
         if merged_path.exists() and (force or yes or typer.confirm("Merged audiobook exists: overwrite?", default=False)):
             merged_path.unlink(missing_ok=True)
