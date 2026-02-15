@@ -1,4 +1,4 @@
-# Author Kit
+﻿# Author Kit
 
 ```
      /\        | | | |                | |/ (_) |  
@@ -47,11 +47,32 @@ This works for **any genre**: literary fiction, thrillers, non-fiction guides, m
 
 ## Get Started
 
-Author Kit works with both **Claude Code** and **GitHub Copilot Chat** (in VS Code). The workflows are identical — use `/authorkit.*` commands to trigger each step.
+Author Kit uses an installer CLI and supports **Claude Code**, **GitHub Copilot**, and **Codex**.
 
 ### 1. Set up the project
 
-Clone or copy Author Kit into your working directory. Open it in Claude Code or VS Code with GitHub Copilot.
+One-shot install (always latest):
+
+```bash
+uvx --from git+https://github.com/<org>/author-kit.git authorkit init . --ai claude --script sh
+```
+
+Persistent PATH install:
+
+```bash
+uv tool install --from git+https://github.com/<org>/author-kit.git authorkit
+authorkit init . --ai copilot --script sh
+authorkit init . --ai codex --script sh
+authorkit init . --ai claude --script ps
+```
+
+Update an existing repo in-place:
+
+```bash
+authorkit init --here --force --ai codex --script sh
+```
+
+For Codex, set `CODEX_HOME` to `<repo>/.codex` after install.
 
 ### 2. Establish your writing principles
 
@@ -618,117 +639,77 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 
 ## Project Structure
 
-### Toolkit files (`.authorkit/`, `.claude/`, `.github/`)
+### Toolkit files
 
-```
+```text
 .authorkit/
-├── memory/
-│   └── constitution.md              # Writing principles template
-├── scripts/
-│   └── powershell/
-│       ├── common.ps1               # Shared functions
-│       ├── create-new-book.ps1      # Create book directory + branch
-│       ├── setup-outline.ps1        # Initialize outline artifacts
-│       ├── check-prerequisites.ps1  # Validate required files
-│       └── build-world-index.ps1    # Build World/_index.md entity index
-└── templates/
-    ├── concept-template.md
-    ├── outline-template.md
-    ├── chapters-template.md
-    ├── chapter-plan-template.md
-    ├── checklist-template.md
-    ├── agent-file-template.md
-    └── world-entity-frontmatter.md  # YAML frontmatter schema for World/ files
+|-- memory/
+|   `-- constitution.md
+|-- prompts/                         # Canonical source for all authorkit prompts
+|   `-- authorkit.*.md
+|-- instructions/                    # Canonical instruction templates
+|   |-- claude.md.tmpl
+|   |-- copilot.md.tmpl
+|   `-- codex.md.tmpl
+|-- scripts/
+|   |-- bash/                        # Linux/macOS shell automation
+|   |   |-- common.sh
+|   |   |-- create-new-book.sh
+|   |   |-- setup-outline.sh
+|   |   |-- check-prerequisites.sh
+|   |   `-- build-world-index.sh
+|   `-- powershell/                  # Windows/PowerShell automation
+|       |-- common.ps1
+|       |-- create-new-book.ps1
+|       |-- setup-outline.ps1
+|       |-- check-prerequisites.ps1
+|       `-- build-world-index.ps1
+|-- templates/
+|   |-- concept-template.md
+|   |-- outline-template.md
+|   |-- chapters-template.md
+|   |-- chapter-plan-template.md
+|   |-- checklist-template.md
+|   |-- agent-file-template.md
+|   `-- world-entity-frontmatter.md
+`-- install-manifest.json            # Written by `authorkit init`
 
-.claude/                                 # Claude Code commands
-└── commands/
-    ├── authorkit.constitution.md
-    ├── authorkit.conceive.md
-    ├── authorkit.clarify.md
-    ├── authorkit.outline.md
-    ├── authorkit.chapters.md
-    ├── authorkit.chapter.md
-    ├── authorkit.chapter.plan.md
-    ├── authorkit.chapter.draft.md
-    ├── authorkit.chapter.review.md
-    ├── authorkit.chapter.reorder.md
-    ├── authorkit.analyze.md
-    ├── authorkit.reconcile.md
-    ├── authorkit.revise.md
-    ├── authorkit.checklist.md
-    ├── authorkit.world.build.md
-    ├── authorkit.world.update.md
-    ├── authorkit.world.verify.md
-    ├── authorkit.world.index.md
-    ├── authorkit.pivot.md
-    ├── authorkit.retcon.md
-    ├── authorkit.park.md
-    ├── authorkit.snapshot.md
-    └── authorkit.whatif.md
-
-.github/                                 # GitHub Copilot prompts
-├── copilot-instructions.md              # Global Copilot instructions
-└── prompts/
-    ├── authorkit.constitution.prompt.md
-    ├── authorkit.conceive.prompt.md
-    ├── authorkit.clarify.prompt.md
-    ├── authorkit.outline.prompt.md
-    ├── authorkit.chapters.prompt.md
-    ├── authorkit.chapter.prompt.md
-    ├── authorkit.chapter.plan.prompt.md
-    ├── authorkit.chapter.draft.prompt.md
-    ├── authorkit.chapter.review.prompt.md
-    ├── authorkit.chapter.reorder.prompt.md
-    ├── authorkit.analyze.prompt.md
-    ├── authorkit.reconcile.prompt.md
-    ├── authorkit.revise.prompt.md
-    ├── authorkit.checklist.prompt.md
-    ├── authorkit.world.build.prompt.md
-    ├── authorkit.world.update.prompt.md
-    ├── authorkit.world.verify.prompt.md
-    ├── authorkit.world.index.prompt.md
-    ├── authorkit.pivot.prompt.md
-    ├── authorkit.retcon.prompt.md
-    ├── authorkit.park.prompt.md
-    ├── authorkit.snapshot.prompt.md
-    └── authorkit.whatif.prompt.md
+Generated by `authorkit init` (based on `--ai`):
+- `.claude/commands/` + `CLAUDE.md`
+- `.github/prompts/` + `.github/copilot-instructions.md`
+- `.codex/prompts/` + `.codex/AGENTS.md`
 ```
 
 ### Book output files (`books/`)
 
 Created when you run `/authorkit.conceive`:
 
-```
+```text
 books/
-└── 001-victorian-mystery/
-    ├── concept.md                   # Book concept
-    ├── outline.md                   # Full book outline
-    ├── research.md                  # Research & world-building notes
-    ├── characters.md                # Character profiles
-    ├── chapters.md                  # Chapter task breakdown with status
-    ├── parked-decisions.md          # Deferred creative decisions
-    ├── checklists/                  # Quality checklists
-    ├── pivots/                      # Pivot and retcon logs
-    ├── snapshots/                   # State bookmarks with narrative context
-    ├── World/                       # World-building reference files
-    │   ├── _index.md               # Auto-generated entity index
-    │   ├── Characters/             # Character profiles (with YAML frontmatter)
-    │   ├── Organizations/          # Factions, groups, institutions
-    │   ├── Places/                 # Locations and geography
-    │   ├── History/                # Past events and timeline
-    │   ├── Systems/                # Magic, technology, social systems
-    │   └── Notes/                  # Miscellaneous world notes
-    └── chapters/                    # Individual chapter content
-        ├── 01/
-        │   ├── plan.md             # Chapter plan
-        │   ├── draft.md            # Written prose
-        │   └── review.md           # Review notes
-        ├── 02/
-        │   ├── plan.md
-        │   ├── draft.md
-        │   └── review.md
-        ├── archived/               # Removed/merged chapters (never deleted)
-        └── ...
+`-- 001-victorian-mystery/
+    |-- concept.md
+    |-- outline.md
+    |-- research.md
+    |-- characters.md
+    |-- chapters.md
+    |-- parked-decisions.md
+    |-- checklists/
+    |-- pivots/
+    |-- snapshots/
+    |-- World/
+    |   |-- _index.md
+    |   |-- Characters/
+    |   |-- Organizations/
+    |   |-- Places/
+    |   |-- History/
+    |   |-- Systems/
+    |   `-- Notes/
+    `-- chapters/
+        |-- 01/
+        |   |-- plan.md
+        |   |-- draft.md
+        |   `-- review.md
+        `-- ...
 ```
 
 ---
@@ -737,14 +718,19 @@ books/
 
 | Variable | Description |
 |----------|-------------|
-| `AUTHORKIT_BOOK` | Override book detection for non-Git repositories. Set to the book directory name (e.g., `001-victorian-mystery`) to work on a specific book when not using Git branches. Must be set before using `/authorkit.outline` or follow-up commands. |
+| `AUTHORKIT_BOOK` | Override book detection for non-Git repositories. |
+| `CODEX_HOME` | For Codex usage, set to `<repo>/.codex`. |
 
 ---
 
 ## Prerequisites
 
-- **Windows** with **PowerShell** (the scripts use `.ps1` files)
-- **Git** for branch management and version control
+- **Python 3.11+**
+- **uv** (`uvx` and `uv tool install`)
+- **Git**
+- **Linux/macOS or Windows**
 - One of the following AI agents:
-  - **[Claude Code](https://www.anthropic.com/claude-code)** — uses `/authorkit.*` commands from `.claude/commands/`
-  - **[GitHub Copilot](https://github.com/features/copilot)** in **VS Code** — uses `/authorkit.*` commands from `.github/prompts/` in Copilot Chat (Agent mode recommended)
+  - **[Claude Code](https://www.anthropic.com/claude-code)**
+  - **[GitHub Copilot](https://github.com/features/copilot)**
+  - **[Codex CLI](https://github.com/openai/codex)**
+
