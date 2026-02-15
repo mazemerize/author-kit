@@ -58,6 +58,20 @@ uv run --with typer --with rich python -m authorkit_cli init . --ai claude,copil
 
 On Windows, use `--script ps` if needed.
 
+## Testing From a Branch Build
+
+If you want to validate CLI behavior from an unmerged branch, install/run directly from that branch ref:
+
+```bash
+uv tool install authorkit-cli --from git+https://github.com/mazemerize/author-kit.git@your-branch-name
+```
+
+One-shot execution without a persistent tool install:
+
+```bash
+uvx --from git+https://github.com/mazemerize/author-kit.git@your-branch-name authorkit version
+```
+
 ## Documentation Expectations
 
 If your change affects install flow, CLI flags, supported agents, or script behavior, update `README.md` in the same PR.
