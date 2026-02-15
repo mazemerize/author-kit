@@ -188,35 +188,51 @@ def generate_audiobook(
     if config.audio_provider != "openai":
         raise ValueError(f"Unsupported audio provider: {config.audio_provider}")
 
-    ensure_python_package("dotenv", "python-dotenv")
-    ensure_python_package("openai")
+    setup_progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    )
+    with setup_progress:
+        setup_task = setup_progress.add_task("Preparing audio runtime...", total=None)
 
-    from dotenv import load_dotenv
-    from openai import OpenAI
+        def report_setup(message: str) -> None:
+            setup_progress.update(setup_task, description=message)
 
-    dotenv_candidates: list[Path] = [Path.cwd() / ".env"]
-    for root in dotenv_search_roots or []:
-        dotenv_candidates.append(root / ".env")
+        ensure_python_package("dotenv", "python-dotenv", status_callback=report_setup)
+        ensure_python_package("openai", status_callback=report_setup)
 
-    seen: set[Path] = set()
-    for candidate in dotenv_candidates:
-        resolved = candidate.resolve()
-        if resolved in seen:
-            continue
-        seen.add(resolved)
-        if resolved.exists():
-            load_dotenv(dotenv_path=resolved, override=False)
+        report_setup("Loading environment configuration...")
+        from dotenv import load_dotenv
+        from openai import OpenAI
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+        dotenv_candidates: list[Path] = [Path.cwd() / ".env"]
+        for root in dotenv_search_roots or []:
+            dotenv_candidates.append(root / ".env")
+
+        seen: set[Path] = set()
         for candidate in dotenv_candidates:
-            key = _extract_key_from_dotenv(candidate)
-            if key:
-                os.environ["OPENAI_API_KEY"] = key
-                api_key = key
-                break
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not set. Set it in your environment or .env file before running audio generation.")
+            resolved = candidate.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            if resolved.exists():
+                load_dotenv(dotenv_path=resolved, override=False)
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            for candidate in dotenv_candidates:
+                key = _extract_key_from_dotenv(candidate)
+                if key:
+                    os.environ["OPENAI_API_KEY"] = key
+                    api_key = key
+                    break
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is not set. Set it in your environment or .env file before running audio generation.")
+
+        report_setup("Audio runtime ready.")
 
     audio_dir.mkdir(parents=True, exist_ok=True)
     client = OpenAI(api_key=api_key)

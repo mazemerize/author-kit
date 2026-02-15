@@ -8,21 +8,32 @@ import re
 import subprocess
 import sys
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 
-def ensure_python_package(import_name: str, package_name: str | None = None) -> None:
+def ensure_python_package(
+    import_name: str,
+    package_name: str | None = None,
+    status_callback: Callable[[str], None] | None = None,
+) -> None:
     """Ensure a Python package is importable, installing it when missing."""
     try:
         __import__(import_name)
+        if status_callback:
+            status_callback(f"Python package '{package_name or import_name}' is available.")
     except ImportError:
         pkg = package_name or import_name
+        if status_callback:
+            status_callback(f"Installing Python package '{pkg}'...")
         install_cmd = [sys.executable, "-m", "pip", "install", pkg]
         result = subprocess.run(install_cmd, capture_output=True, text=True, check=False)
 
         if result.returncode != 0 and "No module named pip" in (result.stderr or ""):
             # Some isolated runtimes (for example uv tool envs) may omit pip.
+            if status_callback:
+                status_callback("pip is missing; bootstrapping pip with ensurepip...")
             bootstrap = subprocess.run(
                 [sys.executable, "-m", "ensurepip", "--upgrade"],
                 capture_output=True,
@@ -30,6 +41,8 @@ def ensure_python_package(import_name: str, package_name: str | None = None) -> 
                 check=False,
             )
             if bootstrap.returncode == 0:
+                if status_callback:
+                    status_callback("Retrying package installation after pip bootstrap...")
                 result = subprocess.run(install_cmd, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
@@ -40,6 +53,8 @@ def ensure_python_package(import_name: str, package_name: str | None = None) -> 
             )
             raise RuntimeError(f"Failed to auto-install Python package '{pkg}': {detail}{hint}")
         __import__(import_name)
+        if status_callback:
+            status_callback(f"Installed Python package '{pkg}'.")
 
 
 @dataclass(slots=True)
