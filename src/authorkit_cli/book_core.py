@@ -18,15 +18,27 @@ def ensure_python_package(import_name: str, package_name: str | None = None) -> 
         __import__(import_name)
     except ImportError:
         pkg = package_name or import_name
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", pkg],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        install_cmd = [sys.executable, "-m", "pip", "install", pkg]
+        result = subprocess.run(install_cmd, capture_output=True, text=True, check=False)
+
+        if result.returncode != 0 and "No module named pip" in (result.stderr or ""):
+            # Some isolated runtimes (for example uv tool envs) may omit pip.
+            bootstrap = subprocess.run(
+                [sys.executable, "-m", "ensurepip", "--upgrade"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if bootstrap.returncode == 0:
+                result = subprocess.run(install_cmd, capture_output=True, text=True, check=False)
+
         if result.returncode != 0:
             detail = result.stderr.strip() or result.stdout.strip() or "unknown error"
-            raise RuntimeError(f"Failed to auto-install Python package '{pkg}': {detail}")
+            hint = (
+                " If running from a uv tool install, reinstall the tool from your branch "
+                "or install dependency manually in that environment."
+            )
+            raise RuntimeError(f"Failed to auto-install Python package '{pkg}': {detail}{hint}")
         __import__(import_name)
 
 
