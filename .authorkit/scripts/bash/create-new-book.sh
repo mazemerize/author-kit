@@ -138,8 +138,8 @@ subtitle = ""
 
 [build]
 default_formats = ["docx"]
-reference_docx = ""
-epub_css = ""
+reference_docx = ".authorkit/templates/publishing/reference.docx"
+epub_css = ".authorkit/templates/publishing/epub.css"
 
 [audio]
 provider = "openai"

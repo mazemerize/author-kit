@@ -109,6 +109,9 @@ Defaults:
 - Source: `books/<active-book>/chapters/*/draft.md`
 - Output: `books/<active-book>/dist/` (audio in `dist/audio/`)
 - Metadata: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
+- Styling: bundled defaults in `.authorkit/templates/publishing/` are used automatically:
+  - DOCX: `reference.docx`
+  - EPUB: `epub.css`
 
 Audio authentication:
 - Set `OPENAI_API_KEY` in your environment (or a local `.env` file)

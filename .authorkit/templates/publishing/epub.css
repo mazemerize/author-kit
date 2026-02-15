@@ -1,0 +1,47 @@
+/* EPUB Stylesheet for Ab Imo Pectore */
+
+body {
+    font-family: serif;
+    font-size: 1em;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+}
+
+p {
+    text-align: justify;
+    text-indent: 1.5em;
+    margin: 0;
+    font-size: 1em;
+}
+
+/* First paragraph after heading should not be indented */
+h1 + p, h2 + p, h3 + p {
+    text-indent: 0;
+}
+
+blockquote {
+    margin: 1em 2em;
+    font-style: italic;
+    font-size: 0.95em;
+}
+
+h1 {
+    font-size: 1.5em;
+    margin-top: 2em;
+    margin-bottom: 1em;
+    text-align: left;
+    page-break-before: always;
+}
+
+h2 {
+    font-size: 1.3em;
+    margin-top: 1.5em;
+    margin-bottom: 0.75em;
+}
+
+h3 {
+    font-size: 1.1em;
+    margin-top: 1.25em;
+    margin-bottom: 0.5em;
+}

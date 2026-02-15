@@ -53,6 +53,42 @@ def build_manuscript_markdown(config: BookConfig, drafts: list[ChapterDraft]) ->
     return "".join(parts).strip() + "\n"
 
 
+def _find_repo_root(start: Path) -> Path:
+    """Find repository root from a book path."""
+    current = start.resolve()
+    for parent in [current, *current.parents]:
+        if (parent / ".authorkit").exists():
+            return parent
+    return current
+
+
+def _resolve_asset_path(book_dir: Path, configured_path: str, default_rel: str) -> Path | None:
+    """Resolve configured style path with repo defaults as fallback."""
+    repo_root = _find_repo_root(book_dir)
+
+    candidates: list[Path] = []
+    if configured_path:
+        cfg = Path(configured_path)
+        candidates.extend(
+            [
+                cfg,
+                book_dir / cfg,
+                repo_root / cfg,
+            ]
+        )
+    candidates.append(repo_root / default_rel)
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if resolved.exists():
+            return resolved
+    return None
+
+
 def render_formats(
     book_dir: Path,
     output_dir: Path,
@@ -78,16 +114,23 @@ def render_formats(
 
         cmd = ["pandoc", str(manuscript_path), "-o", str(out_file)]
 
-        if format_name == "docx" and config.reference_docx:
-            ref_path = (book_dir / config.reference_docx).resolve()
-            if ref_path.exists():
+        if format_name == "docx":
+            ref_path = _resolve_asset_path(
+                book_dir,
+                config.reference_docx,
+                ".authorkit/templates/publishing/reference.docx",
+            )
+            if ref_path:
                 cmd.extend([f"--reference-doc={ref_path}"])
         if format_name == "epub":
             cmd.extend(["--toc", "--toc-depth=1"])
-            if config.epub_css:
-                css_path = (book_dir / config.epub_css).resolve()
-                if css_path.exists():
-                    cmd.extend([f"--css={css_path}"])
+            css_path = _resolve_asset_path(
+                book_dir,
+                config.epub_css,
+                ".authorkit/templates/publishing/epub.css",
+            )
+            if css_path:
+                cmd.extend([f"--css={css_path}"])
 
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode != 0:
