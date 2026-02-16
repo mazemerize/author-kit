@@ -45,8 +45,8 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
 
 3. **Comprehensive search** across all artifacts:
 
-   - **If `World/_index.md` exists**: Read it first. Use the Alias Lookup table to find ALL name variants for the entity being retconned. Use the Entity Registry `Chapters` column to identify exactly which chapter files reference this entity — search only those files instead of all chapters. Read the entity's frontmatter `relationships` field to identify connected entities for indirect reference searching.
-   - **If no index**: Fall back to searching all World/ files and chapters by name.
+   - **If `world/_index.md` exists**: Read it first. Use the Alias Lookup table to find ALL name variants for the entity being retconned. Use the Entity Registry `Chapters` column to identify exactly which chapter files reference this entity — search only those files instead of all chapters. Read the entity's frontmatter `relationships` field to identify connected entities for indirect reference searching.
+   - **If no index**: Fall back to searching all world/ files and chapters by name.
 
    For the old fact, search for:
    - **Direct references**: Exact mentions of the old fact
@@ -57,7 +57,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
    a. **concept.md**: Check premise, characters, themes
    b. **outline.md**: Check chapter summaries, character arcs
    c. **characters.md**: Check profiles, relationships
-   d. **World/ files**: Check ALL categories — Characters/, Places/, Organizations/, History/, Systems/, Notes/
+   d. **world/ files**: Check ALL categories — characters/, places/, organizations/, history/, systems/, notes/
    e. **Chapter plans** (`chapters/NN/plan.md`): Check all existing plans
    f. **Chapter drafts** (`chapters/NN/draft.md`): Check all drafted chapters — this is where the most nuanced changes live
    g. **chapters.md**: Check chapter summaries
@@ -74,7 +74,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
    | File | Location | Current Text | Proposed Change |
    |------|----------|-------------|-----------------|
    | chapters/03/draft.md | Para 7 | "...her twenty years in the army..." | "...her years in the intelligence service..." |
-   | World/Characters/elena.md | Background | "Military service (CONCEPT)" | "Intelligence service (RETCON)" |
+   | world/characters/elena.md | Background | "Military service (CONCEPT)" | "Intelligence service (RETCON)" |
 
    ### Indirect References (implications and consequences)
 
@@ -113,7 +113,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
 
    a. For each file in dependency order (upstream first):
 
-      - **World/ files**: Update entries. Tag changes with `(RETCON-[DATE])` to track.
+      - **world/ files**: Update entries. Tag changes with `(RETCON-[DATE])` to track.
       - **concept.md / outline.md / characters.md**: Update references directly.
       - **Chapter plans**: Update affected scene descriptions and notes.
       - **Chapter drafts**: Apply changes while **preserving the chapter's existing voice and style**:
@@ -128,7 +128,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
 
    c. Update chapters.md with new statuses.
 
-   d. After modifying World/ files, update their YAML frontmatter: add `RETCON-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
+   d. After modifying world/ files, update their YAML frontmatter: add `RETCON-YYYY-MM-DD` to the `chapters` field, update any changed `aliases` or `relationships`, update `last_updated`. Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` to rebuild the index.
 
 7. **Post-retcon consistency check**:
 
@@ -174,7 +174,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
 - **Find everything.** The most dangerous retcon is a partial one. Search thoroughly — direct references, indirect implications, and logical consequences.
 - **Preserve voice.** Every change to a chapter draft must be stylistically indistinguishable from the surrounding prose. Match sentence rhythm, vocabulary level, and narrative distance.
 - **Show the manifest first.** Never apply changes without user review. The manifest is the contract.
-- **Track changes.** Use `(RETCON-[DATE])` tags in World/ files. Store full retcon logs in `pivots/`.
+- **Track changes.** Use `(RETCON-[DATE])` tags in world/ files. Store full retcon logs in `pivots/`.
 - **Check your work.** The post-retcon consistency scan catches what the initial search missed.
 - **Indirect > direct.** Direct references are easy. The hard part is finding implications and derivative details. Spend extra effort here.
 - **Don't over-correct.** If a reference works equally well with the old and new facts, leave it alone. Document it in the "Unchanged" section.

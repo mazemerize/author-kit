@@ -34,6 +34,7 @@ Do not re-introduce duplicated prompt sources across agent folders in this repo.
 - Keep script behavior aligned across shell flavors (`.sh` and `.ps1`) when applicable.
 - Preserve backward-compatible CLI behavior unless the change explicitly updates docs and migration expectations.
 - Avoid destructive behavior in installer updates; managed files should be tracked through `.authorkit/install-manifest.json`.
+- Use lowercase directory names under `books/<book>/...` (`world/`, `chapters/`, `checklists/`, `dist/` and `world/<entity-subdirs>/`).
 
 ## Running Local Checks
 
@@ -57,6 +58,20 @@ uv run --with typer --with rich python -m authorkit_cli init . --ai claude,copil
 ```
 
 On Windows, use `--script ps` if needed.
+
+## Testing From a Branch Build
+
+If you want to validate CLI behavior from an unmerged branch, install/run directly from that branch ref:
+
+```bash
+uv tool install authorkit-cli --from git+https://github.com/mazemerize/author-kit.git@your-branch-name
+```
+
+One-shot execution without a persistent tool install:
+
+```bash
+uvx --from git+https://github.com/mazemerize/author-kit.git@your-branch-name authorkit version
+```
 
 ## Documentation Expectations
 

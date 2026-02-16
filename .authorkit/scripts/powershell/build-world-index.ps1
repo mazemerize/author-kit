@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 
-# Build or rebuild the World/ entity index for fast lookups and consistency checking.
+# Build or rebuild the world/ entity index for fast lookups and consistency checking.
 #
 # Usage: ./build-world-index.ps1 [OPTIONS]
 #
@@ -9,7 +9,7 @@
 #   -AddFrontmatter     Batch-add YAML frontmatter to files that lack it
 #   -Help               Show help message
 #
-# This script generates World/_index.md with three sections:
+# This script generates world/_index.md with three sections:
 #   1. Entity Registry — one row per entity with ID, name, aliases, file, chapters
 #   2. Alias Lookup — flat alias-to-entity mapping for name resolution
 #   3. Chapter Manifest — inverted index from chapters to entity lists
@@ -27,7 +27,7 @@ if ($Help) {
     Write-Output @"
 Usage: build-world-index.ps1 [OPTIONS]
 
-Build or rebuild the World/ entity index for fast lookups.
+Build or rebuild the world/ entity index for fast lookups.
 
 OPTIONS:
   -Json               Output stats in JSON format
@@ -35,7 +35,7 @@ OPTIONS:
   -Help               Show this help message
 
 EXAMPLES:
-  # Full rebuild of World/_index.md
+  # Full rebuild of world/_index.md
   .\build-world-index.ps1 -Json
 
   # Add frontmatter to legacy files, then rebuild
@@ -54,16 +54,16 @@ OUTPUT (JSON):
 
 # --- Helper Functions ---
 
-# Map World/ subdirectory name to type prefix and type value
+# Map world/ subdirectory name to type prefix and type value
 function Get-TypeInfo {
     param([string]$SubDir)
     switch ($SubDir) {
-        'Characters'    { return @{ Prefix = 'char-';  Type = 'character' } }
-        'Places'        { return @{ Prefix = 'place-'; Type = 'place' } }
-        'Organizations' { return @{ Prefix = 'org-';   Type = 'organization' } }
-        'History'       { return @{ Prefix = 'event-'; Type = 'event' } }
-        'Systems'       { return @{ Prefix = 'sys-';   Type = 'system' } }
-        'Notes'         { return @{ Prefix = 'note-';  Type = 'note' } }
+        'characters'    { return @{ Prefix = 'char-';  Type = 'character' } }
+        'places'        { return @{ Prefix = 'place-'; Type = 'place' } }
+        'organizations' { return @{ Prefix = 'org-';   Type = 'organization' } }
+        'history'       { return @{ Prefix = 'event-'; Type = 'event' } }
+        'systems'       { return @{ Prefix = 'sys-';   Type = 'system' } }
+        'notes'         { return @{ Prefix = 'note-';  Type = 'note' } }
         default         { return @{ Prefix = 'misc-';  Type = 'misc' } }
     }
 }
@@ -332,17 +332,23 @@ if (-not (Test-BookBranch -Branch $paths.CURRENT_BRANCH -HasGit:$paths.HAS_GIT))
 }
 
 $bookDir = $paths.BOOK_DIR
-$worldDir = Join-Path $bookDir 'World'
+$worldDir = Join-Path $bookDir 'world'
+$legacyWorldDir = Join-Path $bookDir 'World'
 
 if (-not (Test-Path $worldDir -PathType Container)) {
-    Write-Output "ERROR: World/ directory not found at $worldDir"
+    if (Test-Path $legacyWorldDir -PathType Container) {
+        Write-Output "ERROR: Legacy world directory casing detected at $legacyWorldDir"
+        Write-Output "Rename it to lowercase 'world/' before running world commands."
+        exit 1
+    }
+    Write-Output "ERROR: world/ directory not found at $worldDir"
     Write-Output "Run /authorkit.world.build first to create the world."
     exit 1
 }
 
 # Collect all entity files
 $entityFiles = @()
-$subDirs = @('Characters', 'Places', 'Organizations', 'History', 'Systems', 'Notes')
+$subDirs = @('characters', 'places', 'organizations', 'history', 'systems', 'notes')
 
 foreach ($subDir in $subDirs) {
     $dirPath = Join-Path $worldDir $subDir

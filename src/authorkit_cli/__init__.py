@@ -18,9 +18,13 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+
+from .book_commands import book_app
 
 console = Console()
 app = typer.Typer(add_completion=False, help="Author Kit project installer")
+app.add_typer(book_app, name="book")
 
 # CLI banner (ASCII only).
 BANNER = r"""
@@ -357,6 +361,37 @@ def ensure_shell_exec_bits(root: Path) -> None:
         sh_file.chmod(mode | 0o755)
 
 
+def ensure_repo_gitignore(root: Path) -> None:
+    """Ensure repo-level .gitignore includes local secrets and generated artifacts."""
+    gitignore = root / ".gitignore"
+    required_entries = [
+        ".env",
+        "dist/",
+        ".claude/settings.local.json",
+        ".codex/auth.json",
+        ".codex/config.toml",
+        ".codex/models_cache.json",
+        ".codex/.personality_migration",
+        ".codex/sessions/",
+        ".codex/tmp/",
+        ".codex/skills/.system/",
+    ]
+
+    if not gitignore.exists():
+        gitignore.write_text("".join(f"{entry}\n" for entry in required_entries), encoding="utf-8")
+        return
+
+    content = gitignore.read_text(encoding="utf-8")
+    existing = {line.strip() for line in content.splitlines() if line.strip()}
+    missing = [entry for entry in required_entries if entry not in existing]
+    if not missing:
+        return
+
+    suffix = "" if (not content or content.endswith("\n")) else "\n"
+    additions = "".join(f"{entry}\n" for entry in missing)
+    gitignore.write_text(f"{content}{suffix}{additions}", encoding="utf-8")
+
+
 def tool_exists(tool: str) -> bool:
     """Check if a CLI tool is available in PATH.
 
@@ -520,6 +555,8 @@ def init(
             raise typer.BadParameter(f"Directory already exists: {project_path}")
         project_path.mkdir(parents=True)
 
+    ensure_repo_gitignore(project_path)
+
     previous = load_manifest(project_path)
     selected_ais = normalize_ai_selection(ai, previous)
     invalid = [x for x in selected_ais if x not in AGENT_CONFIG]
@@ -550,38 +587,64 @@ def init(
 
     managed: set[str] = set()
     assets = asset_root()
+    prompt_files = sorted((assets / ".authorkit" / "prompts").glob("authorkit*.md"))
+    total_steps = 4 + (len(selected_ais) * (len(prompt_files) + 1)) + 1 + (0 if no_git else 1) + 1
 
-    copy_tree(assets / ".authorkit" / "templates", project_path / ".authorkit" / "templates", project_path, managed)
-    copy_tree(assets / ".authorkit" / "memory", project_path / ".authorkit" / "memory", project_path, managed)
-    copy_tree(assets / ".authorkit" / "prompts", project_path / ".authorkit" / "prompts", project_path, managed)
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        install_task = progress.add_task("Installing Author Kit files...", total=total_steps)
 
-    selected_script_src = assets / ".authorkit" / "scripts" / ("bash" if selected_script == "sh" else "powershell")
-    copy_tree(
-        selected_script_src,
-        project_path / ".authorkit" / "scripts" / ("bash" if selected_script == "sh" else "powershell"),
-        project_path,
-        managed,
-    )
+        copy_tree(assets / ".authorkit" / "templates", project_path / ".authorkit" / "templates", project_path, managed)
+        progress.advance(install_task)
 
-    for selected_ai in selected_ais:
-        for prompt in sorted((assets / ".authorkit" / "prompts").glob("authorkit*.md")):
-            raw = read_text(prompt)
-            rendered = render_prompt(raw, selected_ai, selected_script)
-            out_rel = prompt_out_path(selected_ai, prompt.name)
-            write_text(project_path / out_rel, rendered, project_path, managed)
+        copy_tree(assets / ".authorkit" / "memory", project_path / ".authorkit" / "memory", project_path, managed)
+        progress.advance(install_task)
 
-        instr_rel, instr_content = instruction_text(selected_ai, selected_script)
-        write_text(project_path / instr_rel, instr_content, project_path, managed)
+        copy_tree(assets / ".authorkit" / "prompts", project_path / ".authorkit" / "prompts", project_path, managed)
+        progress.advance(install_task)
 
-    write_manifest(project_path, selected_ais, selected_script, managed)
+        selected_script_src = assets / ".authorkit" / "scripts" / ("bash" if selected_script == "sh" else "powershell")
+        copy_tree(
+            selected_script_src,
+            project_path / ".authorkit" / "scripts" / ("bash" if selected_script == "sh" else "powershell"),
+            project_path,
+            managed,
+        )
+        progress.advance(install_task)
 
-    if not no_git:
-        try:
-            subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=project_path, check=True, capture_output=True)
-        except Exception:
-            subprocess.run(["git", "init"], cwd=project_path, check=False)
+        for selected_ai in selected_ais:
+            for prompt in prompt_files:
+                progress.update(install_task, description=f"Rendering prompts for {selected_ai}...")
+                raw = read_text(prompt)
+                rendered = render_prompt(raw, selected_ai, selected_script)
+                out_rel = prompt_out_path(selected_ai, prompt.name)
+                write_text(project_path / out_rel, rendered, project_path, managed)
+                progress.advance(install_task)
 
-    ensure_shell_exec_bits(project_path)
+            instr_rel, instr_content = instruction_text(selected_ai, selected_script)
+            write_text(project_path / instr_rel, instr_content, project_path, managed)
+            progress.advance(install_task)
+
+        progress.update(install_task, description="Writing install manifest...")
+        write_manifest(project_path, selected_ais, selected_script, managed)
+        progress.advance(install_task)
+
+        if not no_git:
+            progress.update(install_task, description="Preparing git repository...")
+            try:
+                subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=project_path, check=True, capture_output=True)
+            except Exception:
+                subprocess.run(["git", "init"], cwd=project_path, check=False, capture_output=True, text=True)
+            progress.advance(install_task)
+
+        ensure_shell_exec_bits(project_path)
+        progress.advance(install_task)
 
     console.print(f"Installed Author Kit in [bold]{project_path}[/bold]")
     console.print(f"AI flavors: [bold]{', '.join(selected_ais)}[/bold], script flavor: [bold]{selected_script}[/bold]")
@@ -602,6 +665,8 @@ def check() -> None:
     console.print(f"- claude: {'ok' if tool_exists('claude') else 'missing'}")
     console.print(f"- codex: {'ok' if tool_exists('codex') else 'missing'}")
     console.print(f"- copilot (optional for Copilot CLI workflows): {'ok' if tool_exists('copilot') else 'missing'}")
+    console.print(f"- pandoc (book build): {'ok' if tool_exists('pandoc') else 'missing'}")
+    console.print(f"- ffmpeg (book audio): {'ok' if tool_exists('ffmpeg') else 'missing'}")
 
 
 @app.command()

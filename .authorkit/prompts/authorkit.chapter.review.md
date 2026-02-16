@@ -46,7 +46,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: `/memory/constitution.md` (writing principles)
    - **Recommended**: characters.md (character consistency checks)
    - **Recommended**: outline.md (chapter's role in overall structure)
-   - **Recommended**: `World/` folder — load entity files across all categories (Characters/, Places/, Organizations/, Systems/, History/, Notes/) for entities appearing in or relevant to this chapter. **If `World/_index.md` exists**: Read it. Scan the draft text for entity names and resolve them via the Alias Lookup (this catches variants like "Dr. Voss" ↔ "Elena Voss"). Use the Chapter Manifest to identify entities tagged for this chapter. Load only the matched World/ files, rather than all World/ files.
+   - **Recommended**: `world/` folder — load entity files across all categories (characters/, places/, organizations/, systems/, history/, notes/) for entities appearing in or relevant to this chapter. **If `world/_index.md` exists**: Read it. Scan the draft text for entity names and resolve them via the Alias Lookup (this catches variants like "Dr. Voss" ↔ "Elena Voss"). Use the Chapter Manifest to identify entities tagged for this chapter. Load only the matched world/ files, rather than all world/ files.
    - **Optional**: Previous and next chapter drafts (continuity)
    - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)
 
@@ -77,25 +77,25 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
    ### D. Character/Content Consistency
    - **Fiction**: Do characters behave consistently with their profiles? Are voices distinct? Do actions align with motivations?
-   - **Knowledge boundaries**: For each character in the chapter, verify they only act on information they could plausibly possess. If a character reacts to something (a lie, a plan, a schedule), trace when and how they learned it. Flag any case where a character knows something they were never told, witnessed, or could reasonably infer. Cross-check against previous chapters and World/Characters/ profiles.
+   - **Knowledge boundaries**: For each character in the chapter, verify they only act on information they could plausibly possess. If a character reacts to something (a lie, a plan, a schedule), trace when and how they learned it. Flag any case where a character knows something they were never told, witnessed, or could reasonably infer. Cross-check against previous chapters and world/characters/ profiles.
    - **Narrative necessity**: When the narrator frames an action as necessary ("the lie needed updating," "they had to," "there was no choice"), verify the claim against the story's own established logic. If the characters' own system makes the action pointless or unnecessary, the framing is wrong — either the action, the justification, or the narrator's commentary needs to change.
    - **Non-fiction**: Are claims accurate? Are examples relevant? Is the argument logical?
 
-   #### D1. World Consistency (if `World/` files exist)
+   #### D1. World Consistency (if `world/` files exist)
 
-   Cross-check this chapter against ALL relevant World/ categories. For each category, compare what appears in the chapter against the established World/ entries:
+   Cross-check this chapter against ALL relevant world/ categories. For each category, compare what appears in the chapter against the established world/ entries:
 
-   - **Characters**: Compare every character appearing in this chapter against their World/Characters/ profile. Check physical descriptions (appearance, age, distinguishing features), personality traits, speech patterns, relationships, and background details. Flag any contradictions with both `(CONCEPT)` and `(CHxx)` tagged entries.
-   - **Places**: Compare every location described or mentioned in this chapter against its World/Places/ entry. Check physical descriptions, key features, atmosphere, and spatial relationships. Flag setting details that contradict established descriptions. **Critically, verify that all character actions are physically possible within the established geometry** — e.g., characters cannot exit a dead-end cave "out the other side," cannot see a landmark from a location that doesn't have line-of-sight, cannot walk between places in less time than the established distance allows. Check any "Physical Constraints" section in the World/ entry.
+   - **Characters**: Compare every character appearing in this chapter against their world/characters/ profile. Check physical descriptions (appearance, age, distinguishing features), personality traits, speech patterns, relationships, and background details. Flag any contradictions with both `(CONCEPT)` and `(CHxx)` tagged entries.
+   - **Places**: Compare every location described or mentioned in this chapter against its world/places/ entry. Check physical descriptions, key features, atmosphere, and spatial relationships. Flag setting details that contradict established descriptions. **Critically, verify that all character actions are physically possible within the established geometry** — e.g., characters cannot exit a dead-end cave "out the other side," cannot see a landmark from a location that doesn't have line-of-sight, cannot walk between places in less time than the established distance allows. Check any "Physical Constraints" section in the world/ entry.
    - **Headcount & logistics**: Trace every character's physical location through the chapter scene by scene. At each scene transition, verify: (1) the number of characters stated or implied as present matches who could logistically be there, given prior movements, available transport, and distances; (2) no character appears in a scene they couldn't have reached; (3) claims like "three watched" or "all four" match the actual count of bodies at that location. This is especially critical when characters split up, when new characters are introduced mid-chapter, or when a single character has multiple copies.
-   - **Organizations**: Check any organizations referenced in this chapter against their World/Organizations/ entries. Verify membership, hierarchy, purpose, and inter-organization relationships are consistent.
-   - **Systems**: If the chapter involves any system (magic, technology, political, economic), verify that the chapter's depiction follows the rules, limitations, scope, and exceptions defined in World/Systems/. Flag any rule violations.
-   - **History**: If the chapter references past events, verify those references align with the accounts in World/History/ entries. Flag contradictory dates, participants, or outcomes.
-   - **New entities**: Flag characters, places, organizations, systems, or historical events that appear in this chapter but have NO corresponding World/ entry. These are candidates for `/authorkit.world.update`.
+   - **Organizations**: Check any organizations referenced in this chapter against their world/organizations/ entries. Verify membership, hierarchy, purpose, and inter-organization relationships are consistent.
+   - **Systems**: If the chapter involves any system (magic, technology, political, economic), verify that the chapter's depiction follows the rules, limitations, scope, and exceptions defined in world/systems/. Flag any rule violations.
+   - **History**: If the chapter references past events, verify those references align with the accounts in world/history/ entries. Flag contradictory dates, participants, or outcomes.
+   - **New entities**: Flag characters, places, organizations, systems, or historical events that appear in this chapter but have NO corresponding world/ entry. These are candidates for `/authorkit.world.update`.
 
-   For each contradiction found, cite the specific World/ file, the tagged entry, and the location in the chapter draft where the contradiction occurs. Severity:
+   For each contradiction found, cite the specific world/ file, the tagged entry, and the location in the chapter draft where the contradiction occurs. Severity:
    - Contradictions with established entries: **Critical** or **Important** depending on reader-visible impact
-   - Missing World/ entries: **Minor** (informational — these should be captured via `/authorkit.world.update`)
+   - Missing world/ entries: **Minor** (informational — these should be captured via `/authorkit.world.update`)
 
    ### E. Continuity (if previous chapters exist)
    - Does this chapter flow naturally from the previous one?

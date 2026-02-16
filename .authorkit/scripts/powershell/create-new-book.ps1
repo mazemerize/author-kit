@@ -5,6 +5,9 @@ param(
     [switch]$Json,
     [string]$ShortName,
     [int]$Number = 0,
+    [string]$Title,
+    [string]$Author,
+    [string]$Language,
     [switch]$Help,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$BookDescription
@@ -13,12 +16,15 @@ $ErrorActionPreference = 'Stop'
 
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] [-Number N] <book description>"
+    Write-Host "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] [-Number N] [-Title <title>] [-Author <author>] [-Language <language>] <book description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
+    Write-Host "  -Title <title>      Set initial book title for book.toml"
+    Write-Host "  -Author <author>    Set initial author for book.toml"
+    Write-Host "  -Language <lang>    Set language (default: en-US)"
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"
@@ -29,7 +35,7 @@ if ($Help) {
 
 # Check if book description provided
 if (-not $BookDescription -or $BookDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] <book description>"
+    Write-Error "Usage: ./create-new-book.ps1 [-Json] [-ShortName <name>] [-Title <title>] [-Author <author>] [-Language <language>] <book description>"
     exit 1
 }
 
@@ -234,12 +240,67 @@ New-Item -ItemType Directory -Path $chaptersDir -Force | Out-Null
 # Set the AUTHORKIT_BOOK environment variable for the current session
 $env:AUTHORKIT_BOOK = $branchName
 
+function Read-MetadataValue {
+    param(
+        [string]$Label,
+        [string]$DefaultValue
+    )
+    $inputValue = Read-Host "$Label [$DefaultValue]"
+    if ([string]::IsNullOrWhiteSpace($inputValue)) {
+        return $DefaultValue
+    }
+    return $inputValue.Trim()
+}
+
+# Initialize canonical publish metadata file.
+$bookTomlPath = Join-Path $bookDir 'book.toml'
+$defaultTitle = (($branchSuffix -split '-') | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_) }) -join ' '
+$defaultAuthor = 'Unknown Author'
+$defaultLanguage = 'en-US'
+
+if ($Json) {
+    $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { $defaultTitle } else { $Title.Trim() }
+    $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { $defaultAuthor } else { $Author.Trim() }
+    $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { $defaultLanguage } else { $Language.Trim() }
+} else {
+    Write-Output "Initialize book metadata (book.toml):"
+    $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { Read-MetadataValue -Label 'Title' -DefaultValue $defaultTitle } else { $Title.Trim() }
+    $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { Read-MetadataValue -Label 'Author' -DefaultValue $defaultAuthor } else { $Author.Trim() }
+    $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { Read-MetadataValue -Label 'Language' -DefaultValue $defaultLanguage } else { $Language.Trim() }
+}
+
+$bookToml = @"
+[book]
+title = "$bookTitle"
+author = "$bookAuthor"
+language = "$bookLanguage"
+subtitle = ""
+
+[build]
+default_formats = ["docx"]
+reference_docx = ".authorkit/templates/publishing/reference.docx"
+epub_css = ".authorkit/templates/publishing/epub.css"
+
+[audio]
+provider = "openai"
+model = "gpt-4o-mini-tts"
+voice = "onyx"
+speaking_rate_wpm = 170
+
+[stats]
+reading_wpm = 200
+tts_cost_per_1m_chars = 0.0
+"@
+
+Set-Content -Path $bookTomlPath -Value $bookToml -Encoding UTF8 -NoNewline
+
 if ($Json) {
     $obj = [PSCustomObject]@{
         BRANCH_NAME  = $branchName
         CONCEPT_FILE = $conceptFile
         BOOK_NUM     = $bookNum
         BOOK_DIR     = $bookDir
+        BOOK_TOML    = $bookTomlPath
         HAS_GIT      = $hasGit
     }
     $obj | ConvertTo-Json -Compress
@@ -248,6 +309,7 @@ if ($Json) {
     Write-Output "CONCEPT_FILE: $conceptFile"
     Write-Output "BOOK_NUM: $bookNum"
     Write-Output "BOOK_DIR: $bookDir"
+    Write-Output "BOOK_TOML: $bookTomlPath"
     Write-Output "HAS_GIT: $hasGit"
     Write-Output "AUTHORKIT_BOOK environment variable set to: $branchName"
 }

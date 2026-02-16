@@ -5,9 +5,13 @@ Author:
 """
 
 import json
+import re
 from pathlib import Path
 
 import authorkit_cli as cli
+import authorkit_cli.book_core as book_core
+import authorkit_cli.book_commands as book_commands
+import authorkit_cli.book_audio as book_audio
 from typer.testing import CliRunner
 
 
@@ -132,6 +136,137 @@ def test_init_errors_when_required_tool_missing(monkeypatch):
         assert "Required tool(s) not found in PATH: codex" in result.output
 
 
+def test_init_captures_git_init_output(monkeypatch):
+    """Verify init captures git output so progress rendering is not interrupted."""
+    calls: list[tuple[list[str], dict]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        if cmd[:2] == ["git", "rev-parse"]:
+            raise RuntimeError("not in git repo")
+        return None
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        init_calls = [kwargs for cmd, kwargs in calls if cmd[:2] == ["git", "init"]]
+        assert len(init_calls) == 1
+        assert init_calls[0]["capture_output"] is True
+        assert init_calls[0]["text"] is True
+
+
+def test_init_ensures_gitignore_contains_required_entries():
+    """Verify init creates repo-level .gitignore with required local entries."""
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        gitignore = Path(".gitignore")
+        assert gitignore.exists()
+        lines = gitignore.read_text(encoding="utf-8").splitlines()
+        required = [
+            ".env",
+            "dist/",
+            ".claude/settings.local.json",
+            ".codex/auth.json",
+            ".codex/config.toml",
+            ".codex/models_cache.json",
+            ".codex/.personality_migration",
+            ".codex/sessions/",
+            ".codex/tmp/",
+            ".codex/skills/.system/",
+        ]
+        for entry in required:
+            assert entry in lines
+
+
+def test_init_appends_required_gitignore_entries_without_duplicates():
+    """Verify init appends required entries once and avoids duplicates on reruns."""
+    with runner.isolated_filesystem():
+        Path(".gitignore").write_text("node_modules", encoding="utf-8")
+
+        first = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert first.exit_code == 0, first.output
+
+        second = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert second.exit_code == 0, second.output
+
+        lines = Path(".gitignore").read_text(encoding="utf-8").splitlines()
+        assert "node_modules" in lines
+        required = [
+            ".env",
+            "dist/",
+            ".claude/settings.local.json",
+            ".codex/auth.json",
+            ".codex/config.toml",
+            ".codex/models_cache.json",
+            ".codex/.personality_migration",
+            ".codex/sessions/",
+            ".codex/tmp/",
+            ".codex/skills/.system/",
+        ]
+        for entry in required:
+            assert lines.count(entry) == 1
+
+
 def test_version_command_outputs_version():
     """Verify version output contains the CLI version string.
 
@@ -140,4 +275,279 @@ def test_version_command_outputs_version():
     """
     result = runner.invoke(cli.app, ["version"])
     assert result.exit_code == 0
-    assert "authorkit-cli 0.1.0" in result.output
+    assert f"authorkit-cli {cli.get_cli_version()}" in result.output
+
+
+def _seed_book_tree(book_name: str = "001-test-book") -> Path:
+    root = Path("books") / book_name / "chapters" / "01"
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "draft.md").write_text("# Chapter One\n\nThis is a test draft.\n", encoding="utf-8")
+    return root.parents[1].resolve()
+
+
+def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
+    """Verify book build assembles manuscript and calls format renderer."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        outputs = [book_dir / "dist" / "manuscript.docx"]
+
+        monkeypatch.setattr(book_commands, "render_formats", lambda *args, **kwargs: outputs)
+
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir)])
+
+        assert result.exit_code == 0, result.output
+        assert (book_dir / "dist" / "manuscript.md").exists()
+        assert "Built:" in result.output
+
+
+def test_book_build_prompts_and_skips_existing_output(monkeypatch):
+    """Verify existing outputs are skipped when overwrite prompt is declined."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        dist_dir = book_dir / "dist"
+        dist_dir.mkdir(parents=True, exist_ok=True)
+        (dist_dir / "manuscript.docx").write_text("existing", encoding="utf-8")
+        called = {"render": False}
+
+        def fake_render(*args, **kwargs):
+            called["render"] = True
+            return []
+
+        monkeypatch.setattr(book_commands, "render_formats", fake_render)
+        monkeypatch.setattr(book_commands.typer, "confirm", lambda *args, **kwargs: False)
+
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "docx"])
+
+        assert result.exit_code == 0, result.output
+        assert called["render"] is False
+        assert "No output formats selected for rendering." in result.output
+
+
+def test_book_build_prompts_and_overwrites_existing_output(monkeypatch):
+    """Verify existing outputs are rebuilt when overwrite prompt is accepted."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        dist_dir = book_dir / "dist"
+        dist_dir.mkdir(parents=True, exist_ok=True)
+        (dist_dir / "manuscript.docx").write_text("existing", encoding="utf-8")
+        captured = {}
+        outputs = [dist_dir / "manuscript.docx"]
+
+        def fake_render(*args, **kwargs):
+            captured["formats"] = args[3]
+            captured["force"] = kwargs["force"]
+            return outputs
+
+        monkeypatch.setattr(book_commands, "render_formats", fake_render)
+        monkeypatch.setattr(book_commands.typer, "confirm", lambda *args, **kwargs: True)
+
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "docx"])
+
+        assert result.exit_code == 0, result.output
+        assert captured["formats"] == ["docx"]
+        assert captured["force"] is True
+        assert "Built:" in result.output
+
+
+def test_book_build_command_reports_render_failures(monkeypatch):
+    """Verify build command prints a concise error when rendering fails."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+
+        def fail_render(*args, **kwargs):
+            raise RuntimeError("Pandoc conversion failed for docx: unknown error")
+
+        monkeypatch.setattr(book_commands, "render_formats", fail_render)
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "docx"])
+
+        assert result.exit_code == 1
+        assert "Build failed:" in result.output
+        assert "Pandoc conversion failed for docx" in result.output
+
+
+def test_book_build_rejects_pdf_format():
+    """Verify PDF format is rejected as unsupported."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "pdf"])
+
+        assert result.exit_code != 0
+        assert "Unsupported format(s): pdf" in result.output
+
+
+def test_book_stats_json_output_contains_totals():
+    """Verify stats command emits JSON totals payload."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        result = runner.invoke(cli.app, ["book", "stats", "--book", str(book_dir), "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["totals"]["chapters"] == 1
+        assert payload["totals"]["words"] > 0
+
+
+def test_book_stats_table_includes_est_audio_minutes():
+    """Verify table output renders the per-chapter estimated audio duration column."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        result = runner.invoke(cli.app, ["book", "stats", "--book", str(book_dir), "--output", "table"])
+
+        assert result.exit_code == 0, result.output
+        assert "Est Audio Min" in result.output
+
+
+def test_book_audio_command_uses_generator(monkeypatch):
+    """Verify audio command delegates to audio generator with defaults."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        called = {}
+
+        def fake_generate_audiobook(**kwargs):
+            called["audio_dir"] = kwargs["audio_dir"]
+            return {"generated": 1, "skipped": 0, "chapter_files": [], "merged_file": None}
+
+        monkeypatch.setattr(book_commands, "generate_audiobook", fake_generate_audiobook)
+
+        result = runner.invoke(cli.app, ["book", "audio", "--book", str(book_dir), "--yes"])
+
+        assert result.exit_code == 0, result.output
+        assert called["audio_dir"] == (book_dir / "dist" / "audio").resolve()
+        assert "Generated: 1" in result.output
+
+
+def test_check_command_reports_no_pdflatex_status():
+    """Verify environment check output no longer includes pdflatex status."""
+    result = runner.invoke(cli.app, ["check"])
+    assert result.exit_code == 0
+    assert "pdflatex" not in result.output
+
+
+def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypatch):
+    """Verify skipped existing chapter audio gets metadata backfilled."""
+    with runner.isolated_filesystem():
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+        chapter_dir = Path("books/001-test-book/chapters/01")
+        chapter_dir.mkdir(parents=True, exist_ok=True)
+        draft_path = chapter_dir / "draft.md"
+        draft_path.write_text("# Chapter One\n\nAlready generated.\n", encoding="utf-8")
+
+        audio_dir = Path("books/001-test-book/dist/audio")
+        audio_dir.mkdir(parents=True, exist_ok=True)
+        existing = audio_dir / "01-chapter-one.mp3"
+        existing.write_bytes(b"ID3")
+
+        drafts = [
+            book_core.ChapterDraft(
+                chapter_number=1,
+                draft_path=draft_path,
+                text=draft_path.read_text(encoding="utf-8"),
+            )
+        ]
+        config = book_core.BookConfig(
+            title="Test Book",
+            author="Test Author",
+            language="en-US",
+            subtitle="",
+            default_formats=["docx"],
+            reference_docx="",
+            epub_css="",
+            audio_provider="openai",
+            audio_model="gpt-4o-mini-tts",
+            audio_voice="onyx",
+            speaking_rate_wpm=170,
+            reading_wpm=200,
+            tts_cost_per_1m_chars=0.0,
+        )
+
+        metadata_calls: list[Path] = []
+
+        class DummyOpenAI:
+            def __init__(self, api_key: str):
+                self.api_key = api_key
+
+        monkeypatch.setattr(book_audio, "OpenAI", DummyOpenAI)
+        monkeypatch.setattr(book_audio.typer, "confirm", lambda *args, **kwargs: False)
+        monkeypatch.setattr(
+            book_audio,
+            "_write_mp3_metadata",
+            lambda **kwargs: metadata_calls.append(kwargs["path"]),
+        )
+
+        result = book_audio.generate_audiobook(
+            drafts=drafts,
+            config=config,
+            audio_dir=audio_dir,
+            merge_output=False,
+            force=False,
+            yes=False,
+            dotenv_search_roots=[],
+        )
+
+        assert result["generated"] == 0
+        assert result["skipped"] == 1
+        assert metadata_calls == [existing]
+
+
+def test_audio_enhancer_adds_dialog_and_pause_markers():
+    """Verify speech enhancer inserts dialog and pause markers."""
+    markdown = """# Chapter One
+
+> _An opening epigraph line_
+> — Someone
+
+"I know this is a trap," she said.
+"""
+    enhanced = book_audio._enhance_text_for_speech(markdown)
+
+    assert book_audio.PAUSE_MARKER in enhanced
+    assert book_audio.DIALOG_MARKER in enhanced
+
+
+def test_audio_instruction_mentions_markers():
+    """Verify marker-aware instruction text is generated."""
+    chunk = f"{book_audio.PAUSE_MARKER} {book_audio.DIALOG_MARKER} Hello."
+    instructions = book_audio._speech_instructions(chunk)
+    assert "do not say the marker" in instructions
+    assert book_audio.PAUSE_MARKER in instructions
+    assert book_audio.DIALOG_MARKER in instructions
+
+
+def test_docs_and_prompts_use_lowercase_world_paths():
+    """Verify canonical lowercase world path casing in docs/prompts/templates."""
+    repo_root = Path(__file__).resolve().parents[2]
+    targets: list[Path] = []
+    targets.extend((repo_root / ".authorkit" / "prompts").glob("*.md"))
+    targets.extend((repo_root / ".authorkit" / "instructions").glob("*.md.tmpl"))
+    targets.append(repo_root / ".authorkit" / "templates" / "world-entity-frontmatter.md")
+    targets.append(repo_root / "README.md")
+
+    disallowed = [
+        r"\bWorld/",
+        r"\bworld/Characters/",
+        r"\bworld/Places/",
+        r"\bworld/Organizations/",
+        r"\bworld/History/",
+        r"\bworld/Systems/",
+        r"\bworld/Notes/",
+    ]
+
+    for path in targets:
+        text = path.read_text(encoding="utf-8")
+        for pattern in disallowed:
+            assert re.search(pattern, text) is None, f"Found disallowed path casing '{pattern}' in {path}"
+
+
+def test_world_index_scripts_assume_lowercase_world_layout():
+    """Verify world index scripts are configured for lowercase world directories."""
+    repo_root = Path(__file__).resolve().parents[2]
+    ps_script = (repo_root / ".authorkit" / "scripts" / "powershell" / "build-world-index.ps1").read_text(encoding="utf-8")
+    sh_script = (repo_root / ".authorkit" / "scripts" / "bash" / "build-world-index.sh").read_text(encoding="utf-8")
+
+    assert "Join-Path $bookDir 'world'" in ps_script
+    assert "WORLD_DIR=\"$BOOK_DIR/world\"" in sh_script
+
+    for token in ["characters", "places", "organizations", "history", "systems", "notes"]:
+        assert token in ps_script
+        assert token in sh_script

@@ -51,9 +51,9 @@ Abort with an error message if required files are missing.
 **From characters.md (if exists):**
 - Character profiles, speech patterns, relationships
 
-**From World/ folder (if exists):**
-- **If `World/_index.md` exists**: Read it first. Use the Chapter Manifest to load entity files per chapter (targeted loading) rather than all files at once. Use the Alias Lookup for name resolution when cross-referencing chapter text against World/ entities.
-- If no index: load all entity files (Characters/, Places/, Organizations/, History/, Systems/, Notes/)
+**From world/ folder (if exists):**
+- **If `world/_index.md` exists**: Read it first. Use the Chapter Manifest to load entity files per chapter (targeted loading) rather than all files at once. Use the Alias Lookup for name resolution when cross-referencing chapter text against world/ entities.
+- If no index: load all entity files (characters/, places/, organizations/, history/, systems/, notes/)
 - Pay attention to chapter tags `(CHxx)` and `(CONCEPT)` for evolution tracking
 
 **From all drafted chapters (chapters/NN/draft.md):**
@@ -110,18 +110,18 @@ Focus on high-signal findings. Limit to 50 findings total.
 
 #### H. World-Building Consistency
 
-If a `World/` folder exists in BOOK_DIR, perform these checks by cross-referencing World/ files against all drafted chapters:
+If a `world/` folder exists in BOOK_DIR, perform these checks by cross-referencing world/ files against all drafted chapters:
 
 - **Setting detail drift**: Locations described differently across chapters (e.g., building changes floors, distances change, weather contradictions)
-- **Character detail contradictions**: Physical descriptions, ages, backgrounds that conflict between chapters or with World/ files
+- **Character detail contradictions**: Physical descriptions, ages, backgrounds that conflict between chapters or with world/ files
 - **Organization continuity**: Membership, hierarchy, or purpose changes without narrative justification
 - **Timeline/history contradictions**: Past events described differently, contradictory dates or sequences
-- **System rule violations**: Magic/technology/political systems behaving inconsistently with established rules in World/Systems/
+- **System rule violations**: Magic/technology/political systems behaving inconsistently with established rules in world/systems/
 - **Geography contradictions**: Travel times, distances, spatial relationships that don't add up
 - **Cultural inconsistencies**: Customs, language, social norms that change without explanation
-- **(CONCEPT) vs chapter conflicts**: Details tagged `(CONCEPT)` in World/ files that are contradicted by what's actually written in chapters
+- **(CONCEPT) vs chapter conflicts**: Details tagged `(CONCEPT)` in world/ files that are contradicted by what's actually written in chapters
 
-Each finding should cite the specific World/ file and the chapter(s) where the contradiction occurs.
+Each finding should cite the specific world/ file and the chapter(s) where the contradiction occurs.
 
 ### 4. Severity Assignment
 
@@ -167,7 +167,7 @@ Output a Markdown report (no file writes):
 | [Voice] | PASS | - |
 | [Tense] | FAIL | CH04, CH09 |
 
-### World Consistency (if World/ exists)
+### World Consistency (if world/ exists)
 
 | Category | Entries Checked | Conflicts Found | Details |
 |----------|----------------|-----------------|---------|

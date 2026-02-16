@@ -1,10 +1,10 @@
 # World Entity Frontmatter Schema
 
-This document defines the YAML frontmatter schema for World/ entity files. Both the PowerShell index builder (`build-world-index.ps1`) and the AI assistant reference this schema.
+This document defines the YAML frontmatter schema for world/ entity files. Both the PowerShell index builder (`build-world-index.ps1`) and the AI assistant reference this schema.
 
 ## Frontmatter Block
 
-Every World/ entity file should have a YAML frontmatter block between `---` delimiters at the top of the file, before the H1 heading. The body content below the frontmatter is unchanged.
+Every world/ entity file should have a YAML frontmatter block between `---` delimiters at the top of the file, before the H1 heading. The body content below the frontmatter is unchanged.
 
 ```yaml
 ---
@@ -51,14 +51,14 @@ IDs use the format: `{type_prefix}-{kebab-case-name}`
 
 ### Type Prefixes
 
-| World/ Directory | `type` Value | ID Prefix | Example |
+| world/ Directory | `type` Value | ID Prefix | Example |
 |-----------------|-------------|-----------|---------|
-| Characters/ | `character` | `char-` | `char-elena-voss` |
-| Places/ | `place` | `place-` | `place-iron-quarter` |
-| Organizations/ | `organization` | `org-` | `org-iron-guild` |
-| History/ | `event` | `event-` | `event-great-war` |
-| Systems/ | `system` | `sys-` | `sys-blood-magic` |
-| Notes/ | `note` | `note-` | `note-naming-conventions` |
+| characters/ | `character` | `char-` | `char-elena-voss` |
+| places/ | `place` | `place-` | `place-iron-quarter` |
+| organizations/ | `organization` | `org-` | `org-iron-guild` |
+| history/ | `event` | `event-` | `event-great-war` |
+| systems/ | `system` | `sys-` | `sys-blood-magic` |
+| notes/ | `note` | `note-` | `note-naming-conventions` |
 
 ### Kebab-Case Rules
 
@@ -128,7 +128,7 @@ Relationships should ideally be reciprocal: if Elena has `member-of` → Iron Gu
 
 Files without frontmatter remain valid. The PowerShell index builder (`build-world-index.ps1`) handles them by:
 
-1. Deriving `id` from the file path (e.g., `Characters/elena-voss.md` → `char-elena-voss`)
+1. Deriving `id` from the file path (e.g., `characters/elena-voss.md` → `char-elena-voss`)
 2. Extracting `name` from the first H1 heading
 3. Extracting `chapters` by scanning the body for `(CONCEPT)`, `(CHxx)`, etc.
 4. Setting `aliases` to empty

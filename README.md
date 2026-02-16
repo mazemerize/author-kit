@@ -95,6 +95,75 @@ Important for Codex: PATH check and `CODEX_HOME` are different.
 - PATH check validates the `codex` executable exists.
 - `CODEX_HOME` points Codex to the repo-local `.codex` folder after install.
 
+### 1.1 Book Build/Audio/Stats CLI
+
+Author Kit now provides publishing commands directly in the installer CLI:
+
+```bash
+authorkit book build --format docx --format epub
+authorkit book audio --merge
+authorkit book stats --output json
+```
+
+Defaults and behavior:
+- Source manuscript: `books/<active-book>/chapters/*/draft.md`
+- Output directory: `books/<active-book>/dist/` (audio in `dist/audio/`)
+- `authorkit init` seeds repo `.gitignore` with `dist/` so generated artifacts are not committed
+- Metadata source: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
+- Python dependencies for book audio/stats (`openai`, `python-dotenv`, `mutagen`) are installed with `authorkit-cli`
+- Built-in style assets:
+  - DOCX fallback: `.authorkit/templates/publishing/reference.docx`
+  - EPUB fallback: `.authorkit/templates/publishing/epub.css`
+
+`book.toml` baseline (created automatically):
+
+```toml
+[book]
+title = "..."
+author = "..."
+language = "en-US"
+subtitle = ""
+
+[build]
+default_formats = ["docx"]
+reference_docx = ".authorkit/templates/publishing/reference.docx"
+epub_css = ".authorkit/templates/publishing/epub.css"
+
+[audio]
+provider = "openai"
+model = "gpt-4o-mini-tts"
+voice = "onyx"
+speaking_rate_wpm = 170
+
+[stats]
+reading_wpm = 200
+tts_cost_per_1m_chars = 0.0
+```
+
+`authorkit book build` format options:
+- Repeatable `--format` flag: `docx`, `epub`
+- Example: `authorkit book build --format docx --format epub`
+- If omitted, formats come from `[build].default_formats`
+- If an output file already exists, `authorkit` prompts before overwrite
+- Use `--force` to overwrite existing output files without prompts
+
+`authorkit book audio` provider/auth and selection precedence:
+- Current provider: OpenAI (`[audio].provider = "openai"`)
+- Required auth: `OPENAI_API_KEY` in environment or local `.env`
+- Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `onyx`
+- Model selection order: `--model` CLI flag, then `[audio].model`, then default `gpt-4o-mini-tts`
+- Generated chapter files and merged audiobook output include ID3 metadata tags (title/album/artist/language and chapter tracking)
+
+Audio marker behavior (internal speech shaping):
+- Markers used: `[DIALOG]` and `[PAUSE]`
+- Dialogue-like lines are prefixed with `[DIALOG]`
+- Epigraph attribution lines and chapter transitions inject `[PAUSE]`
+- Marker-aware instructions are sent to TTS so markers are not read aloud and delivery is adjusted
+
+Future provider support:
+- The marker pipeline is provider-agnostic; other TTS providers can map markers to instruction text or SSML equivalents.
+- This preserves narration behavior while changing only provider integration/auth.
+
 ### 2. Establish your writing principles
 
 Define the voice, tone, and style rules for your book. This becomes the "style bible" that all chapters are written and reviewed against.
@@ -168,7 +237,7 @@ Or run each step individually for more control:
 /authorkit.chapter.review 1   # Review against plan and constitution
 ```
 
-After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `World/` folder (see [World Maintenance](#world-maintenance)).
+After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
 
 ### 9. Analyze the full manuscript
 
@@ -180,7 +249,7 @@ After drafting several chapters (or all of them), run a cross-chapter analysis:
 
 This checks for continuity errors, plot holes, pacing problems, unresolved threads, and constitution violations across all drafted chapters.
 
-You can also run `/authorkit.world.verify` at any point to check the `World/` folder for internal consistency and alignment with the manuscript.
+You can also run `/authorkit.world.verify` at any point to check the `world/` folder for internal consistency and alignment with the manuscript.
 
 ### 10. Revise as needed
 
@@ -255,6 +324,17 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 
 ## Available Commands
 
+### Installer CLI Commands (`authorkit`)
+
+| Command | Description | Inputs | Outputs |
+|---------|-------------|--------|---------|
+| `authorkit init` | Install/update Author Kit assets for selected AI(s) | Target dir, `--ai`, `--script` | `.authorkit/`, AI prompt folders, manifest |
+| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `pandoc`, `ffmpeg`) |
+| `authorkit version` | Print CLI and Python versions | — | Version report |
+| `authorkit book build` | Build manuscript outputs | Optional `--book`, repeat `--format`, `--force` | `dist/manuscript.md` + rendered docs |
+| `authorkit book audio` | Generate chapter audio and optional merged audiobook | Optional `--book`, `--voice`, `--model`, `--merge` | `dist/audio/*.mp3` (+ optional merged file) |
+| `authorkit book stats` | Compute chapter/global manuscript metrics | Optional `--book`, `--output`, `--wpm` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
+
 ### Core Workflow
 
 | Command | Description | Inputs | Outputs |
@@ -279,17 +359,17 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
-| `/authorkit.world.build` | Build the book's world — establish rules, geography, characters, history, and systems | Optional focus areas | `World/` folder with entity files |
-| `/authorkit.world.update [N]` | Extract world-building details from drafted chapters into the `World/` folder | Chapter number(s) | Updated `World/` files, impact report |
-| `/authorkit.world.verify` | Verify `World/` files for internal consistency and manuscript alignment | Optional scope | Verification report (read-only) |
-| `/authorkit.world.index` | Build or rebuild the `World/_index.md` entity index for fast lookups | Optional: `add-frontmatter` | `World/_index.md`, stats |
+| `/authorkit.world.build` | Build the book's world — establish rules, geography, characters, history, and systems | Optional focus areas | `world/` folder with entity files |
+| `/authorkit.world.update [N]` | Extract world-building details from drafted chapters into the `world/` folder | Chapter number(s) | Updated `world/` files, impact report |
+| `/authorkit.world.verify` | Verify `world/` files for internal consistency and manuscript alignment | Optional scope | Verification report (read-only) |
+| `/authorkit.world.index` | Build or rebuild the `world/_index.md` entity index for fast lookups | Optional: `add-frontmatter` | `world/_index.md`, stats |
 
 ### Quality & Analysis
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `/authorkit.analyze` | Cross-chapter consistency and quality analysis (read-only) | Optional context | Analysis report |
-| `/authorkit.reconcile` | Check outline, concept, chapters.md, and World/ for drift against drafted chapters | Optional scope | Drift report, optional fixes |
+| `/authorkit.reconcile` | Check outline, concept, chapters.md, and world/ for drift against drafted chapters | Optional scope | Drift report, optional fixes |
 | `/authorkit.revise` | Apply revisions to specific chapters based on feedback | Chapter(s) and issues | Updated drafts, ripple effect report |
 | `/authorkit.checklist` | Generate custom quality checklists (craft, continuity, pacing, etc.) | Checklist type | `checklists/[type].md` |
 
@@ -339,7 +419,7 @@ chapter.plan N ──> chapter.draft N ──> chapter.review N
 
 - **Plan** requires the outline and concept. Loads previous chapters for continuity.
 - **Draft** requires the plan. Follows the constitution as its style guide.
-- **Review** grades the draft against plan, constitution, characters, and World/ files.
+- **Review** grades the draft against plan, constitution, characters, and world/ files.
   - **PASS** → status becomes `[X]`. Run `world.update` to capture new world details, then move to the next chapter.
   - **NEEDS REVISION** → status becomes `[R]`. Re-plan with feedback, re-draft, re-review.
 
@@ -354,9 +434,9 @@ analyze ──> revise ──> chapter.review ──> analyze (repeat)
 ```
 
 - **Analyze** is read-only. It identifies issues across all drafted chapters.
-- **Reconcile** is read-first. It checks upstream documents (outline, concept, chapters.md, World/) for drift against drafted chapters, then optionally fixes stale entries.
+- **Reconcile** is read-first. It checks upstream documents (outline, concept, chapters.md, world/) for drift against drafted chapters, then optionally fixes stale entries.
 - **Revise** applies fixes. It may recommend re-reviewing affected chapters.
-- **World Verify** is read-only. It checks World/ consistency.
+- **World Verify** is read-only. It checks world/ consistency.
 - Run analyze → revise → analyze until critical issues reach zero.
 
 ### Mid-Process Commands (available anytime after outlining)
@@ -448,7 +528,7 @@ If you need to rearrange the chapter order, use `/authorkit.chapter.reorder`:
 /authorkit.chapter.reorder Remove CH08
 ```
 
-This handles all renumbering — file directories, chapters.md entries, outline references, World/ chapter tags, and cross-references in plans. Removed chapters are archived (never deleted).
+This handles all renumbering — file directories, chapters.md entries, outline references, world/ chapter tags, and cross-references in plans. Removed chapters are archived (never deleted).
 
 ---
 
@@ -458,22 +538,22 @@ Author Kit includes a dedicated world-building system that tracks every detail o
 
 ### Why?
 
-As your book grows, keeping track of world details becomes harder. Was the tavern called The Iron Flagon or The Iron Flask? Did Elena have green eyes in chapter 2 and blue eyes in chapter 9? World maintenance prevents these consistency problems by maintaining a structured `World/` folder alongside your chapters.
+As your book grows, keeping track of world details becomes harder. Was the tavern called The Iron Flagon or The Iron Flask? Did Elena have green eyes in chapter 2 and blue eyes in chapter 9? World maintenance prevents these consistency problems by maintaining a structured `world/` folder alongside your chapters.
 
-### The World/ Folder
+### The `world/` Folder
 
 ```
-World/
+world/
 ├── _index.md           # Auto-generated entity index (Entity Registry, Alias Lookup, Chapter Manifest)
-├── Characters/         # One file per major character (identity, appearance, relationships, arc)
-├── Organizations/      # Factions, guilds, governments, companies
-├── Places/             # Locations with descriptions, significance, geography
-├── History/            # Past events, backstory, timeline
-├── Systems/            # Magic systems, technology, social structures, frameworks
-└── Notes/              # Miscellaneous world notes
+├── characters/         # One file per major character (identity, appearance, relationships, arc)
+├── organizations/      # Factions, guilds, governments, companies
+├── places/             # Locations with descriptions, significance, geography
+├── history/            # Past events, backstory, timeline
+├── systems/            # Magic systems, technology, social structures, frameworks
+└── notes/              # Miscellaneous world notes
 ```
 
-Only relevant categories are created — a contemporary novel won't need a `Systems/` folder for magic.
+Only relevant categories are created — a contemporary novel won't need a `systems/` folder for magic.
 
 ### Workflow
 
@@ -500,8 +580,8 @@ New details are tagged with their source chapter (e.g., `(CH03)`). If a chapter 
 
 ```
 /authorkit.world.verify                  # Verify everything
-/authorkit.world.verify Characters/      # Verify just character files
-/authorkit.world.verify Systems/ Places/ # Verify specific categories
+/authorkit.world.verify characters/      # Verify just character files
+/authorkit.world.verify systems/ places/ # Verify specific categories
 ```
 
 This is a **read-only** diagnostic that checks for:
@@ -512,13 +592,13 @@ This is a **read-only** diagnostic that checks for:
 - **Geographic plausibility** — travel times, climate, and spatial relationships should make sense
 - **Timeline consistency** — causes precede effects, ages match historical events
 - **Chapter tag integrity** — every `(CHxx)` tag should reference an actual drafted chapter
-- **Staleness detection** — entities referenced in chapters but never updated in `World/`
+- **Staleness detection** — entities referenced in chapters but never updated in `world/`
 
 Issues are rated by severity (Critical, High, Medium, Low) with specific file paths and actionable recommendations.
 
 ### Evolution tags
 
-World/ files track how details evolve across the manuscript:
+world/ files track how details evolve across the manuscript:
 
 | Tag | Meaning |
 |-----|---------|
@@ -530,9 +610,9 @@ World/ files track how details evolve across the manuscript:
 
 ### Entity index
 
-As a book's world grows, finding the right information becomes increasingly expensive — every World/-touching command would need to scan all files. Author Kit solves this with a **PowerShell-generated central index** at `World/_index.md`, which costs zero LLM tokens to maintain.
+As a book's world grows, finding the right information becomes increasingly expensive — every world/-touching command would need to scan all files. Author Kit solves this with a **PowerShell-generated central index** at `world/_index.md`, which costs zero LLM tokens to maintain.
 
-Every World/ entity file includes **YAML frontmatter** with structured metadata:
+Every world/ entity file includes **YAML frontmatter** with structured metadata:
 
 ```yaml
 ---
@@ -551,13 +631,13 @@ last_updated: 2025-02-14
 ---
 ```
 
-The index (`World/_index.md`) contains three lookup tables:
+The index (`world/_index.md`) contains three lookup tables:
 
 | Section | Purpose | Example Query |
 |---------|---------|---------------|
 | **Entity Registry** | All entities with their IDs, names, file paths, and chapter tags | "Where is Elena's file?" |
 | **Alias Lookup** | Maps every name variant to its entity (flags ambiguous aliases) | "Who is 'the Doctor'?" |
-| **Chapter Manifest** | Inverted index: which entities appear in which chapter | "What World/ files do I need for CH05?" |
+| **Chapter Manifest** | Inverted index: which entities appear in which chapter | "What world/ files do I need for CH05?" |
 
 **Rebuilding the index:**
 
@@ -566,7 +646,7 @@ The index (`World/_index.md`) contains three lookup tables:
 /authorkit.world.index add-frontmatter  # Add YAML frontmatter to files that lack it
 ```
 
-The index is rebuilt automatically by `world.build`, `world.update`, `retcon`, `pivot`, and `chapter.reorder`. You only need to run `world.index` manually if you've edited World/ files by hand.
+The index is rebuilt automatically by `world.build`, `world.update`, `retcon`, `pivot`, and `chapter.reorder`. You only need to run `world.index` manually if you've edited world/ files by hand.
 
 ---
 
@@ -584,7 +664,7 @@ When your vision for the book changes — a character needs cutting, a subplot s
 /authorkit.pivot Change the ending so the protagonist fails
 ```
 
-Pivot performs an **impact analysis** across concept, outline, chapters.md, World/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made.
+Pivot performs an **impact analysis** across concept, outline, chapters.md, world/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made.
 
 Changes are logged in `pivots/YYYY-MM-DD-[description].md` for traceability.
 
@@ -692,6 +772,9 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 |   |-- chapter-plan-template.md
 |   |-- checklist-template.md
 |   |-- agent-file-template.md
+|   |-- publishing/
+|   |   |-- reference.docx
+|   |   `-- epub.css
 |   `-- world-entity-frontmatter.md
 `-- install-manifest.json            # Written by `authorkit init`
 
@@ -717,14 +800,14 @@ books/
     |-- checklists/
     |-- pivots/
     |-- snapshots/
-    |-- World/
+    |-- world/
     |   |-- _index.md
-    |   |-- Characters/
-    |   |-- Organizations/
-    |   |-- Places/
-    |   |-- History/
-    |   |-- Systems/
-    |   `-- Notes/
+    |   |-- characters/
+    |   |-- organizations/
+    |   |-- places/
+    |   |-- history/
+    |   |-- systems/
+    |   `-- notes/
     `-- chapters/
         |-- 01/
         |   |-- plan.md
@@ -741,6 +824,68 @@ books/
 |----------|-------------|
 | `AUTHORKIT_BOOK` | Override book detection for non-Git repositories. |
 | `CODEX_HOME` | For Codex usage, set to `<repo>/.codex`. |
+| `OPENAI_API_KEY` | Required for `authorkit book audio` when using OpenAI TTS provider. |
+
+---
+
+## Troubleshooting Book CLI
+
+### `authorkit book build` fails with Pandoc errors
+
+- Symptom: missing binary or conversion failure mentioning `pandoc`.
+- Cause: Pandoc is not installed or not on PATH.
+- Fix:
+  - Windows: `winget install --id JohnMacFarlane.Pandoc -e`
+  - macOS: `brew install pandoc`
+  - Ubuntu/Debian: `sudo apt-get install pandoc`
+- After install, close and reopen your terminal so PATH is refreshed.
+- Verify: `authorkit check` should show `pandoc: ok`.
+
+### `authorkit book audio` fails with FFmpeg errors
+
+- Symptom: concat/merge errors mentioning `ffmpeg`.
+- Cause: FFmpeg is missing from PATH.
+- Fix:
+  - Windows: `winget install --id Gyan.FFmpeg -e`
+  - macOS: `brew install ffmpeg`
+  - Ubuntu/Debian: `sudo apt-get install ffmpeg`
+- After install, close and reopen your terminal so PATH is refreshed.
+- Verify: `authorkit check` should show `ffmpeg: ok`.
+
+### `authorkit book audio` fails with authentication errors
+
+- Symptom: error about missing API key or failed OpenAI auth.
+- Cause: `OPENAI_API_KEY` is not set (or invalid/expired).
+- Fix:
+  - Set env var for current shell/session, or
+  - Store it in a local `.env` file (do not commit).
+- Verify in shell:
+  - PowerShell: `echo $env:OPENAI_API_KEY`
+  - bash/zsh: `echo $OPENAI_API_KEY`
+
+### Audio voice/model are not what you expect
+
+- Selection precedence:
+  1. CLI flags: `--voice`, `--model`
+  2. `books/<book>/book.toml` (`[audio].voice`, `[audio].model`)
+  3. Defaults: `voice = "onyx"`, `model = "gpt-4o-mini-tts"`
+
+### Existing audio files are not overwritten
+
+- Default behavior is interactive prompt per existing chapter file.
+- Use `--force` to bypass prompt logic.
+- Use `--yes` for non-interactive acceptance (CI-friendly).
+
+### Audio metadata tags are missing
+
+- New audio runs write ID3 metadata automatically.
+- If older files were created before metadata support, rerun `authorkit book audio` for those chapters.
+
+### Marker behavior seems absent
+
+- Marker shaping (`[DIALOG]`, `[PAUSE]`) is internal and instruction-driven.
+- Markers are not intended to appear in final spoken output.
+- If delivery sounds flat, verify the selected voice/model and try regenerating with `--force`.
 
 ---
 

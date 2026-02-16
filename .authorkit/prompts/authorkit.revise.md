@@ -38,7 +38,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - The chapter's plan (`chapters/NN/plan.md`)
    - The chapter's review if it exists (`chapters/NN/review.md`)
    - concept.md, constitution, characters.md
-   - `World/` folder files for entities appearing in this chapter (check which details are chapter-tagged to this chapter — these may need updating after revision)
+   - `world/` folder files for entities appearing in this chapter (check which details are chapter-tagged to this chapter — these may need updating after revision)
    - Adjacent chapter drafts (for continuity)
    - Any analysis report findings relevant to this chapter
 
@@ -71,7 +71,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - If a revision changes a fact, character detail, or plot point: identify all other chapters that reference it
    - List any other chapters that may need updates as a result
    - Do NOT automatically edit other chapters - flag them for the user
-   - **World/ synchronization**: Recommend running `/authorkit.world.update [N]` after revision to update World/ files and get a full downstream impact report of what changed and which chapters may be affected
+   - **world/ synchronization**: Recommend running `/authorkit.world.update [N]` after revision to update world/ files and get a full downstream impact report of what changed and which chapters may be affected
 
 6. **Report completion**:
    - Chapters revised and their paths

@@ -53,7 +53,7 @@ The command operates in three modes:
       - chapters.md: Count chapters by status (`[ ]`, `[P]`, `[D]`, `[R]`, `[X]`)
       - concept.md: Current premise summary
       - outline.md: Structure overview
-      - World/ folder: Count of entity files per category
+      - world/ folder: Count of entity files per category
       - parked-decisions.md (if exists): Count of OPEN decisions
       - pivots/ (if exists): Count of previous pivots
 
@@ -79,7 +79,7 @@ The command operates in three modes:
       | Approved [X] | [N] | CH01-CH03 |
 
       **Total word count**: [estimated from drafts]
-      **World/ files**: [N] across [N] categories
+      **world/ files**: [N] across [N] categories
 
       ### What's Working Well
 
@@ -144,7 +144,7 @@ The command operates in three modes:
       | Chapters drafted | [N] | [N] | +[N] |
       | Chapters approved | [N] | [N] | +[N] |
       | Total word count | [N] | [N] | +[N] |
-      | World/ files | [N] | [N] | +[N] |
+      | world/ files | [N] | [N] | +[N] |
       | Pivots since | - | [N] | [list] |
 
       ### Decision Outcome

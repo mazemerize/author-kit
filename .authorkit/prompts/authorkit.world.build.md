@@ -38,7 +38,7 @@ This command can be run multiple times to iteratively deepen specific areas.
 2. **Load context**:
    - **Required**: concept.md (premise, genre, themes, characters, setting)
    - **Optional**: `/memory/constitution.md` (voice, tone — informs world-building style)
-   - **Optional**: Existing `World/` folder (if running iteratively to deepen)
+   - **Optional**: Existing `world/` folder (if running iteratively to deepen)
 
 3. **Assess genre and determine relevant categories**:
 
@@ -46,12 +46,12 @@ This command can be run multiple times to iteratively deepen specific areas.
 
    | Category | Fantasy/Sci-fi | Historical | Contemporary | Non-fiction |
    |----------|---------------|-----------|-------------|------------|
-   | Characters/ | Yes | Yes | Yes | Rarely |
-   | Organizations/ | Yes | Often | Sometimes | Sometimes |
-   | Places/ | Yes | Yes | Sometimes | Rarely |
-   | History/ | Yes | Yes | Rarely | Sometimes |
-   | Systems/ | Yes (magic, tech) | Sometimes (social) | Rarely | Often (frameworks) |
-   | Notes/ | Always | Always | Always | Always |
+   | characters/ | Yes | Yes | Yes | Rarely |
+   | organizations/ | Yes | Often | Sometimes | Sometimes |
+   | places/ | Yes | Yes | Sometimes | Rarely |
+   | history/ | Yes | Yes | Rarely | Sometimes |
+   | systems/ | Yes (magic, tech) | Sometimes (social) | Rarely | Often (frameworks) |
+   | notes/ | Always | Always | Always | Always |
 
    If user specified focus areas, only work on those categories. Otherwise, work through all relevant categories.
 
@@ -70,16 +70,16 @@ This command can be run multiple times to iteratively deepen specific areas.
    - **Contemporary**: Geographic setting (city, region, country), social/cultural milieu, key institutions (schools, companies, government), technology and communication norms, socioeconomic context
    - **Non-fiction**: Conceptual framework and taxonomy, key terminology with precise definitions, domain structure and relationships, prerequisite knowledge the reader needs, competing theories or approaches
 
-5. **Create the World/ folder structure**:
+5. **Create the world/ folder structure**:
 
    ```
-   BOOK_DIR/World/
-   ├── Characters/
-   ├── Organizations/
-   ├── Places/
-   ├── History/
-   ├── Systems/
-   └── Notes/
+   BOOK_DIR/world/
+   ├── characters/
+   ├── organizations/
+   ├── places/
+   ├── history/
+   ├── systems/
+   └── notes/
    ```
 
    Only create folders for categories relevant to this book.
@@ -88,7 +88,7 @@ This command can be run multiple times to iteratively deepen specific areas.
 
    All pre-writing entries are tagged `(CONCEPT)` to indicate they were established before any chapter was written. This distinguishes them from details that emerge during drafting (which will be tagged `(CHxx)` by `/authorkit.world.update`).
 
-   **Characters/** — One file per major character (see `.authorkit/templates/world-entity-frontmatter.md` for full schema):
+   **characters/** — One file per major character (see `.authorkit/templates/world-entity-frontmatter.md` for full schema):
    ```markdown
    ---
    id: char-[kebab-name]
@@ -131,7 +131,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - CONCEPT: [Planned character arc summary]
    ```
 
-   **Places/** — One file per significant location:
+   **places/** — One file per significant location:
    ```markdown
    ---
    id: place-[kebab-name]
@@ -164,7 +164,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    ## First Appearance: (planned)
    ```
 
-   **Organizations/** — One file per faction/group:
+   **organizations/** — One file per faction/group:
    ```markdown
    ---
    id: org-[kebab-name]
@@ -197,7 +197,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    ## First Appearance: (planned)
    ```
 
-   **History/** — One file per significant past event:
+   **history/** — One file per significant past event:
    ```markdown
    ---
    id: event-[kebab-name]
@@ -228,7 +228,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - [How this event shapes the current story] (CONCEPT)
    ```
 
-   **Systems/** — One file per system (magic, technology, politics, economy, etc.):
+   **systems/** — One file per system (magic, technology, politics, economy, etc.):
    ```markdown
    ---
    id: sys-[kebab-name]
@@ -263,7 +263,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - [Any known exceptions to the rules] (CONCEPT)
    ```
 
-   **Notes/** — For general world-building notes that don't fit elsewhere:
+   **notes/** — For general world-building notes that don't fit elsewhere:
    ```markdown
    ---
    id: note-[kebab-name]
@@ -281,7 +281,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - [Note] (CONCEPT)
    ```
 
-7. **Build the World/ index**: Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to generate `World/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
+7. **Build the world/ index**: Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to generate `world/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
 
 8. **Internal consistency validation**:
    - Check that character relationships are reciprocal (if A is B's enemy, B should know about A)
@@ -291,7 +291,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - Flag any contradictions or gaps for the user
 
 9. **Report completion**:
-   - Summary of World/ files created, organized by category
+   - Summary of world/ files created, organized by category
    - Count of entries per category
    - Any consistency warnings or gaps flagged
    - Areas that could benefit from more depth
@@ -299,12 +299,12 @@ This command can be run multiple times to iteratively deepen specific areas.
 
 ## Key Rules
 
-- **This is reference material, not prose.** World/ files should read like an encyclopedia, not a novel.
+- **This is reference material, not prose.** world/ files should read like an encyclopedia, not a novel.
 - **Be specific, not vague.** "A large city" is bad. "A port city of ~200,000 on the western coast, built on steep hills overlooking a natural harbor" is good.
 - **Tag everything (CONCEPT).** This tag is critical for the evolution tracking system. When chapters are drafted and `/authorkit.world.update` runs, new details will be tagged with chapter numbers.
-- **Include YAML frontmatter.** Every World/ file must have a frontmatter block with `id`, `type`, `name`, `aliases`, `chapters`, `first_appearance`, `relationships`, `tags`, and `last_updated`. See `.authorkit/templates/world-entity-frontmatter.md` for the full schema.
+- **Include YAML frontmatter.** Every world/ file must have a frontmatter block with `id`, `type`, `name`, `aliases`, `chapters`, `first_appearance`, `relationships`, `tags`, and `last_updated`. See `.authorkit/templates/world-entity-frontmatter.md` for the full schema.
 - **Don't over-build.** Only create entries for things that will actually matter to the story. A magic system with 50 rules that only appears once is wasted effort. Focus on what the reader will encounter.
-- **Cross-reference.** Use relative paths to link related entries (e.g., "See Characters/elena-voss.md" or "Related: History/the-great-war.md").
-- **Iterative by design.** This command can be run multiple times. Each run should deepen or add, not replace. If World/ already has entries, read them first and build on them.
-- **Genre-appropriate depth.** An epic fantasy might need 30+ World/ files. A contemporary romance might need 5. Scale to the book's needs.
+- **Cross-reference.** Use relative paths to link related entries (e.g., "See characters/elena-voss.md" or "Related: history/the-great-war.md").
+- **Iterative by design.** This command can be run multiple times. Each run should deepen or add, not replace. If world/ already has entries, read them first and build on them.
+- **Genre-appropriate depth.** An epic fantasy might need 30+ world/ files. A contemporary romance might need 5. Scale to the book's needs.
 
