@@ -629,7 +629,7 @@ def init(
             try:
                 subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=project_path, check=True, capture_output=True)
             except Exception:
-                subprocess.run(["git", "init"], cwd=project_path, check=False)
+                subprocess.run(["git", "init"], cwd=project_path, check=False, capture_output=True, text=True)
             progress.advance(install_task)
 
         ensure_shell_exec_bits(project_path)

@@ -136,6 +136,41 @@ def test_init_errors_when_required_tool_missing(monkeypatch):
         assert "Required tool(s) not found in PATH: codex" in result.output
 
 
+def test_init_captures_git_init_output(monkeypatch):
+    """Verify init captures git output so progress rendering is not interrupted."""
+    calls: list[tuple[list[str], dict]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        if cmd[:2] == ["git", "rev-parse"]:
+            raise RuntimeError("not in git repo")
+        return None
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        init_calls = [kwargs for cmd, kwargs in calls if cmd[:2] == ["git", "init"]]
+        assert len(init_calls) == 1
+        assert init_calls[0]["capture_output"] is True
+        assert init_calls[0]["text"] is True
+
+
 def test_init_ensures_gitignore_contains_env_and_dist_entries():
     """Verify init creates repo-level .gitignore with .env and dist/ entries."""
     with runner.isolated_filesystem():
