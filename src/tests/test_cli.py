@@ -136,6 +136,75 @@ def test_init_errors_when_required_tool_missing(monkeypatch):
         assert "Required tool(s) not found in PATH: codex" in result.output
 
 
+def test_init_ensures_gitignore_contains_env_entry():
+    """Verify init creates repo-level .gitignore with .env entry."""
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        gitignore = Path(".gitignore")
+        assert gitignore.exists()
+        assert ".env" in gitignore.read_text(encoding="utf-8").splitlines()
+
+
+def test_init_appends_env_to_existing_gitignore_without_duplicates():
+    """Verify init appends .env once and avoids duplicate entries on reruns."""
+    with runner.isolated_filesystem():
+        Path(".gitignore").write_text("node_modules", encoding="utf-8")
+
+        first = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert first.exit_code == 0, first.output
+
+        second = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert second.exit_code == 0, second.output
+
+        lines = Path(".gitignore").read_text(encoding="utf-8").splitlines()
+        assert "node_modules" in lines
+        assert lines.count(".env") == 1
+
+
 def test_version_command_outputs_version():
     """Verify version output contains the CLI version string.
 

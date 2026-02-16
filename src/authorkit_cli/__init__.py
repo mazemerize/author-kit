@@ -361,6 +361,21 @@ def ensure_shell_exec_bits(root: Path) -> None:
         sh_file.chmod(mode | 0o755)
 
 
+def ensure_repo_gitignore(root: Path) -> None:
+    """Ensure repo-level .gitignore includes local .env secrets."""
+    gitignore = root / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text(".env\n", encoding="utf-8")
+        return
+
+    content = gitignore.read_text(encoding="utf-8")
+    if any(line.strip() == ".env" for line in content.splitlines()):
+        return
+
+    suffix = "" if (not content or content.endswith("\n")) else "\n"
+    gitignore.write_text(f"{content}{suffix}.env\n", encoding="utf-8")
+
+
 def tool_exists(tool: str) -> bool:
     """Check if a CLI tool is available in PATH.
 
@@ -523,6 +538,8 @@ def init(
         if project_path.exists():
             raise typer.BadParameter(f"Directory already exists: {project_path}")
         project_path.mkdir(parents=True)
+
+    ensure_repo_gitignore(project_path)
 
     previous = load_manifest(project_path)
     selected_ais = normalize_ai_selection(ai, previous)
