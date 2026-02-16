@@ -16,6 +16,7 @@ An open-source toolkit that brings structured, template-driven principles to boo
 - [Chapter-Level Iteration](#chapter-level-iteration)
 - [World Maintenance](#world-maintenance)
 - [Mid-Process Changes](#mid-process-changes)
+- [Book Export, Audiobook and Statistics](#book-export-audiobook-and-statistics)
 - [Project Structure](#project-structure)
 - [Environment Variables](#environment-variables)
 - [Prerequisites](#prerequisites)
@@ -205,7 +206,7 @@ authorkit book audio --merge
 authorkit book stats --output json
 ```
 
-Read me in [Book Export](#book-export) below.
+Read me in [Book Export](#book-export-audiobook-and-statistics) below.
 
 ---
 
