@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 import authorkit_cli as cli
+import authorkit_cli.book_core as book_core
 import authorkit_cli.book_commands as book_commands
 import authorkit_cli.book_audio as book_audio
 from typer.testing import CliRunner
@@ -168,6 +169,22 @@ def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
         assert "Built:" in result.output
 
 
+def test_book_build_command_reports_render_failures(monkeypatch):
+    """Verify build command prints a concise error when rendering fails."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+
+        def fail_render(*args, **kwargs):
+            raise RuntimeError("Pandoc conversion failed for pdf: pdflatex not found")
+
+        monkeypatch.setattr(book_commands, "render_formats", fail_render)
+        result = runner.invoke(cli.app, ["book", "build", "--book", book_dir.name, "--format", "pdf"])
+
+        assert result.exit_code == 1
+        assert "Build failed:" in result.output
+        assert "pdflatex not found" in result.output
+
+
 def test_book_stats_json_output_contains_totals():
     """Verify stats command emits JSON totals payload."""
     with runner.isolated_filesystem():
@@ -178,6 +195,16 @@ def test_book_stats_json_output_contains_totals():
         payload = json.loads(result.output)
         assert payload["totals"]["chapters"] == 1
         assert payload["totals"]["words"] > 0
+
+
+def test_book_stats_table_includes_est_audio_minutes():
+    """Verify table output renders the per-chapter estimated audio duration column."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        result = runner.invoke(cli.app, ["book", "stats", "--book", book_dir.name, "--output", "table"])
+
+        assert result.exit_code == 0, result.output
+        assert "Est Audio Min" in result.output
 
 
 def test_book_audio_command_uses_generator(monkeypatch):
@@ -197,6 +224,80 @@ def test_book_audio_command_uses_generator(monkeypatch):
         assert result.exit_code == 0, result.output
         assert called["audio_dir"] == (book_dir / "dist" / "audio").resolve()
         assert "Generated: 1" in result.output
+
+
+def test_check_command_reports_pdflatex_status():
+    """Verify environment check output includes pdflatex status."""
+    result = runner.invoke(cli.app, ["check"])
+    assert result.exit_code == 0
+    assert "pdflatex (book pdf build):" in result.output
+
+
+def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypatch):
+    """Verify skipped existing chapter audio gets metadata backfilled."""
+    with runner.isolated_filesystem():
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+        chapter_dir = Path("books/001-test-book/chapters/01")
+        chapter_dir.mkdir(parents=True, exist_ok=True)
+        draft_path = chapter_dir / "draft.md"
+        draft_path.write_text("# Chapter One\n\nAlready generated.\n", encoding="utf-8")
+
+        audio_dir = Path("books/001-test-book/dist/audio")
+        audio_dir.mkdir(parents=True, exist_ok=True)
+        existing = audio_dir / "01-chapter-one.mp3"
+        existing.write_bytes(b"ID3")
+
+        drafts = [
+            book_core.ChapterDraft(
+                chapter_number=1,
+                draft_path=draft_path,
+                text=draft_path.read_text(encoding="utf-8"),
+            )
+        ]
+        config = book_core.BookConfig(
+            title="Test Book",
+            author="Test Author",
+            language="en-US",
+            subtitle="",
+            default_formats=["docx"],
+            reference_docx="",
+            epub_css="",
+            audio_provider="openai",
+            audio_model="gpt-4o-mini-tts",
+            audio_voice="onyx",
+            speaking_rate_wpm=170,
+            reading_wpm=200,
+            tts_cost_per_1m_chars=0.0,
+        )
+
+        metadata_calls: list[Path] = []
+
+        class DummyOpenAI:
+            def __init__(self, api_key: str):
+                self.api_key = api_key
+
+        monkeypatch.setattr(book_audio, "OpenAI", DummyOpenAI)
+        monkeypatch.setattr(book_audio.typer, "confirm", lambda *args, **kwargs: False)
+        monkeypatch.setattr(
+            book_audio,
+            "_write_mp3_metadata",
+            lambda **kwargs: metadata_calls.append(kwargs["path"]),
+        )
+
+        result = book_audio.generate_audiobook(
+            drafts=drafts,
+            config=config,
+            audio_dir=audio_dir,
+            merge_output=False,
+            force=False,
+            yes=False,
+            dotenv_search_roots=[],
+        )
+
+        assert result["generated"] == 0
+        assert result["skipped"] == 1
+        assert metadata_calls == [existing]
 
 
 def test_audio_enhancer_adds_dialog_and_pause_markers():

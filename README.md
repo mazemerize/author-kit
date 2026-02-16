@@ -109,6 +109,7 @@ Defaults and behavior:
 - Source manuscript: `books/<active-book>/chapters/*/draft.md`
 - Output directory: `books/<active-book>/dist/` (audio in `dist/audio/`)
 - Metadata source: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
+- Python dependencies for book audio/stats (`openai`, `python-dotenv`, `mutagen`) are installed with `authorkit-cli`
 - Built-in style assets:
   - DOCX fallback: `.authorkit/templates/publishing/reference.docx`
   - EPUB fallback: `.authorkit/templates/publishing/epub.css`
@@ -148,6 +149,7 @@ tts_cost_per_1m_chars = 0.0
 - Required auth: `OPENAI_API_KEY` in environment or local `.env`
 - Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `onyx`
 - Model selection order: `--model` CLI flag, then `[audio].model`, then default `gpt-4o-mini-tts`
+- Generated chapter files and merged audiobook output include ID3 metadata tags (title/album/artist/language and chapter tracking)
 
 Audio marker behavior (internal speech shaping):
 - Markers used: `[DIALOG]` and `[PAUSE]`
@@ -324,11 +326,11 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `authorkit init` | Install/update Author Kit assets for selected AI(s) | Target dir, `--ai`, `--script` | `.authorkit/`, AI prompt folders, manifest |
-| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `pandoc`, `ffmpeg`) |
+| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `pandoc`, `pdflatex`, `ffmpeg`) |
 | `authorkit version` | Print CLI and Python versions | — | Version report |
 | `authorkit book build` | Build manuscript outputs | Optional `--book`, repeat `--format`, `--force` | `dist/manuscript.md` + rendered docs |
 | `authorkit book audio` | Generate chapter audio and optional merged audiobook | Optional `--book`, `--voice`, `--model`, `--merge` | `dist/audio/*.mp3` (+ optional merged file) |
-| `authorkit book stats` | Compute chapter/global manuscript metrics | Optional `--book`, `--output`, `--wpm` | Table/JSON/Markdown stats |
+| `authorkit book stats` | Compute chapter/global manuscript metrics | Optional `--book`, `--output`, `--wpm` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
 
 ### Core Workflow
 
@@ -835,6 +837,16 @@ books/
   - Ubuntu/Debian: `sudo apt-get install pandoc`
 - Verify: `authorkit check` should show `pandoc: ok`.
 
+### `authorkit book build --format pdf` fails with `pdflatex` errors
+
+- Symptom: PDF conversion failure mentioning `pdflatex not found`.
+- Cause: TeX engine is missing from PATH.
+- Fix:
+  - Windows: `winget install --id MiKTeX.MiKTeX -e`
+  - macOS: `brew install --cask mactex-no-gui`
+  - Ubuntu/Debian: `sudo apt-get install texlive-latex-base`
+- Verify: `authorkit check` should show `pdflatex: ok`.
+
 ### `authorkit book audio` fails with FFmpeg errors
 
 - Symptom: concat/merge errors mentioning `ffmpeg`.
@@ -868,6 +880,11 @@ books/
 - Default behavior is interactive prompt per existing chapter file.
 - Use `--force` to bypass prompt logic.
 - Use `--yes` for non-interactive acceptance (CI-friendly).
+
+### Audio metadata tags are missing
+
+- New audio runs write ID3 metadata automatically.
+- If older files were created before metadata support, rerun `authorkit book audio` for those chapters.
 
 ### Marker behavior seems absent
 

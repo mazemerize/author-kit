@@ -6,6 +6,9 @@ requires-python = ">=3.11"
 dependencies = [
     "typer",
     "rich",
+    "openai",
+    "python-dotenv",
+    "mutagen",
 ]
 
 [project.scripts]

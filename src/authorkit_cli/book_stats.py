@@ -6,6 +6,8 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from mutagen import File
+
 from .book_core import BookConfig, ChapterDraft, chapter_title, markdown_to_plain_text
 
 
@@ -32,8 +34,6 @@ def _count_dialogue_lines(markdown: str) -> int:
 
 def _mutagen_duration_seconds(path: Path) -> float:
     try:
-        from mutagen import File
-
         audio_file = File(path)
         if audio_file and audio_file.info:
             return float(audio_file.info.length)
@@ -94,9 +94,6 @@ def collect_stats(drafts: list[ChapterDraft], config: BookConfig, audio_dir: Pat
 
     if audio_dir and audio_dir.exists():
         try:
-            from .book_core import ensure_python_package
-
-            ensure_python_package("mutagen")
             chapter_audio = sorted(path for path in audio_dir.glob("*.mp3") if path.is_file())
             output["audio"] = {
                 "files": len(chapter_audio),
@@ -123,11 +120,11 @@ def render_stats_markdown(stats: dict[str, object]) -> str:
     lines.append("")
     lines.append("## Per Chapter")
     lines.append("")
-    lines.append("| Chapter | Title | Words | Chars | Dialogue Ratio |")
-    lines.append("|---|---|---:|---:|---:|")
+    lines.append("| Chapter | Title | Words | Chars | Dialogue Ratio | Est Audio Min |")
+    lines.append("|---|---|---:|---:|---:|---:|")
 
     for chapter in stats["chapters"]:
         lines.append(
-            f"| {chapter['chapter']} | {chapter['title']} | {chapter['words']} | {chapter['chars']} | {chapter['dialogue_ratio']:.2f} |"
+            f"| {chapter['chapter']} | {chapter['title']} | {chapter['words']} | {chapter['chars']} | {chapter['dialogue_ratio']:.2f} | {chapter['est_audio_minutes']:.2f} |"
         )
     return "\n".join(lines) + "\n"

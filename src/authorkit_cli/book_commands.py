@@ -67,7 +67,11 @@ def build(
     manuscript_path = dist_dir / "manuscript.md"
     manuscript_path.write_text(manuscript_markdown, encoding="utf-8")
 
-    produced = render_formats(book_dir, dist_dir, manuscript_path, formats, config, force)
+    try:
+        produced = render_formats(book_dir, dist_dir, manuscript_path, formats, config, force)
+    except (RuntimeError, FileExistsError, ValueError) as exc:
+        console.print(f"[red]Build failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
 
     if not quiet:
         console.print(f"Book: [bold]{book_dir.name}[/bold]")
@@ -160,6 +164,7 @@ def stats(
     table.add_column("Words", justify="right")
     table.add_column("Chars", justify="right")
     table.add_column("Dialog %", justify="right")
+    table.add_column("Est Audio Min", justify="right")
 
     for chapter in stat_payload["chapters"]:
         table.add_row(
@@ -168,6 +173,7 @@ def stats(
             str(chapter["words"]),
             str(chapter["chars"]),
             f"{chapter['dialogue_ratio'] * 100:.1f}",
+            f"{chapter['est_audio_minutes']:.2f}",
         )
 
     console.print(table)
