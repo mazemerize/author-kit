@@ -267,6 +267,49 @@ def test_init_appends_required_gitignore_entries_without_duplicates():
             assert lines.count(entry) == 1
 
 
+def test_init_preserves_existing_constitution_on_rerun():
+    """Verify init does not overwrite a user-edited constitution on rerun."""
+    with runner.isolated_filesystem():
+        first = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert first.exit_code == 0, first.output
+
+        constitution_path = Path(".authorkit/memory/constitution.md")
+        edited = "# Custom Constitution\n\nKeep this."
+        constitution_path.write_text(edited, encoding="utf-8")
+
+        second = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert second.exit_code == 0, second.output
+        assert constitution_path.read_text(encoding="utf-8") == edited
+
+
 def test_version_command_outputs_version():
     """Verify version output contains the CLI version string.
 

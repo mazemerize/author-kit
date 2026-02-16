@@ -44,6 +44,7 @@ AGENT_CONFIG = {
 }
 
 SCRIPT_CHOICES = {"sh": "POSIX Shell", "ps": "PowerShell"}
+PROTECTED_MANAGED_PATHS = {".authorkit/memory/constitution.md"}
 
 
 def show_banner() -> None:
@@ -120,7 +121,13 @@ def write_text(path: Path, content: str, root: Path, managed: set[str]) -> None:
     record_managed(path, root, managed)
 
 
-def copy_tree(src: Path, dst: Path, root: Path, managed: set[str]) -> None:
+def copy_tree(
+    src: Path,
+    dst: Path,
+    root: Path,
+    managed: set[str],
+    skip_overwrite_paths: set[str] | None = None,
+) -> None:
     """Copy directory tree and track copied files as managed.
 
     Args:
@@ -128,6 +135,7 @@ def copy_tree(src: Path, dst: Path, root: Path, managed: set[str]) -> None:
         dst: Destination directory.
         root: Project root.
         managed: Mutable set of managed paths.
+        skip_overwrite_paths: Paths (repo-relative) that should not be overwritten when present.
     """
     if not src.exists():
         return
@@ -137,6 +145,10 @@ def copy_tree(src: Path, dst: Path, root: Path, managed: set[str]) -> None:
         target = dst / rel
         if p.is_dir():
             target.mkdir(parents=True, exist_ok=True)
+            continue
+        relative = str(target.relative_to(root).as_posix())
+        if target.exists() and skip_overwrite_paths and relative in skip_overwrite_paths:
+            record_managed(target, root, managed)
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(p, target)
@@ -463,6 +475,8 @@ def remove_old_managed_paths(project_path: Path, previous: dict) -> None:
         previous: Parsed previous manifest.
     """
     for rel in previous.get("managed_paths", []):
+        if rel in PROTECTED_MANAGED_PATHS:
+            continue
         p = project_path / rel
         if p.is_file():
             p.unlink(missing_ok=True)
@@ -603,7 +617,13 @@ def init(
         copy_tree(assets / ".authorkit" / "templates", project_path / ".authorkit" / "templates", project_path, managed)
         progress.advance(install_task)
 
-        copy_tree(assets / ".authorkit" / "memory", project_path / ".authorkit" / "memory", project_path, managed)
+        copy_tree(
+            assets / ".authorkit" / "memory",
+            project_path / ".authorkit" / "memory",
+            project_path,
+            managed,
+            skip_overwrite_paths=PROTECTED_MANAGED_PATHS,
+        )
         progress.advance(install_task)
 
         copy_tree(assets / ".authorkit" / "prompts", project_path / ".authorkit" / "prompts", project_path, managed)
