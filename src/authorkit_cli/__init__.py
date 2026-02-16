@@ -655,7 +655,6 @@ def check() -> None:
     console.print(f"- codex: {'ok' if tool_exists('codex') else 'missing'}")
     console.print(f"- copilot (optional for Copilot CLI workflows): {'ok' if tool_exists('copilot') else 'missing'}")
     console.print(f"- pandoc (book build): {'ok' if tool_exists('pandoc') else 'missing'}")
-    console.print(f"- pdflatex (book pdf build): {'ok' if tool_exists('pdflatex') else 'missing'}")
     console.print(f"- ffmpeg (book audio): {'ok' if tool_exists('ffmpeg') else 'missing'}")
 
 

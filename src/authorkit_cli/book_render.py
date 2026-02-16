@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .book_core import BookConfig, ChapterDraft
 
-SUPPORTED_FORMATS = {"docx", "pdf", "epub"}
+SUPPORTED_FORMATS = {"docx", "epub"}
 
 
 def ensure_system_tool(tool: str) -> None:
@@ -26,11 +26,6 @@ def ensure_system_tool(tool: str) -> None:
             "Windows: winget install --id Gyan.FFmpeg -e",
             "macOS: brew install ffmpeg",
             "Ubuntu/Debian: sudo apt-get install ffmpeg",
-        ],
-        "pdflatex": [
-            "Windows: winget install --id MiKTeX.MiKTeX -e",
-            "macOS: brew install --cask mactex-no-gui",
-            "Ubuntu/Debian: sudo apt-get install texlive-latex-base",
         ],
     }
     lines = guidance.get(tool, [f"Install '{tool}' and ensure it is on PATH."])
@@ -105,8 +100,6 @@ def render_formats(
 ) -> list[Path]:
     """Render manuscript markdown into requested output formats."""
     ensure_system_tool("pandoc")
-    if any(fmt.lower() == "pdf" for fmt in formats):
-        ensure_system_tool("pdflatex")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     produced: list[Path] = []

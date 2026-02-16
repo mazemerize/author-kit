@@ -46,7 +46,7 @@ def _resolve_formats(formats: list[str] | None, default_formats: list[str]) -> l
 @book_app.command("build")
 def build(
     book: str | None = typer.Option(None, "--book", help="Book directory name under books/"),
-    format: list[str] | None = typer.Option(None, "--format", help="Repeat to select multiple formats: docx, pdf, epub"),
+    format: list[str] | None = typer.Option(None, "--format", help="Repeat to select multiple formats: docx, epub"),
     output_dir: str | None = typer.Option(None, "--output-dir", help="Output directory (default books/<book>/dist)"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing output files"),
     quiet: bool = typer.Option(False, "--quiet", help="Reduce output"),

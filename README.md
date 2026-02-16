@@ -141,7 +141,7 @@ tts_cost_per_1m_chars = 0.0
 ```
 
 `authorkit book build` format options:
-- Repeatable `--format` flag: `docx`, `pdf`, `epub`
+- Repeatable `--format` flag: `docx`, `epub`
 - Example: `authorkit book build --format docx --format epub`
 - If omitted, formats come from `[build].default_formats`
 - If an output file already exists, `authorkit` prompts before overwrite
@@ -329,7 +329,7 @@ The diagram below shows the complete Author Kit workflow, including the primary 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `authorkit init` | Install/update Author Kit assets for selected AI(s) | Target dir, `--ai`, `--script` | `.authorkit/`, AI prompt folders, manifest |
-| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `pandoc`, `pdflatex`, `ffmpeg`) |
+| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `pandoc`, `ffmpeg`) |
 | `authorkit version` | Print CLI and Python versions | — | Version report |
 | `authorkit book build` | Build manuscript outputs | Optional `--book`, repeat `--format`, `--force` | `dist/manuscript.md` + rendered docs |
 | `authorkit book audio` | Generate chapter audio and optional merged audiobook | Optional `--book`, `--voice`, `--model`, `--merge` | `dist/audio/*.mp3` (+ optional merged file) |
@@ -840,17 +840,6 @@ books/
   - Ubuntu/Debian: `sudo apt-get install pandoc`
 - After install, close and reopen your terminal so PATH is refreshed.
 - Verify: `authorkit check` should show `pandoc: ok`.
-
-### `authorkit book build --format pdf` fails with `pdflatex` errors
-
-- Symptom: PDF conversion failure mentioning `pdflatex not found`.
-- Cause: TeX engine is missing from PATH.
-- Fix:
-  - Windows: `winget install --id MiKTeX.MiKTeX -e`
-  - macOS: `brew install --cask mactex-no-gui`
-  - Ubuntu/Debian: `sudo apt-get install texlive-latex-base`
-- After install, close and reopen your terminal so PATH is refreshed.
-- Verify: `authorkit check` should show `pdflatex: ok`.
 
 ### `authorkit book audio` fails with FFmpeg errors
 

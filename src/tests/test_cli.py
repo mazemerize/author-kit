@@ -223,7 +223,7 @@ def _seed_book_tree(book_name: str = "001-test-book") -> Path:
     root = Path("books") / book_name / "chapters" / "01"
     root.mkdir(parents=True, exist_ok=True)
     (root / "draft.md").write_text("# Chapter One\n\nThis is a test draft.\n", encoding="utf-8")
-    return root.parents[1]
+    return root.parents[1].resolve()
 
 
 def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
@@ -234,7 +234,7 @@ def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
 
         monkeypatch.setattr(book_commands, "render_formats", lambda *args, **kwargs: outputs)
 
-        result = runner.invoke(cli.app, ["book", "build", "--book", book_dir.name])
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir)])
 
         assert result.exit_code == 0, result.output
         assert (book_dir / "dist" / "manuscript.md").exists()
@@ -257,7 +257,7 @@ def test_book_build_prompts_and_skips_existing_output(monkeypatch):
         monkeypatch.setattr(book_commands, "render_formats", fake_render)
         monkeypatch.setattr(book_commands.typer, "confirm", lambda *args, **kwargs: False)
 
-        result = runner.invoke(cli.app, ["book", "build", "--book", book_dir.name, "--format", "docx"])
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "docx"])
 
         assert result.exit_code == 0, result.output
         assert called["render"] is False
@@ -282,7 +282,7 @@ def test_book_build_prompts_and_overwrites_existing_output(monkeypatch):
         monkeypatch.setattr(book_commands, "render_formats", fake_render)
         monkeypatch.setattr(book_commands.typer, "confirm", lambda *args, **kwargs: True)
 
-        result = runner.invoke(cli.app, ["book", "build", "--book", book_dir.name, "--format", "docx"])
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "docx"])
 
         assert result.exit_code == 0, result.output
         assert captured["formats"] == ["docx"]
@@ -296,21 +296,31 @@ def test_book_build_command_reports_render_failures(monkeypatch):
         book_dir = _seed_book_tree()
 
         def fail_render(*args, **kwargs):
-            raise RuntimeError("Pandoc conversion failed for pdf: pdflatex not found")
+            raise RuntimeError("Pandoc conversion failed for docx: unknown error")
 
         monkeypatch.setattr(book_commands, "render_formats", fail_render)
-        result = runner.invoke(cli.app, ["book", "build", "--book", book_dir.name, "--format", "pdf"])
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "docx"])
 
         assert result.exit_code == 1
         assert "Build failed:" in result.output
-        assert "pdflatex not found" in result.output
+        assert "Pandoc conversion failed for docx" in result.output
+
+
+def test_book_build_rejects_pdf_format():
+    """Verify PDF format is rejected as unsupported."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        result = runner.invoke(cli.app, ["book", "build", "--book", str(book_dir), "--format", "pdf"])
+
+        assert result.exit_code != 0
+        assert "Unsupported format(s): pdf" in result.output
 
 
 def test_book_stats_json_output_contains_totals():
     """Verify stats command emits JSON totals payload."""
     with runner.isolated_filesystem():
         book_dir = _seed_book_tree()
-        result = runner.invoke(cli.app, ["book", "stats", "--book", book_dir.name, "--output", "json"])
+        result = runner.invoke(cli.app, ["book", "stats", "--book", str(book_dir), "--output", "json"])
 
         assert result.exit_code == 0, result.output
         payload = json.loads(result.output)
@@ -322,7 +332,7 @@ def test_book_stats_table_includes_est_audio_minutes():
     """Verify table output renders the per-chapter estimated audio duration column."""
     with runner.isolated_filesystem():
         book_dir = _seed_book_tree()
-        result = runner.invoke(cli.app, ["book", "stats", "--book", book_dir.name, "--output", "table"])
+        result = runner.invoke(cli.app, ["book", "stats", "--book", str(book_dir), "--output", "table"])
 
         assert result.exit_code == 0, result.output
         assert "Est Audio Min" in result.output
@@ -340,18 +350,18 @@ def test_book_audio_command_uses_generator(monkeypatch):
 
         monkeypatch.setattr(book_commands, "generate_audiobook", fake_generate_audiobook)
 
-        result = runner.invoke(cli.app, ["book", "audio", "--book", book_dir.name, "--yes"])
+        result = runner.invoke(cli.app, ["book", "audio", "--book", str(book_dir), "--yes"])
 
         assert result.exit_code == 0, result.output
         assert called["audio_dir"] == (book_dir / "dist" / "audio").resolve()
         assert "Generated: 1" in result.output
 
 
-def test_check_command_reports_pdflatex_status():
-    """Verify environment check output includes pdflatex status."""
+def test_check_command_reports_no_pdflatex_status():
+    """Verify environment check output no longer includes pdflatex status."""
     result = runner.invoke(cli.app, ["check"])
     assert result.exit_code == 0
-    assert "pdflatex (book pdf build):" in result.output
+    assert "pdflatex" not in result.output
 
 
 def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypatch):
