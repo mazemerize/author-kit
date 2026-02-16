@@ -34,6 +34,7 @@ def ensure_system_tool(tool: str) -> None:
         ],
     }
     lines = guidance.get(tool, [f"Install '{tool}' and ensure it is on PATH."])
+    lines.append("After installing, close and reopen your terminal so PATH updates are picked up.")
     raise RuntimeError("Missing required system dependency: " + tool + "\n" + "\n".join(lines))
 
 

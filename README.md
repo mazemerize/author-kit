@@ -837,6 +837,7 @@ books/
   - Windows: `winget install --id JohnMacFarlane.Pandoc -e`
   - macOS: `brew install pandoc`
   - Ubuntu/Debian: `sudo apt-get install pandoc`
+- After install, close and reopen your terminal so PATH is refreshed.
 - Verify: `authorkit check` should show `pandoc: ok`.
 
 ### `authorkit book build --format pdf` fails with `pdflatex` errors
@@ -847,6 +848,7 @@ books/
   - Windows: `winget install --id MiKTeX.MiKTeX -e`
   - macOS: `brew install --cask mactex-no-gui`
   - Ubuntu/Debian: `sudo apt-get install texlive-latex-base`
+- After install, close and reopen your terminal so PATH is refreshed.
 - Verify: `authorkit check` should show `pdflatex: ok`.
 
 ### `authorkit book audio` fails with FFmpeg errors
@@ -857,6 +859,7 @@ books/
   - Windows: `winget install --id Gyan.FFmpeg -e`
   - macOS: `brew install ffmpeg`
   - Ubuntu/Debian: `sudo apt-get install ffmpeg`
+- After install, close and reopen your terminal so PATH is refreshed.
 - Verify: `authorkit check` should show `ffmpeg: ok`.
 
 ### `authorkit book audio` fails with authentication errors
