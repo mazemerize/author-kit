@@ -23,4 +23,4 @@ uv.lock
 .codex/.personality_migration
 .codex/sessions/
 .codex/tmp/
-.codex/skills/.system/.codex-system-skills.marker
+.codex/skills/.system/

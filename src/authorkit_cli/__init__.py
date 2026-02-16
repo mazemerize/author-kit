@@ -374,7 +374,7 @@ def ensure_repo_gitignore(root: Path) -> None:
         ".codex/.personality_migration",
         ".codex/sessions/",
         ".codex/tmp/",
-        ".codex/skills/.system/.codex-system-skills.marker",
+        ".codex/skills/.system/",
     ]
 
     if not gitignore.exists():

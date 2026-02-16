@@ -204,7 +204,7 @@ def test_init_ensures_gitignore_contains_required_entries():
             ".codex/.personality_migration",
             ".codex/sessions/",
             ".codex/tmp/",
-            ".codex/skills/.system/.codex-system-skills.marker",
+            ".codex/skills/.system/",
         ]
         for entry in required:
             assert entry in lines
@@ -261,7 +261,7 @@ def test_init_appends_required_gitignore_entries_without_duplicates():
             ".codex/.personality_migration",
             ".codex/sessions/",
             ".codex/tmp/",
-            ".codex/skills/.system/.codex-system-skills.marker",
+            ".codex/skills/.system/",
         ]
         for entry in required:
             assert lines.count(entry) == 1
