@@ -171,8 +171,8 @@ def test_init_captures_git_init_output(monkeypatch):
         assert init_calls[0]["text"] is True
 
 
-def test_init_ensures_gitignore_contains_env_and_dist_entries():
-    """Verify init creates repo-level .gitignore with .env and dist/ entries."""
+def test_init_ensures_gitignore_contains_required_entries():
+    """Verify init creates repo-level .gitignore with required local entries."""
     with runner.isolated_filesystem():
         result = runner.invoke(
             cli.app,
@@ -194,8 +194,20 @@ def test_init_ensures_gitignore_contains_env_and_dist_entries():
         gitignore = Path(".gitignore")
         assert gitignore.exists()
         lines = gitignore.read_text(encoding="utf-8").splitlines()
-        assert ".env" in lines
-        assert "dist/" in lines
+        required = [
+            ".env",
+            "dist/",
+            ".claude/settings.local.json",
+            ".codex/auth.json",
+            ".codex/config.toml",
+            ".codex/models_cache.json",
+            ".codex/.personality_migration",
+            ".codex/sessions/",
+            ".codex/tmp/",
+            ".codex/skills/.system/.codex-system-skills.marker",
+        ]
+        for entry in required:
+            assert entry in lines
 
 
 def test_init_appends_required_gitignore_entries_without_duplicates():
@@ -239,8 +251,20 @@ def test_init_appends_required_gitignore_entries_without_duplicates():
 
         lines = Path(".gitignore").read_text(encoding="utf-8").splitlines()
         assert "node_modules" in lines
-        assert lines.count(".env") == 1
-        assert lines.count("dist/") == 1
+        required = [
+            ".env",
+            "dist/",
+            ".claude/settings.local.json",
+            ".codex/auth.json",
+            ".codex/config.toml",
+            ".codex/models_cache.json",
+            ".codex/.personality_migration",
+            ".codex/sessions/",
+            ".codex/tmp/",
+            ".codex/skills/.system/.codex-system-skills.marker",
+        ]
+        for entry in required:
+            assert lines.count(entry) == 1
 
 
 def test_version_command_outputs_version():

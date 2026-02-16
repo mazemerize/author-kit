@@ -364,7 +364,18 @@ def ensure_shell_exec_bits(root: Path) -> None:
 def ensure_repo_gitignore(root: Path) -> None:
     """Ensure repo-level .gitignore includes local secrets and generated artifacts."""
     gitignore = root / ".gitignore"
-    required_entries = [".env", "dist/"]
+    required_entries = [
+        ".env",
+        "dist/",
+        ".claude/settings.local.json",
+        ".codex/auth.json",
+        ".codex/config.toml",
+        ".codex/models_cache.json",
+        ".codex/.personality_migration",
+        ".codex/sessions/",
+        ".codex/tmp/",
+        ".codex/skills/.system/.codex-system-skills.marker",
+    ]
 
     if not gitignore.exists():
         gitignore.write_text("".join(f"{entry}\n" for entry in required_entries), encoding="utf-8")
