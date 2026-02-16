@@ -32,6 +32,8 @@ Traditional AI-assisted writing often means dumping an idea and hoping for a goo
 4. **Chapter-level iteration** — Each chapter goes through its own plan-draft-review cycle, so quality is built in, not bolted on
 5. **Cross-chapter consistency** — Analyze the full manuscript for continuity, pacing, and thematic coherence
 6. **Mid-process flexibility** — Pivot, defer decisions, explore alternatives, and restructure without losing work
+7. **Manuscript Generation** - Export the fully generated content as a word or epub document
+8. **Audiobook export** - use AI to generate an audio version of your manuscript
 
 This works for **any genre**: literary fiction, thrillers, non-fiction guides, memoirs, technical books, and everything in between.
 
@@ -91,84 +93,18 @@ If you prefer to install prompts/files without tool checks, use `--ignore-agent-
 authorkit init . --ai claude,copilot,codex --script sh --ignore-agent-tools
 ```
 
-Important for Codex: PATH check and `CODEX_HOME` are different.
-- PATH check validates the `codex` executable exists.
-- `CODEX_HOME` points Codex to the repo-local `.codex` folder after install.
+**Notes**:
 
-### 1.1 Book Build/Audio/Stats CLI
-
-Author Kit now provides publishing commands directly in the installer CLI:
-
-```bash
-authorkit book build --format docx --format epub
-authorkit book audio --merge
-authorkit book stats --output json
-```
-
-Defaults and behavior:
-- Source manuscript: `books/<active-book>/chapters/*/draft.md`
-- Output directory: `books/<active-book>/dist/` (audio in `dist/audio/`)
-- `authorkit init` seeds repo `.gitignore` with `dist/` so generated artifacts are not committed
-- Metadata source: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
-- Python dependencies for book audio/stats (`openai`, `python-dotenv`, `mutagen`) are installed with `authorkit-cli`
-- Built-in style assets:
-  - DOCX fallback: `.authorkit/templates/publishing/reference.docx`
-  - EPUB fallback: `.authorkit/templates/publishing/epub.css`
-
-`book.toml` baseline (created automatically):
-
-```toml
-[book]
-title = "..."
-author = "..."
-language = "en-US"
-subtitle = ""
-
-[build]
-default_formats = ["docx"]
-reference_docx = ".authorkit/templates/publishing/reference.docx"
-epub_css = ".authorkit/templates/publishing/epub.css"
-
-[audio]
-provider = "openai"
-model = "gpt-4o-mini-tts"
-voice = "onyx"
-speaking_rate_wpm = 170
-
-[stats]
-reading_wpm = 200
-tts_cost_per_1m_chars = 0.0
-```
-
-`authorkit book build` format options:
-- Repeatable `--format` flag: `docx`, `epub`
-- Example: `authorkit book build --format docx --format epub`
-- If omitted, formats come from `[build].default_formats`
-- If an output file already exists, `authorkit` prompts before overwrite
-- Use `--force` to overwrite existing output files without prompts
-
-`authorkit book audio` provider/auth and selection precedence:
-- Current provider: OpenAI (`[audio].provider = "openai"`)
-- Required auth: `OPENAI_API_KEY` in environment or local `.env`
-- Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `onyx`
-- Model selection order: `--model` CLI flag, then `[audio].model`, then default `gpt-4o-mini-tts`
-- Generated chapter files and merged audiobook output include ID3 metadata tags (title/album/artist/language and chapter tracking)
-
-Audio marker behavior (internal speech shaping):
-- Markers used: `[DIALOG]` and `[PAUSE]`
-- Dialogue-like lines are prefixed with `[DIALOG]`
-- Epigraph attribution lines and chapter transitions inject `[PAUSE]`
-- Marker-aware instructions are sent to TTS so markers are not read aloud and delivery is adjusted
-
-Future provider support:
-- The marker pipeline is provider-agnostic; other TTS providers can map markers to instruction text or SSML equivalents.
-- This preserves narration behavior while changing only provider integration/auth.
+- For Codex: PATH check and `CODEX_HOME` are different
+  - PATH check validates the `codex` executable exists.
+  - `CODEX_HOME` points Codex to the repo-local `.codex` folder after install.
+- Choose `sh` (Bash) for MacOS and Linux or `ps` (PowerShell) for Windows.
 
 ### 2. Establish your writing principles
 
 Define the voice, tone, and style rules for your book. This becomes the "style bible" that all chapters are written and reviewed against.
 
-```
+```bash
 /authorkit.constitution First person POV, present tense, literary but accessible prose. Dark humor. Target audience: adult readers of literary fiction. No purple prose. Show don't tell for emotions.
 ```
 
@@ -176,7 +112,7 @@ Define the voice, tone, and style rules for your book. This becomes the "style b
 
 Describe your book idea. Focus on **what** the book is about and **why** it matters, not the chapter-by-chapter details.
 
-```
+```bash
 /authorkit.conceive A mystery novel set in a crumbling Victorian observatory where an astronomer discovers that the star catalogue compiled by the previous director contains a hidden code. As she deciphers it, she realizes the observatory's history is entangled with a century-old disappearance.
 ```
 
@@ -186,7 +122,7 @@ This creates a `concept.md` with the premise, genre, themes, characters, voice, 
 
 Identify and resolve any ambiguities in the concept before outlining.
 
-```
+```bash
 /authorkit.clarify
 ```
 
@@ -194,7 +130,7 @@ Identify and resolve any ambiguities in the concept before outlining.
 
 Establish the rules, geography, characters, history, and systems of your book's world before writing. Especially valuable for fantasy, sci-fi, and historical fiction, but works for any genre.
 
-```
+```bash
 /authorkit.world.build magic system, political structure
 ```
 
@@ -204,7 +140,7 @@ You can run this multiple times to iteratively deepen specific areas. See [World
 
 Generate the full book structure: chapter summaries, character arcs, thematic thread maps, and narrative arc.
 
-```
+```bash
 /authorkit.outline
 ```
 
@@ -214,7 +150,7 @@ This also generates `research.md` (world-building notes) and `characters.md` (ch
 
 Convert the outline into a chapter-level task list with status tracking.
 
-```
+```bash
 /authorkit.chapters
 ```
 
@@ -222,7 +158,7 @@ Convert the outline into a chapter-level task list with status tracking.
 
 The fastest way is the automated chapter command — it runs the full plan → draft → review cycle for you, looping on draft → review until the chapter passes:
 
-```
+```bash
 /authorkit.chapter          # Auto-detect the next chapter and run the full lifecycle
 /authorkit.chapter 3        # Run the full lifecycle for chapter 3 specifically
 ```
@@ -231,7 +167,7 @@ This handles everything: plans the chapter, writes the prose, reviews it, and if
 
 Or run each step individually for more control:
 
-```
+```bash
 /authorkit.chapter.plan 1     # Plan chapter 1 (scenes, beats, arc)
 /authorkit.chapter.draft 1    # Write the actual prose
 /authorkit.chapter.review 1   # Review against plan and constitution
@@ -243,7 +179,7 @@ After drafting a chapter, run `/authorkit.world.update` to extract new world det
 
 After drafting several chapters (or all of them), run a cross-chapter analysis:
 
-```
+```bash
 /authorkit.analyze
 ```
 
@@ -255,15 +191,28 @@ You can also run `/authorkit.world.verify` at any point to check the `world/` fo
 
 Apply targeted fixes based on analysis findings:
 
-```
+```bash
 /authorkit.revise Fix the timeline contradiction between chapters 3 and 7
 ```
+
+### 11. Export your manuscript
+
+Author Kit provides publishing commands directly in the installer CLI:
+
+```bash
+authorkit book build --format docx --format epub
+authorkit book audio --merge
+authorkit book stats --output json
+```
+
+Read me in [Book Export](#book-export) below.
 
 ---
 
 ## The Full Workflow
 
-The diagram below shows the complete Author Kit workflow, including the primary path and all the ways commands interconnect. The key insight: **the workflow is sequential at its core, but every step has escape hatches for mid-process changes.**
+The diagram below shows the complete Author Kit workflow, including the primary path and all the ways commands interconnect.
+The key insight: **the workflow is sequential at its core, but every step has escape hatches for mid-process changes.**
 
 ```
   ┌─────────────────────────────────────────────────────────────┐
@@ -520,7 +469,7 @@ Example `chapters.md`:
 
 If you need to rearrange the chapter order, use `/authorkit.chapter.reorder`:
 
-```
+```bash
 /authorkit.chapter.reorder Move CH05 to after CH02
 /authorkit.chapter.reorder Split CH04 into two chapters at the scene break
 /authorkit.chapter.reorder Merge CH06 and CH07 into a single chapter
@@ -559,7 +508,7 @@ Only relevant categories are created — a contemporary novel won't need a `syst
 
 **1. Build the world** (before or after outlining):
 
-```
+```bash
 /authorkit.world.build                          # Comprehensive world-building
 /authorkit.world.build magic system, geography  # Focus on specific areas
 ```
@@ -568,7 +517,7 @@ All entries from initial world-building are tagged `(CONCEPT)` to distinguish th
 
 **2. Update after drafting** (after each chapter):
 
-```
+```bash
 /authorkit.world.update 3       # Extract details from chapter 3
 /authorkit.world.update 1-5     # Scan a range of chapters
 /authorkit.world.update all     # Scan all drafted chapters
@@ -578,7 +527,7 @@ New details are tagged with their source chapter (e.g., `(CH03)`). If a chapter 
 
 **3. Verify consistency** (anytime):
 
-```
+```bash
 /authorkit.world.verify                  # Verify everything
 /authorkit.world.verify characters/      # Verify just character files
 /authorkit.world.verify systems/ places/ # Verify specific categories
@@ -616,10 +565,10 @@ Every world/ entity file includes **YAML frontmatter** with structured metadata:
 
 ```yaml
 ---
-id: char-elena-voss
+id: char-vadek-dellhar
 type: character
-name: Elena Voss
-aliases: [Elena, Dr. Voss, the Doctor, Voss]
+name: Vadek D'Ellhar
+aliases: [Vadek, Dr. Ellhar, the Doctor, Ellhar]
 chapters: [CONCEPT, CH01, CH03, CH05]
 first_appearance: CH01
 relationships:
@@ -641,7 +590,7 @@ The index (`world/_index.md`) contains three lookup tables:
 
 **Rebuilding the index:**
 
-```
+```bash
 /authorkit.world.index                  # Full rebuild
 /authorkit.world.index add-frontmatter  # Add YAML frontmatter to files that lack it
 ```
@@ -658,7 +607,7 @@ Books rarely go exactly according to plan. Author Kit provides structured tools 
 
 When your vision for the book changes — a character needs cutting, a subplot should be added, the ending should be different — use pivot to propagate the change across all artifacts.
 
-```
+```bash
 /authorkit.pivot Cut the romance subplot entirely
 /authorkit.pivot Merge characters Marcus and David into a single character
 /authorkit.pivot Change the ending so the protagonist fails
@@ -672,7 +621,7 @@ Changes are logged in `pivots/YYYY-MM-DD-[description].md` for traceability.
 
 When a specific fact needs to change retroactively — a character's age, a place's name, a world rule — retcon finds every reference (direct mentions, indirect implications, and logical consequences) and updates them consistently.
 
-```
+```bash
 /authorkit.retcon Elena was 42 -> Elena is 38
 /authorkit.retcon Change Marcus from a soldier to a spy
 /authorkit.retcon The magic system costs blood -> The magic system costs memories
@@ -684,7 +633,7 @@ Retcon generates a **change manifest** showing every occurrence before making ch
 
 Not everything needs to be decided now. Park a decision to keep writing while tracking the uncertainty.
 
-```
+```bash
 /authorkit.park How does the magic system handle time travel?
 /authorkit.park Should Marcus die in Act 3?
 /authorkit.park list                    # See all parked decisions
@@ -697,7 +646,7 @@ Parked decisions have **deadlines** (e.g., "must resolve before CH12"). When you
 
 Before making a risky change, bookmark the current state with narrative context.
 
-```
+```bash
 /authorkit.snapshot Before cutting the romance subplot
 /authorkit.snapshot Decision point: Marcus lives or dies
 /authorkit.snapshot list                    # See all snapshots
@@ -710,7 +659,7 @@ A snapshot creates a **git tag** (for the exact file state) and a **narrative fi
 
 Try a direction without committing to it. What-If creates an experimental git branch where you can draft, revise, and restructure freely.
 
-```
+```bash
 /authorkit.whatif What if Marcus dies in chapter 5?
 /authorkit.whatif Try first person POV for the flashbacks
 
@@ -735,6 +684,78 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 | Move, split, or merge chapters | `/authorkit.chapter.reorder` |
 | Check if outline/concept drifted from drafts | `/authorkit.reconcile` |
 | Fix issues found by review or analysis | `/authorkit.revise` |
+
+## Book Export, Audiobook and Statistics
+
+Author Kit provides publishing commands directly in the installer CLI to export your work:
+
+```bash
+authorkit book build --format docx  # Export as Word (docx) or ebook (epub)
+authorkit book audio --merge        # Generate an audio file per chapter or a single, final one
+authorkit book stats --output json  # Compute statistics about the current book
+```
+
+Defaults and behavior:
+- Source manuscript: `books/<active-book>/chapters/*/draft.md`
+- Output directory: `books/<active-book>/dist/` (audio in `dist/audio/`)
+- `authorkit init` seeds repo `.gitignore` with `dist/` so generated artifacts are not committed
+- Metadata source: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
+- Python dependencies for book audio/stats (`openai`, `python-dotenv`, `mutagen`) are installed with `authorkit-cli`
+- Built-in style assets:
+  - DOCX fallback: `.authorkit/templates/publishing/reference.docx`
+  - EPUB fallback: `.authorkit/templates/publishing/epub.css`
+
+`book.toml` baseline (created automatically):
+
+```toml
+[book]
+title = "..."
+author = "..."
+language = "en-US"
+subtitle = ""
+
+[build]
+default_formats = ["docx"]
+reference_docx = ".authorkit/templates/publishing/reference.docx"
+epub_css = ".authorkit/templates/publishing/epub.css"
+
+[audio]
+provider = "openai"
+model = "gpt-4o-mini-tts"
+voice = "onyx"
+speaking_rate_wpm = 170
+
+[stats]
+reading_wpm = 200
+tts_cost_per_1m_chars = 0.0
+```
+
+`authorkit book build` format options:
+- Repeatable `--format` flag: `docx`, `epub`
+- Example: `authorkit book build --format docx --format epub`
+- If omitted, formats come from `[build].default_formats`
+- If an output file already exists, `authorkit` prompts before overwrite
+- Use `--force` to overwrite existing output files without prompts
+
+`authorkit book audio` provider/auth and selection precedence:
+- Current provider: OpenAI (`[audio].provider = "openai"`)
+  - [Get started](https://developers.openai.com/api/docs) to create an openAI account, enable audio models, and get a key
+- Required auth: `OPENAI_API_KEY` in environment or local `.env`
+- Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `onyx`
+  - You can explore optional voices using [openai.fm](https://github.com/openai/openai-fm)
+- Model selection order: `--model` CLI flag, then `[audio].model`, then default `gpt-4o-mini-tts`
+  - Read more about [OpenAI audio models](https://developers.openai.com/api/docs/guides/text-to-speech)
+- Generated chapter files and merged audiobook output include ID3 metadata tags (title/album/artist/language and chapter tracking)
+
+Audio marker behavior (internal speech shaping):
+- Markers used: `[DIALOG]` and `[PAUSE]`
+- Dialogue-like lines are prefixed with `[DIALOG]`
+- Epigraph attribution lines and chapter transitions inject `[PAUSE]`
+- Marker-aware instructions are sent to TTS so markers are not read aloud and delivery is adjusted
+
+Future provider support:
+- The marker pipeline is provider-agnostic; other TTS providers can map markers to instruction text or SSML equivalents.
+- This preserves narration behavior while changing only provider integration/auth.
 
 ---
 
@@ -903,10 +924,10 @@ The structure of this kit is in part inspired by [spec-kit](https://github.com/g
 
 ## Support
 
-Need help? Open a [GitHub issue](https://github.com/mazemerize/author-kit/issues). Bug reports, odd behaviors, feature ideas, and questions about using Author kit are all welcome.
+Need help? Open a [GitHub issue](https://github.com/mazemerize/author-kit/issues). Bug reports, odd behaviors, feature ideas, and questions about using Author Kit are all welcome.
 
 ---
 
 ## Beyond the Code Editor: The Future of Author Kit
 
-Interested in seeing the capacity from Author Kit as a full-fledge book editor experience that does not require being tech-savvy in code editors and AIs? [Contact us](mailto:mazemerize@outlook.com), we would like to hear from you.
+Interested in seeing the capacity from Author Kit as a full-fledged book editor experience that does not require being tech-savvy in code editors and AIs? [Contact us](mailto:mazemerize@outlook.com), we would like to hear from you.
