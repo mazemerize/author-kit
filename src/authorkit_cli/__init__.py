@@ -362,18 +362,23 @@ def ensure_shell_exec_bits(root: Path) -> None:
 
 
 def ensure_repo_gitignore(root: Path) -> None:
-    """Ensure repo-level .gitignore includes local .env secrets."""
+    """Ensure repo-level .gitignore includes local secrets and generated artifacts."""
     gitignore = root / ".gitignore"
+    required_entries = [".env", "dist/"]
+
     if not gitignore.exists():
-        gitignore.write_text(".env\n", encoding="utf-8")
+        gitignore.write_text("".join(f"{entry}\n" for entry in required_entries), encoding="utf-8")
         return
 
     content = gitignore.read_text(encoding="utf-8")
-    if any(line.strip() == ".env" for line in content.splitlines()):
+    existing = {line.strip() for line in content.splitlines() if line.strip()}
+    missing = [entry for entry in required_entries if entry not in existing]
+    if not missing:
         return
 
     suffix = "" if (not content or content.endswith("\n")) else "\n"
-    gitignore.write_text(f"{content}{suffix}.env\n", encoding="utf-8")
+    additions = "".join(f"{entry}\n" for entry in missing)
+    gitignore.write_text(f"{content}{suffix}{additions}", encoding="utf-8")
 
 
 def tool_exists(tool: str) -> bool:

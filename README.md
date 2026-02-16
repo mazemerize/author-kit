@@ -108,6 +108,7 @@ authorkit book stats --output json
 Defaults and behavior:
 - Source manuscript: `books/<active-book>/chapters/*/draft.md`
 - Output directory: `books/<active-book>/dist/` (audio in `dist/audio/`)
+- `authorkit init` seeds repo `.gitignore` with `dist/` so generated artifacts are not committed
 - Metadata source: `books/<active-book>/book.toml` (created by `create-new-book` scripts)
 - Python dependencies for book audio/stats (`openai`, `python-dotenv`, `mutagen`) are installed with `authorkit-cli`
 - Built-in style assets:

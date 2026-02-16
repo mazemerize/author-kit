@@ -136,8 +136,8 @@ def test_init_errors_when_required_tool_missing(monkeypatch):
         assert "Required tool(s) not found in PATH: codex" in result.output
 
 
-def test_init_ensures_gitignore_contains_env_entry():
-    """Verify init creates repo-level .gitignore with .env entry."""
+def test_init_ensures_gitignore_contains_env_and_dist_entries():
+    """Verify init creates repo-level .gitignore with .env and dist/ entries."""
     with runner.isolated_filesystem():
         result = runner.invoke(
             cli.app,
@@ -158,11 +158,13 @@ def test_init_ensures_gitignore_contains_env_entry():
         assert result.exit_code == 0, result.output
         gitignore = Path(".gitignore")
         assert gitignore.exists()
-        assert ".env" in gitignore.read_text(encoding="utf-8").splitlines()
+        lines = gitignore.read_text(encoding="utf-8").splitlines()
+        assert ".env" in lines
+        assert "dist/" in lines
 
 
-def test_init_appends_env_to_existing_gitignore_without_duplicates():
-    """Verify init appends .env once and avoids duplicate entries on reruns."""
+def test_init_appends_required_gitignore_entries_without_duplicates():
+    """Verify init appends required entries once and avoids duplicates on reruns."""
     with runner.isolated_filesystem():
         Path(".gitignore").write_text("node_modules", encoding="utf-8")
 
@@ -203,6 +205,7 @@ def test_init_appends_env_to_existing_gitignore_without_duplicates():
         lines = Path(".gitignore").read_text(encoding="utf-8").splitlines()
         assert "node_modules" in lines
         assert lines.count(".env") == 1
+        assert lines.count("dist/") == 1
 
 
 def test_version_command_outputs_version():
