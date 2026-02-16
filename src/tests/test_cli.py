@@ -169,6 +169,55 @@ def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
         assert "Built:" in result.output
 
 
+def test_book_build_prompts_and_skips_existing_output(monkeypatch):
+    """Verify existing outputs are skipped when overwrite prompt is declined."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        dist_dir = book_dir / "dist"
+        dist_dir.mkdir(parents=True, exist_ok=True)
+        (dist_dir / "manuscript.docx").write_text("existing", encoding="utf-8")
+        called = {"render": False}
+
+        def fake_render(*args, **kwargs):
+            called["render"] = True
+            return []
+
+        monkeypatch.setattr(book_commands, "render_formats", fake_render)
+        monkeypatch.setattr(book_commands.typer, "confirm", lambda *args, **kwargs: False)
+
+        result = runner.invoke(cli.app, ["book", "build", "--book", book_dir.name, "--format", "docx"])
+
+        assert result.exit_code == 0, result.output
+        assert called["render"] is False
+        assert "No output formats selected for rendering." in result.output
+
+
+def test_book_build_prompts_and_overwrites_existing_output(monkeypatch):
+    """Verify existing outputs are rebuilt when overwrite prompt is accepted."""
+    with runner.isolated_filesystem():
+        book_dir = _seed_book_tree()
+        dist_dir = book_dir / "dist"
+        dist_dir.mkdir(parents=True, exist_ok=True)
+        (dist_dir / "manuscript.docx").write_text("existing", encoding="utf-8")
+        captured = {}
+        outputs = [dist_dir / "manuscript.docx"]
+
+        def fake_render(*args, **kwargs):
+            captured["formats"] = args[3]
+            captured["force"] = kwargs["force"]
+            return outputs
+
+        monkeypatch.setattr(book_commands, "render_formats", fake_render)
+        monkeypatch.setattr(book_commands.typer, "confirm", lambda *args, **kwargs: True)
+
+        result = runner.invoke(cli.app, ["book", "build", "--book", book_dir.name, "--format", "docx"])
+
+        assert result.exit_code == 0, result.output
+        assert captured["formats"] == ["docx"]
+        assert captured["force"] is True
+        assert "Built:" in result.output
+
+
 def test_book_build_command_reports_render_failures(monkeypatch):
     """Verify build command prints a concise error when rendering fails."""
     with runner.isolated_filesystem():

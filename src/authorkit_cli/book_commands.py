@@ -67,8 +67,26 @@ def build(
     manuscript_path = dist_dir / "manuscript.md"
     manuscript_path.write_text(manuscript_markdown, encoding="utf-8")
 
+    formats_to_render: list[str] = []
+    for fmt in formats:
+        out_file = dist_dir / f"manuscript.{fmt.lower()}"
+        if out_file.exists() and not force:
+            overwrite = typer.confirm(f"Output already exists for {fmt}: overwrite?", default=False)
+            if not overwrite:
+                if not quiet:
+                    console.print(f"Skipped existing output: {out_file}")
+                continue
+        formats_to_render.append(fmt)
+
+    if not formats_to_render:
+        if not quiet:
+            console.print(f"Book: [bold]{book_dir.name}[/bold]")
+            console.print(f"Assembled markdown: {manuscript_path}")
+            console.print("No output formats selected for rendering.")
+        return
+
     try:
-        produced = render_formats(book_dir, dist_dir, manuscript_path, formats, config, force)
+        produced = render_formats(book_dir, dist_dir, manuscript_path, formats_to_render, config, force=True)
     except (RuntimeError, FileExistsError, ValueError) as exc:
         console.print(f"[red]Build failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc

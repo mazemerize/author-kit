@@ -143,6 +143,8 @@ tts_cost_per_1m_chars = 0.0
 - Repeatable `--format` flag: `docx`, `pdf`, `epub`
 - Example: `authorkit book build --format docx --format epub`
 - If omitted, formats come from `[build].default_formats`
+- If an output file already exists, `authorkit` prompts before overwrite
+- Use `--force` to overwrite existing output files without prompts
 
 `authorkit book audio` provider/auth and selection precedence:
 - Current provider: OpenAI (`[audio].provider = "openai"`)
