@@ -33,7 +33,7 @@ Traditional AI-assisted writing often means dumping an idea and hoping for a goo
 4. **Chapter-level iteration** — Each chapter goes through its own plan-draft-review cycle, so quality is built in, not bolted on
 5. **Cross-chapter consistency** — Analyze the full manuscript for continuity, pacing, and thematic coherence
 6. **Mid-process flexibility** — Pivot, defer decisions, explore alternatives, and restructure without losing work
-7. **Manuscript Generation** - Export the fully generated content as a word or epub document
+7. **Manuscript generation** - Export the fully generated content as a word or epub document
 8. **Audiobook export** - use AI to generate an audio version of your manuscript
 
 This works for **any genre**: literary fiction, thrillers, non-fiction guides, memoirs, technical books, and everything in between.
