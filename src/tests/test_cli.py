@@ -419,7 +419,9 @@ def test_book_commands_reject_removed_book_option():
         _seed_book_tree()
         result = runner.invoke(cli.app, ["book", "build", "--book", "book"])
         assert result.exit_code != 0
-        assert "No such option: --book" in result.output
+        plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "No such option" in plain_output
+        assert "--book" in plain_output
 
 
 def test_book_build_requires_canonical_book_directory():
