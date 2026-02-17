@@ -1,5 +1,5 @@
-﻿---
-description: Create the book concept from a natural language book idea description.
+---
+description: Create or refresh the book concept from a natural language book idea description.
 handoffs:
   - label: Build World
     agent: authorkit.world.build
@@ -12,7 +12,7 @@ handoffs:
     prompt: Clarify the book concept requirements
     send: true
 scripts:
-  ps: scripts/powershell/create-new-book.ps1 -Json "{ARGS}"
+  ps: scripts/powershell/setup-book.ps1 -Json
 ---
 
 ## User Input
@@ -29,49 +29,14 @@ The text the user typed after `/authorkit.conceive` in the triggering message **
 
 Given that book description, do this:
 
-1. **Generate a concise short name** (2-4 words) for the branch:
-   - Analyze the book description and extract the most meaningful keywords
-   - Create a 2-4 word short name that captures the essence of the book
-   - Examples:
-     - "A mystery novel set in Victorian London" -> "victorian-mystery"
-     - "Technical guide to distributed systems" -> "distributed-systems-guide"
-     - "Coming of age story about a young musician" -> "young-musician-story"
+1. **Initialize single-book workspace**:
+   - Run `{{SCRIPT_SETUP_BOOK}}` from repo root.
+   - Parse JSON output keys: `BOOK_DIR`, `CONCEPT_FILE`, `BOOK_TOML`, `HAS_GIT`.
+   - Do not create or rename git branches in this command.
 
-2. **Check for existing branches before creating new one**:
+2. Load `templates/concept-template.md` to understand required sections.
 
-   a. First, fetch all remote branches to ensure we have the latest information:
-
-      ```powershell
-      git fetch --all --prune
-      ```
-
-   b. Find the highest book number across all sources for the short-name:
-      - Remote branches: `git ls-remote --heads origin`
-      - Local branches: `git branch`
-      - Books directories: Check for directories matching `books/[0-9]+-<short-name>`
-
-   c. Determine the next available number:
-      - Extract all numbers from all three sources
-      - Find the highest number N
-      - Use N+1 for the new branch number
-
-   d. Ask the user for initial metadata before creating the book:
-      - `Title` (suggest a strong default based on the concept)
-      - `Author` (default to the user's preferred pen name or "Unknown Author" if not provided)
-      - `Language` (default `en-US`)
-
-   e. Run the script `{{SCRIPT_CREATE_BOOK}}` with the calculated number, short-name, and metadata:
-      - Pass branch args plus metadata args along with the book description
-      - Example: `{{SCRIPT_CREATE_BOOK}} -Number 1 -ShortName "victorian-mystery" -Title "The Observatory Cipher" -Author "Jane Doe" -Language "en-US" "A mystery novel set in Victorian London"`
-
-   **IMPORTANT**:
-   - Check all three sources (remote branches, local branches, books directories) to find the highest number
-   - You must only ever run this script once per book
-   - The JSON output will contain BRANCH_NAME and CONCEPT_FILE paths
-
-3. Load `templates/concept-template.md` to understand required sections.
-
-4. Follow this execution flow:
+3. Follow this execution flow:
 
     1. Parse user description from Input
        If empty: ERROR "No book description provided"
@@ -102,9 +67,9 @@ Given that book description, do this:
         Create book-specific, measurable quality outcomes
     11. Return: SUCCESS (concept ready for outlining)
 
-5. Write the concept to CONCEPT_FILE using the template structure, replacing placeholders with concrete details derived from the book description while preserving section order and headings.
+4. Write the concept to CONCEPT_FILE using the template structure, replacing placeholders with concrete details derived from the book description while preserving section order and headings.
 
-6. **Concept Quality Validation**: After writing the initial concept, validate it:
+5. **Concept Quality Validation**: After writing the initial concept, validate it:
 
    a. **Create Concept Quality Checklist**: Generate a checklist file at `BOOK_DIR/checklists/concept-quality.md`:
 
@@ -151,9 +116,7 @@ Given that book description, do this:
       - **If [NEEDS CLARIFICATION] markers remain** (max 3):
         Present each as a question with options, wait for user answers, then update the concept.
 
-7. Report completion with branch name, concept file path, checklist results, and readiness for the next phase (`/authorkit.clarify` or `/authorkit.outline`).
-
-**NOTE:** The script creates and checks out the new branch and initializes the concept file before writing.
+6. Report completion with concept path, checklist results, and readiness for the next phase (`/authorkit.clarify` or `/authorkit.outline`).
 
 ## General Guidelines
 
@@ -185,4 +148,3 @@ When creating this concept from a user prompt:
 - POV: Most common for the genre (thriller = third limited, literary = flexible, memoir = first person)
 - Tense: Past tense unless genre strongly suggests present
 - Structure: Linear unless concept implies otherwise
-

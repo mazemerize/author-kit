@@ -21,8 +21,6 @@ source "$SCRIPT_DIR/common.sh"
 
 eval "$(get_book_paths)"
 
-test_book_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
-
 mkdir -p "$BOOK_DIR" "$CHAPTERS_DIR"
 
 template="$REPO_ROOT/.authorkit/templates/outline-template.md"
@@ -33,13 +31,12 @@ else
 fi
 
 if $JSON_MODE; then
-  printf '{"BOOK_CONCEPT":"%s","OUTLINE":"%s","BOOK_DIR":"%s","CHAPTERS_DIR":"%s","BRANCH":"%s","HAS_GIT":%s}\n' \
-    "$BOOK_CONCEPT" "$OUTLINE" "$BOOK_DIR" "$CHAPTERS_DIR" "$CURRENT_BRANCH" "$HAS_GIT"
+  printf '{"BOOK_CONCEPT":"%s","OUTLINE":"%s","BOOK_DIR":"%s","CHAPTERS_DIR":"%s","HAS_GIT":%s}\n' \
+    "$BOOK_CONCEPT" "$OUTLINE" "$BOOK_DIR" "$CHAPTERS_DIR" "$HAS_GIT"
 else
   echo "BOOK_CONCEPT: $BOOK_CONCEPT"
   echo "OUTLINE: $OUTLINE"
   echo "BOOK_DIR: $BOOK_DIR"
   echo "CHAPTERS_DIR: $CHAPTERS_DIR"
-  echo "BRANCH: $CURRENT_BRANCH"
   echo "HAS_GIT: $HAS_GIT"
 fi

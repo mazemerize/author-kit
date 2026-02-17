@@ -23,11 +23,6 @@ if ($Help) {
 # Get all paths and variables from common functions
 $paths = Get-BookPaths
 
-# Check if we're on a proper book branch (only for git repos)
-if (-not (Test-BookBranch -Branch $paths.CURRENT_BRANCH -HasGit $paths.HAS_GIT)) {
-    exit 1
-}
-
 # Ensure the book directory exists
 New-Item -ItemType Directory -Path $paths.BOOK_DIR -Force | Out-Null
 
@@ -51,7 +46,6 @@ if ($Json) {
         OUTLINE      = $paths.OUTLINE
         BOOK_DIR     = $paths.BOOK_DIR
         CHAPTERS_DIR = $paths.CHAPTERS_DIR
-        BRANCH       = $paths.CURRENT_BRANCH
         HAS_GIT      = $paths.HAS_GIT
     }
     $result | ConvertTo-Json -Compress
@@ -60,6 +54,5 @@ if ($Json) {
     Write-Output "OUTLINE: $($paths.OUTLINE)"
     Write-Output "BOOK_DIR: $($paths.BOOK_DIR)"
     Write-Output "CHAPTERS_DIR: $($paths.CHAPTERS_DIR)"
-    Write-Output "BRANCH: $($paths.CURRENT_BRANCH)"
     Write-Output "HAS_GIT: $($paths.HAS_GIT)"
 }

@@ -25,9 +25,12 @@ console = Console()
 book_app = typer.Typer(help="Book publishing tools")
 
 
-def _resolve_context(book: str | None) -> tuple[Path, Path]:
+def _resolve_context() -> tuple[Path, Path]:
     repo_root = find_repo_root()
-    book_dir = resolve_book_dir(repo_root, book)
+    try:
+        book_dir = resolve_book_dir(repo_root)
+    except FileNotFoundError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     if not book_dir.exists():
         raise typer.BadParameter(f"Book directory not found: {book_dir}")
     return repo_root, book_dir
@@ -45,14 +48,13 @@ def _resolve_formats(formats: list[str] | None, default_formats: list[str]) -> l
 
 @book_app.command("build")
 def build(
-    book: str | None = typer.Option(None, "--book", help="Book directory name under books/"),
     format: list[str] | None = typer.Option(None, "--format", help="Repeat to select multiple formats: docx, epub"),
-    output_dir: str | None = typer.Option(None, "--output-dir", help="Output directory (default books/<book>/dist)"),
+    output_dir: str | None = typer.Option(None, "--output-dir", help="Output directory (default book/dist)"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing output files"),
     quiet: bool = typer.Option(False, "--quiet", help="Reduce output"),
 ) -> None:
     """Build manuscript artifacts from chapter drafts."""
-    _, book_dir = _resolve_context(book)
+    _, book_dir = _resolve_context()
     config = parse_book_config(book_dir)
     formats = _resolve_formats(format, config.default_formats)
 
@@ -101,11 +103,10 @@ def build(
 
 @book_app.command("audio")
 def audio(
-    book: str | None = typer.Option(None, "--book", help="Book directory name under books/"),
     provider: str | None = typer.Option(None, "--provider", help="Audio provider (default from book.toml)"),
     voice: str | None = typer.Option(None, "--voice", help="Voice name override"),
     model: str | None = typer.Option(None, "--model", help="Model override"),
-    output_dir: str | None = typer.Option(None, "--output-dir", help="Output directory (default books/<book>/dist/audio)"),
+    output_dir: str | None = typer.Option(None, "--output-dir", help="Output directory (default book/dist/audio)"),
     merge: bool = typer.Option(False, "--merge", help="Also create merged audiobook"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing chapter audio without prompts"),
     yes: bool = typer.Option(False, "--yes", help="Non-interactive confirmation for overwrite prompts"),
@@ -113,7 +114,7 @@ def audio(
     to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
     """Generate audiobook files from chapter drafts."""
-    repo_root, book_dir = _resolve_context(book)
+    repo_root, book_dir = _resolve_context()
     config = parse_book_config(book_dir)
 
     if provider:
@@ -148,13 +149,12 @@ def audio(
 
 @book_app.command("stats")
 def stats(
-    book: str | None = typer.Option(None, "--book", help="Book directory name under books/"),
     output: str = typer.Option("table", "--output", help="Output format: table, json, markdown"),
     audio_dir: str | None = typer.Option(None, "--audio-dir", help="Audio directory for actual duration lookup"),
     wpm: int | None = typer.Option(None, "--wpm", help="Reading words-per-minute override"),
 ) -> None:
     """Show manuscript statistics from draft chapters."""
-    _, book_dir = _resolve_context(book)
+    _, book_dir = _resolve_context()
     config = parse_book_config(book_dir)
     if wpm is not None:
         config.reading_wpm = wpm

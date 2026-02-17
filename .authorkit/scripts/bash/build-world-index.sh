@@ -24,7 +24,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 eval "$(get_book_paths)"
-test_book_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 
 WORLD_DIR="$BOOK_DIR/world"
 LEGACY_WORLD_DIR="$BOOK_DIR/World"

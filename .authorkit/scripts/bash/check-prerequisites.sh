@@ -37,14 +37,11 @@ source "$SCRIPT_DIR/common.sh"
 
 eval "$(get_book_paths)"
 
-test_book_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
-
 if $PATHS_ONLY; then
   if $JSON_MODE; then
     book_paths_json
   else
     echo "REPO_ROOT: $REPO_ROOT"
-    echo "BRANCH: $CURRENT_BRANCH"
     echo "BOOK_DIR: $BOOK_DIR"
     echo "BOOK_CONCEPT: $BOOK_CONCEPT"
     echo "OUTLINE: $OUTLINE"

@@ -150,6 +150,11 @@ def copy_tree(
         if target.exists() and skip_overwrite_paths and relative in skip_overwrite_paths:
             record_managed(target, root, managed)
             continue
+        # Running init in the source repository can make source and target identical.
+        # Treat this as already managed instead of attempting a self-copy.
+        if p.resolve() == target.resolve():
+            record_managed(target, root, managed)
+            continue
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(p, target)
         record_managed(target, root, managed)
@@ -249,6 +254,7 @@ def resolve_token_script(token: str, script_type: str) -> str:
     """
     token_map = {
         "{{SCRIPT_CHECK_PREREQ}}": "check-prerequisites",
+        "{{SCRIPT_SETUP_BOOK}}": "setup-book",
         "{{SCRIPT_CREATE_BOOK}}": "create-new-book",
         "{{SCRIPT_SETUP_OUTLINE}}": "setup-outline",
         "{{SCRIPT_BUILD_WORLD_INDEX}}": "build-world-index",
@@ -280,6 +286,7 @@ def render_prompt(raw: str, ai: str, script_type: str) -> str:
         body = body.replace("{SCRIPT}", script)
         for token in [
             "{{SCRIPT_CHECK_PREREQ}}",
+            "{{SCRIPT_SETUP_BOOK}}",
             "{{SCRIPT_CREATE_BOOK}}",
             "{{SCRIPT_SETUP_OUTLINE}}",
             "{{SCRIPT_BUILD_WORLD_INDEX}}",
@@ -303,6 +310,7 @@ def render_prompt(raw: str, ai: str, script_type: str) -> str:
     body = body.replace("{SCRIPT}", script)
     for token in [
         "{{SCRIPT_CHECK_PREREQ}}",
+        "{{SCRIPT_SETUP_BOOK}}",
         "{{SCRIPT_CREATE_BOOK}}",
         "{{SCRIPT_SETUP_OUTLINE}}",
         "{{SCRIPT_BUILD_WORLD_INDEX}}",
