@@ -232,9 +232,9 @@ The key insight: **the workflow is sequential at its core, but every step has es
   ┌─────────────────────────────────────────────────────────────┐
   │                    FOUNDATION PHASE                         │
   │                                                             │
-  │   Constitution ──> Conceive ──> Clarify (opt) ──> Research   │
-  │                                         (opt, repeatable) ──>│
-  │                                           World Build (opt)  │
+  │   Constitution ──> Conceive ──> Clarify (opt) ──> Research  │
+  │                                        (opt, repeatable) ──>│
+  │                                          World Build (opt)  │
   └────────────────────────┬────────────────────────────────────┘
                            │
                            v
