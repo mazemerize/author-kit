@@ -46,6 +46,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: `/memory/constitution.md` (writing principles)
    - **Recommended**: characters.md (character consistency checks)
    - **Recommended**: outline.md (chapter's role in overall structure)
+   - **Optional**: research.md and relevant `research/` topic files (scope `general` and `chapter CHNN`) for accuracy checks and claim verification
    - **Recommended**: `world/` folder — load entity files across all categories (characters/, places/, organizations/, systems/, history/, notes/) for entities appearing in or relevant to this chapter. **If `world/_index.md` exists**: Read it. Scan the draft text for entity names and resolve them via the Alias Lookup (this catches variants like "Dr. Voss" ↔ "Elena Voss"). Use the Chapter Manifest to identify entities tagged for this chapter. Load only the matched world/ files, rather than all world/ files.
    - **Optional**: Previous and next chapter drafts (continuity)
    - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)

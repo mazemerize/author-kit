@@ -45,7 +45,9 @@ def test_init_installs_multiple_ai_flavors_side_by_side():
 
         assert result.exit_code == 0, result.output
         assert Path(".claude/commands/authorkit.chapter.md").exists()
+        assert Path(".claude/commands/authorkit.research.md").exists()
         assert Path(".github/prompts/authorkit.chapter.prompt.md").exists()
+        assert Path(".github/prompts/authorkit.research.prompt.md").exists()
         assert Path("CLAUDE.md").exists()
         assert Path(".github/copilot-instructions.md").exists()
 
@@ -53,7 +55,9 @@ def test_init_installs_multiple_ai_flavors_side_by_side():
         assert manifest["ais"] == ["claude", "copilot"]
         assert manifest["script"] == "sh"
         assert ".claude/commands/authorkit.chapter.md" in manifest["managed_paths"]
+        assert ".claude/commands/authorkit.research.md" in manifest["managed_paths"]
         assert ".github/prompts/authorkit.chapter.prompt.md" in manifest["managed_paths"]
+        assert ".github/prompts/authorkit.research.prompt.md" in manifest["managed_paths"]
 
 
 def test_init_rerun_replaces_unselected_ai_outputs():
@@ -98,6 +102,7 @@ def test_init_rerun_replaces_unselected_ai_outputs():
         assert second.exit_code == 0, second.output
 
         assert Path(".codex/prompts/authorkit.chapter.md").exists()
+        assert Path(".codex/prompts/authorkit.research.md").exists()
         assert Path(".codex/AGENTS.md").exists()
         assert not Path(".claude/commands/authorkit.chapter.md").exists()
         assert not Path(".github/prompts/authorkit.chapter.prompt.md").exists()

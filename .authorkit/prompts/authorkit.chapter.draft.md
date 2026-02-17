@@ -41,7 +41,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Recommended**: `world/` folder files for characters and locations appearing in this chapter (ensures setting/character detail consistency with established world). **If `world/_index.md` exists**: Read it. Use the Chapter Manifest to find entities from the previous chapter. Resolve character/location names from the chapter plan via the Alias Lookup. Load only the world/ files identified by these lookups, rather than all world/ files.
    - **Recommended**: Previous chapter draft `chapters/NN-1/draft.md` (for continuity of voice, scene transitions, and ongoing threads)
    - **Optional**: outline.md (overall structure context)
-   - **Optional**: research.md (accuracy details)
+   - **Optional**: research.md and relevant `research/` topic files (scope `general`, `chapter CHNN`, or topic files directly tied to this chapter's domains)
 
 5. **Pre-flight checks**:
    - If a draft already exists at `chapters/NN/draft.md`: ask user whether to overwrite or skip

@@ -4,6 +4,9 @@ handoffs:
   - label: Create Book Outline
     agent: authorkit.outline
     prompt: Create an outline for this book concept.
+  - label: Research A Topic
+    agent: authorkit.research
+    prompt: Research an ambiguity that needs external grounding
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
@@ -26,7 +29,7 @@ Execution steps:
 
 1. Run `{{SCRIPT_CHECK_PREREQ}}` from repo root **once**. Parse JSON payload for `BOOK_DIR` and `BOOK_CONCEPT`. If JSON parsing fails, abort and instruct user to re-run `/authorkit.conceive`.
 
-2. Load the current concept file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing.
+2. Load the current concept file. If `research.md` or `research/` exists, load relevant research artifacts first and use them to resolve or narrow accuracy-sensitive ambiguities. Then perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing.
 
    Premise & Scope:
    - Core conflict/thesis clarity
@@ -107,7 +110,7 @@ Execution steps:
    - Path to updated concept.
    - Sections touched.
    - Coverage summary table.
-   - Suggested next command (`/authorkit.outline`).
+   - Suggested next command (`/authorkit.outline`) or `/authorkit.research` for unresolved accuracy/sensitivity domains.
 
 Behavior rules:
 - If no meaningful ambiguities found, respond: "No critical ambiguities detected." and suggest proceeding to outline.

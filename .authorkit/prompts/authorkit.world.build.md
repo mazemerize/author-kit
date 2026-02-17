@@ -13,6 +13,9 @@ handoffs:
   - label: Clarify Concept
     agent: authorkit.clarify
     prompt: Clarify aspects of the book concept
+  - label: Research A Topic
+    agent: authorkit.research
+    prompt: Research a world-building topic before adding it to world files
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
@@ -39,6 +42,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - **Required**: concept.md (premise, genre, themes, characters, setting)
    - **Optional**: `/memory/constitution.md` (voice, tone — informs world-building style)
    - **Optional**: Existing `world/` folder (if running iteratively to deepen)
+   - **Optional**: `research.md` and relevant `research/` topic files (use these grounded findings as inputs when they match requested focus areas)
 
 3. **Assess genre and determine relevant categories**:
 
@@ -59,7 +63,7 @@ This command can be run multiple times to iteratively deepen specific areas.
 
    a. **If user input specifies details**: Accept them directly, organize into the appropriate format.
 
-   b. **If concept.md is rich enough**: Extract and expand details from the concept. Make informed decisions based on genre conventions.
+   b. **If concept.md is rich enough**: Extract and expand details from the concept. If `research/` contains relevant grounded findings, prefer those over unsupported assumptions.
 
    c. **If details are sparse**: Ask the user targeted questions. Limit to the most impactful questions per category (max 3 questions per category to avoid overwhelming).
 
@@ -295,7 +299,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - Count of entries per category
    - Any consistency warnings or gaps flagged
    - Areas that could benefit from more depth
-   - Suggested next step: `/authorkit.world.build [specific area]` to deepen, `/authorkit.world.verify` to check internal consistency, or `/authorkit.outline` to proceed to outlining
+   - Suggested next step: `/authorkit.research [topic]` for additional grounding, `/authorkit.world.build [specific area]` to deepen, `/authorkit.world.verify` to check internal consistency, or `/authorkit.outline` to proceed to outlining
 
 ## Key Rules
 
