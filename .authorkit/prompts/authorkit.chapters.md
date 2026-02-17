@@ -27,13 +27,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 2. **Load design documents**: Read from BOOK_DIR:
    - **Required**: outline.md (chapter structure, arcs, themes), concept.md (premise, audience, voice)
-   - **Optional**: research.md (world-building, accuracy notes), characters.md (character profiles, topic definitions)
+   - **Optional**: research.md and `research/` topic files (world-building and accuracy notes), characters.md (character profiles, topic definitions)
 
 3. **Execute chapter breakdown workflow**:
    - Load outline.md and extract chapter list with their parts/acts
    - Load concept.md and extract voice, themes, and scope
    - If characters.md exists: map character appearances to chapters
-   - If research.md exists: map research needs to chapters
+   - If research.md or research/ exists: map research needs and topic files to relevant chapters by scope and chapter targets
    - Generate the chapter task list organized by parts/acts
    - Create dependency notes showing chapter connections
    - Validate completeness (every outline chapter has an entry, every theme is covered)

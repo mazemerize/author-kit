@@ -5,6 +5,9 @@ handoffs:
     agent: authorkit.chapters
     prompt: Break the outline into chapter tasks
     send: true
+  - label: Run Research
+    agent: authorkit.research
+    prompt: Research grounding for this outline
   - label: Build World First
     agent: authorkit.world.build
     prompt: Build the world before outlining
@@ -27,7 +30,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `{{SCRIPT_SETUP_OUTLINE}}` from repo root and parse JSON for BOOK_CONCEPT, OUTLINE, BOOK_DIR, CHAPTERS_DIR, BRANCH.
 
-2. **Load context**: Read BOOK_CONCEPT and `/memory/constitution.md`. Load OUTLINE template (already copied by script).
+2. **Load context**: Read BOOK_CONCEPT and `/memory/constitution.md`. Load OUTLINE template (already copied by script). If `research.md` exists, load it. If `research/` exists, load relevant topic files (scope `general`, `outline`, and any chapter-targeted files that influence structure).
 
 3. **Execute outline workflow**: Follow the structure in the outline template to:
    - Fill Structural Overview (determine structure type, chapter count, parts/acts)
@@ -40,11 +43,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ### Phase 0: Research & World-Building
 
+**Check if research artifacts already exist**:
+
+- If `research.md` and/or `research/` exists (typically produced by `/authorkit.research`), treat them as primary research context.
+- Do **not** auto-run external research in this command. Use existing artifacts and internal reasoning only.
+
 **Check if world/ folder already exists** (created by `/authorkit.world.build`):
 
 **If world/ exists** (world.build was run before outlining):
 1. Read all existing world/ files as primary context (characters/, places/, organizations/, history/, systems/, notes/)
-2. Generate `research.md` as a supplementary file for research that doesn't fit the world/ structure (technical accuracy checks, real-world references, genre conventions)
+2. Refresh `research.md` as needed as a supplementary summary for research that doesn't fit the world/ structure. If `research/` topic files already exist, fold their conclusions into this summary index.
 3. Generate `characters.md` as a summary index pointing to the detailed `world/characters/` files, plus any characters not yet in world/
 4. Validate world/ entries against concept.md — flag any inconsistencies
 5. If world/ feels incomplete for the story's needs, suggest running `/authorkit.world.build` again to deepen specific areas
@@ -54,7 +62,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - For each setting detail -> research task
    - For each historical/technical claim -> accuracy check
    - For each character background -> consistency check
-2. **Generate research notes** in `research.md`:
+2. **Generate or refresh research notes** in `research.md` (using existing `research/` topic files when present):
    - Decision: [what was determined]
    - Rationale: [why this choice]
    - Sources: [reference materials or reasoning]
@@ -63,7 +71,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - For non-fiction: Key concept definitions, relationships between topics, prerequisite knowledge
 4. **Note**: For complex books with extensive world-building needs (fantasy, sci-fi, historical), suggest running `/authorkit.world.build` before proceeding to structural design.
 
-**Output**: research.md, characters.md (+ validated world/ if it exists)
+**Output**: research.md, characters.md (+ validated world/ if it exists, plus existing research/ topic files if present)
 
 ### Phase 1: Structural Design
 
@@ -93,7 +101,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 3. **Arc Check**: Every major character has a complete arc; every theme is introduced and resolved
 4. **Pacing Check**: No section of the book has too many slow or too many intense chapters in a row
 
-5. **Stop and report**: Command ends after validation. Report branch, OUTLINE path, and generated artifacts (research.md, characters.md).
+5. **Stop and report**: Command ends after validation. Report branch, OUTLINE path, generated artifacts (research.md, characters.md), and whether research/ topics were consumed.
 
 ## Key Rules
 

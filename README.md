@@ -127,7 +127,20 @@ Identify and resolve any ambiguities in the concept before outlining.
 /authorkit.clarify
 ```
 
-### 5. Build the world (optional)
+### 5. Research grounding (optional, repeatable)
+
+Run targeted research before outlining, during world-building, or while drafting chapters.
+
+```bash
+/authorkit.research Research Victorian observatory architecture for the outline
+/authorkit.research For chapter 7, research forensic botany in damp basements
+/authorkit.research Research maritime signaling systems in 1890 and sync durable findings to world notes (action:sync-world)
+```
+
+This writes a top-level `research.md` summary plus topic files in `research/`.
+With `sync-world` enabled (for example via `action:sync-world`), grounded findings are also synced into `world/notes/`.
+
+### 6. Build the world (optional)
 
 Establish the rules, geography, characters, history, and systems of your book's world before writing. Especially valuable for fantasy, sci-fi, and historical fiction, but works for any genre.
 
@@ -137,7 +150,7 @@ Establish the rules, geography, characters, history, and systems of your book's 
 
 You can run this multiple times to iteratively deepen specific areas. See [World Maintenance](#world-maintenance) for the full workflow.
 
-### 6. Create the outline
+### 7. Create the outline
 
 Generate the full book structure: chapter summaries, character arcs, thematic thread maps, and narrative arc.
 
@@ -145,9 +158,9 @@ Generate the full book structure: chapter summaries, character arcs, thematic th
 /authorkit.outline
 ```
 
-This also generates `research.md` (world-building notes) and `characters.md` (character profiles).
+This also generates `research.md` (world-building notes) and `characters.md` (character profiles), and uses existing `research/` topic files if present.
 
-### 7. Break into chapters
+### 8. Break into chapters
 
 Convert the outline into a chapter-level task list with status tracking.
 
@@ -155,7 +168,7 @@ Convert the outline into a chapter-level task list with status tracking.
 /authorkit.chapters
 ```
 
-### 8. Write chapter by chapter
+### 9. Write chapter by chapter
 
 The fastest way is the automated chapter command — it runs the full plan → draft → review cycle for you, looping on draft → review until the chapter passes:
 
@@ -176,7 +189,7 @@ Or run each step individually for more control:
 
 After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
 
-### 9. Analyze the full manuscript
+### 10. Analyze the full manuscript
 
 After drafting several chapters (or all of them), run a cross-chapter analysis:
 
@@ -188,7 +201,7 @@ This checks for continuity errors, plot holes, pacing problems, unresolved threa
 
 You can also run `/authorkit.world.verify` at any point to check the `world/` folder for internal consistency and alignment with the manuscript.
 
-### 10. Revise as needed
+### 11. Revise as needed
 
 Apply targeted fixes based on analysis findings:
 
@@ -196,7 +209,7 @@ Apply targeted fixes based on analysis findings:
 /authorkit.revise Fix the timeline contradiction between chapters 3 and 7
 ```
 
-### 11. Export your manuscript
+### 12. Export your manuscript
 
 Author Kit provides publishing commands directly in the installer CLI:
 
@@ -219,8 +232,9 @@ The key insight: **the workflow is sequential at its core, but every step has es
   ┌─────────────────────────────────────────────────────────────┐
   │                    FOUNDATION PHASE                         │
   │                                                             │
-  │   Constitution ──> Conceive ──> Clarify (opt) ──> World     │
-  │                                                 Build (opt) │
+  │   Constitution ──> Conceive ──> Clarify (opt) ──> Research   │
+  │                                         (opt, repeatable) ──>│
+  │                                           World Build (opt)  │
   └────────────────────────┬────────────────────────────────────┘
                            │
                            v
@@ -263,6 +277,7 @@ The key insight: **the workflow is sequential at its core, but every step has es
   ║                                                             ║
   ║   Pivot ─── Change direction across all artifacts           ║
   ║   Retcon ── Change an established fact everywhere           ║
+  ║   Research Ground details from web/news/wikipedia/MCP       ║
   ║   Park ──── Defer a decision for later                      ║
   ║   Snapshot ─ Bookmark state before a risky change           ║
   ║   What-If ── Explore alternatives on a branch               ║
@@ -292,6 +307,7 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | `/authorkit.constitution` | Create or update writing principles (voice, tone, style guide) | Style description | `constitution.md` |
 | `/authorkit.conceive` | Define book concept from a natural language description | Book idea | `concept.md`, git branch, `checklists/concept-quality.md` |
 | `/authorkit.clarify` | Resolve ambiguities in the book concept | Optional focus areas | Updated `concept.md` with clarifications |
+| `/authorkit.research` | Ground a topic using available sources (web/news/wikipedia/MCP) and store reusable notes | Free-form topic/request + optional `scope:`, `sources:`, `action:` overrides | `research.md`, `research/*.md`, optional `world/notes/research-*.md` |
 | `/authorkit.outline` | Create the full book outline with chapter summaries and arcs | — | `outline.md`, `research.md`, `characters.md` |
 | `/authorkit.chapters` | Generate chapter-level task breakdown from the outline | — | `chapters.md` with status markers |
 
@@ -342,15 +358,16 @@ Understanding which commands feed into which helps you navigate the workflow eff
 ### Foundation Phase (run once, in order)
 
 ```
-constitution ──> conceive ──> clarify ──> world.build ──> outline ──> chapters
-                                (opt)      (opt)
+constitution ──> conceive ──> clarify ──> research ──> world.build ──> outline ──> chapters
+                                (opt)      (opt)       (opt)
 ```
 
 - **Constitution** must exist before conceive (it sets the voice rules).
 - **Conceive** creates the concept and git branch. Everything else builds on this.
 - **Clarify** refines the concept. Run it before outlining if the concept has ambiguities.
+- **Research** is optional and repeatable. Run it before outline, during world-building, or during chapter work to ground details.
 - **World Build** is optional but recommended for genres with rich worlds. Can run before or after outline.
-- **Outline** requires concept.md. Produces outline.md, research.md, characters.md.
+- **Outline** requires concept.md. Produces outline.md, research.md, characters.md, and consumes existing `research/` topic files when available.
 - **Chapters** requires outline.md. Produces the chapter task list.
 
 ### Chapter Iteration (repeat per chapter)
@@ -370,8 +387,9 @@ chapter.plan N ──> chapter.draft N ──> chapter.review N
 - **Plan** requires the outline and concept. Loads previous chapters for continuity.
 - **Draft** requires the plan. Follows the constitution as its style guide.
 - **Review** grades the draft against plan, constitution, characters, and world/ files.
-  - **PASS** → status becomes `[X]`. Run `world.update` to capture new world details, then move to the next chapter.
-  - **NEEDS REVISION** → status becomes `[R]`. Re-plan with feedback, re-draft, re-review.
+- **Research** can be run before planning or revising a chapter to ground domain-specific details.
+- **PASS** → status becomes `[X]`. Run `world.update` to capture new world details, then move to the next chapter.
+- **NEEDS REVISION** → status becomes `[R]`. Re-plan with feedback, re-draft, re-review.
 
 ### Quality Phase (run after several chapters)
 
@@ -389,12 +407,13 @@ analyze ──> revise ──> chapter.review ──> analyze (repeat)
 - **World Verify** is read-only. It checks world/ consistency.
 - Run analyze → revise → analyze until critical issues reach zero.
 
-### Mid-Process Commands (available anytime after outlining)
+### Mid-Process Commands (available anytime once `concept.md` exists)
 
 These commands work alongside the main workflow. Here's when to reach for each one:
 
 | Situation | Command | What It Does |
 |-----------|---------|-------------|
+| "I need grounded facts before I outline or draft this" | **Research** | Collects source-backed findings into `research.md` and `research/*.md`, with optional sync to `world/notes/` |
 | "I want to change the ending" | **Pivot** | Scans all artifacts, shows impact, propagates changes top-down |
 | "Character X should have been a spy, not a soldier" | **Retcon** | Finds every reference (direct, indirect, derivative), updates consistently |
 | "I'm not sure if Marcus should die — I'll decide later" | **Park** | Records the decision with deadline, warns when deadline approaches |
@@ -516,7 +535,18 @@ Only relevant categories are created — a contemporary novel won't need a `syst
 
 All entries from initial world-building are tagged `(CONCEPT)` to distinguish them from details that emerge during drafting.
 
-**2. Update after drafting** (after each chapter):
+**2. Ground details with research** (optional, anytime):
+
+```bash
+/authorkit.research Research late-19th-century maritime law for this setting
+/authorkit.research For chapter 4, research telegraph relay timing with web and wikipedia sources
+/authorkit.research Research Victorian shipboard medical protocols and sync durable facts to world notes (action:sync-world)
+```
+
+Default mode is suggest-only (`research.md` + `research/*.md`).
+Use `sync-world` (for example `action:sync-world`) to write durable findings into `world/notes/` and rebuild `world/_index.md`.
+
+**3. Update after drafting** (after each chapter):
 
 ```bash
 /authorkit.world.update 3       # Extract details from chapter 3
@@ -526,7 +556,7 @@ All entries from initial world-building are tagged `(CONCEPT)` to distinguish th
 
 New details are tagged with their source chapter (e.g., `(CH03)`). If a chapter has been revised and is re-scanned, entries are tagged `(CH03-rev)` and a downstream impact report highlights which other chapters may need attention.
 
-**3. Verify consistency** (anytime):
+**4. Verify consistency** (anytime):
 
 ```bash
 /authorkit.world.verify                  # Verify everything
@@ -677,6 +707,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 
 | You want to... | Use... |
 |----------------|--------|
+| Ground a topic with sources and keep reusable notes | `/authorkit.research` |
 | Change the book's direction | `/authorkit.pivot` |
 | Change a specific fact everywhere | `/authorkit.retcon` |
 | Decide something later | `/authorkit.park` |
@@ -790,6 +821,8 @@ Future provider support:
 |-- templates/
 |   |-- concept-template.md
 |   |-- outline-template.md
+|   |-- research-index-template.md
+|   |-- research-topic-template.md
 |   |-- chapters-template.md
 |   |-- chapter-plan-template.md
 |   |-- checklist-template.md
@@ -816,6 +849,8 @@ books/
     |-- concept.md
     |-- outline.md
     |-- research.md
+    |-- research/
+    |   `-- 20260217-victorian-observatory-architecture.md
     |-- characters.md
     |-- chapters.md
     |-- parked-decisions.md
@@ -830,6 +865,7 @@ books/
     |   |-- history/
     |   |-- systems/
     |   `-- notes/
+    |       `-- research-victorian-signaling.md
     `-- chapters/
         |-- 01/
         |   |-- plan.md
