@@ -53,19 +53,14 @@ EXAMPLES:
 # Source common functions
 . "$PSScriptRoot/common.ps1"
 
-# Get book paths and validate branch
+# Get canonical book paths
 $paths = Get-BookPaths
-
-if (-not (Test-BookBranch -Branch $paths.CURRENT_BRANCH -HasGit:$paths.HAS_GIT)) {
-    exit 1
-}
 
 # If paths-only mode, output paths and exit
 if ($PathsOnly) {
     if ($Json) {
         [PSCustomObject]@{
             REPO_ROOT    = $paths.REPO_ROOT
-            BRANCH       = $paths.CURRENT_BRANCH
             BOOK_DIR     = $paths.BOOK_DIR
             BOOK_CONCEPT = $paths.BOOK_CONCEPT
             OUTLINE      = $paths.OUTLINE
@@ -73,7 +68,6 @@ if ($PathsOnly) {
         } | ConvertTo-Json -Compress
     } else {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
-        Write-Output "BRANCH: $($paths.CURRENT_BRANCH)"
         Write-Output "BOOK_DIR: $($paths.BOOK_DIR)"
         Write-Output "BOOK_CONCEPT: $($paths.BOOK_CONCEPT)"
         Write-Output "OUTLINE: $($paths.OUTLINE)"

@@ -249,6 +249,7 @@ def resolve_token_script(token: str, script_type: str) -> str:
     """
     token_map = {
         "{{SCRIPT_CHECK_PREREQ}}": "check-prerequisites",
+        "{{SCRIPT_SETUP_BOOK}}": "setup-book",
         "{{SCRIPT_CREATE_BOOK}}": "create-new-book",
         "{{SCRIPT_SETUP_OUTLINE}}": "setup-outline",
         "{{SCRIPT_BUILD_WORLD_INDEX}}": "build-world-index",
@@ -280,6 +281,7 @@ def render_prompt(raw: str, ai: str, script_type: str) -> str:
         body = body.replace("{SCRIPT}", script)
         for token in [
             "{{SCRIPT_CHECK_PREREQ}}",
+            "{{SCRIPT_SETUP_BOOK}}",
             "{{SCRIPT_CREATE_BOOK}}",
             "{{SCRIPT_SETUP_OUTLINE}}",
             "{{SCRIPT_BUILD_WORLD_INDEX}}",
@@ -303,6 +305,7 @@ def render_prompt(raw: str, ai: str, script_type: str) -> str:
     body = body.replace("{SCRIPT}", script)
     for token in [
         "{{SCRIPT_CHECK_PREREQ}}",
+        "{{SCRIPT_SETUP_BOOK}}",
         "{{SCRIPT_CREATE_BOOK}}",
         "{{SCRIPT_SETUP_OUTLINE}}",
         "{{SCRIPT_BUILD_WORLD_INDEX}}",

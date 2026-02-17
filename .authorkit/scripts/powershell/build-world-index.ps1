@@ -326,11 +326,6 @@ function Escape-TableCell {
 # --- Main Script ---
 
 $paths = Get-BookPaths
-
-if (-not (Test-BookBranch -Branch $paths.CURRENT_BRANCH -HasGit:$paths.HAS_GIT)) {
-    exit 1
-}
-
 $bookDir = $paths.BOOK_DIR
 $worldDir = Join-Path $bookDir 'world'
 $legacyWorldDir = Join-Path $bookDir 'World'

@@ -28,7 +28,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `{{SCRIPT_SETUP_OUTLINE}}` from repo root and parse JSON for BOOK_CONCEPT, OUTLINE, BOOK_DIR, CHAPTERS_DIR, BRANCH.
+1. **Setup**: Run `{{SCRIPT_SETUP_OUTLINE}}` from repo root and parse JSON for BOOK_CONCEPT, OUTLINE, BOOK_DIR, CHAPTERS_DIR.
 
 2. **Load context**: Read BOOK_CONCEPT and `/memory/constitution.md`. Load OUTLINE template (already copied by script). If `research.md` exists, load it. If `research/` exists, load relevant topic files (scope `general`, `outline`, and any chapter-targeted files that influence structure).
 
@@ -101,7 +101,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 3. **Arc Check**: Every major character has a complete arc; every theme is introduced and resolved
 4. **Pacing Check**: No section of the book has too many slow or too many intense chapters in a row
 
-5. **Stop and report**: Command ends after validation. Report branch, OUTLINE path, generated artifacts (research.md, characters.md), and whether research/ topics were consumed.
+5. **Stop and report**: Command ends after validation. Report OUTLINE path, generated artifacts (research.md, characters.md), and whether research/ topics were consumed.
 
 ## Key Rules
 

@@ -4,7 +4,7 @@ description: "Chapter breakdown template for book implementation"
 
 # Chapters: [BOOK TITLE]
 
-**Input**: Outline and concept from `/books/[###-book-name]/`
+**Input**: Outline and concept from `/book/`
 **Prerequisites**: outline.md (required), concept.md (required for themes/voice), research.md, characters.md
 
 **Organization**: Chapters are grouped by parts/acts to enable structured drafting. Each chapter is independently plannable, draftable, and reviewable.

@@ -1,6 +1,6 @@
 # Book Concept: [BOOK TITLE]
 
-**Branch**: `[###-book-name]`
+**Workspace**: `/book/`
 **Created**: [DATE]
 **Status**: Draft
 **Input**: Author description: "$ARGUMENTS"

@@ -3,13 +3,13 @@ description: Explore an alternative direction on an experimental branch without 
 handoffs:
   - label: Compare Branches
     agent: authorkit.whatif
-    prompt: Compare the what-if branch with the main branch
+    prompt: Compare the what-if branch with the source branch
   - label: Merge What-If
     agent: authorkit.whatif
-    prompt: Merge this what-if branch back to the main branch
+    prompt: Merge this what-if branch back to the source branch
   - label: Discard What-If
     agent: authorkit.whatif
-    prompt: Discard this what-if branch and return to the main branch
+    prompt: Discard this what-if branch and return to the source branch
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---

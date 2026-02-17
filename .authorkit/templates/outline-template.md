@@ -1,7 +1,7 @@
 # Book Outline: [BOOK TITLE]
 
-**Branch**: `[###-book-name]` | **Date**: [DATE] | **Concept**: [link]
-**Input**: Book concept from `/books/[###-book-name]/concept.md`
+**Date**: [DATE] | **Concept**: [link]
+**Input**: Book concept from `/book/concept.md`
 
 **Note**: This template is filled in by the `/authorkit.outline` command. See `.authorkit/templates/commands/` for the execution workflow.
 

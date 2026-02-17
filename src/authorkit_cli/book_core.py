@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-BOOKS_DIR_NAME = "books"
+BOOK_DIR_NAME = "book"
 WORLD_DIR_NAME = "world"
 CHAPTERS_DIR_NAME = "chapters"
 CHECKLISTS_DIR_NAME = "checklists"
@@ -64,60 +62,12 @@ def find_repo_root(start: Path | None = None) -> Path:
     return current
 
 
-def _branch_name(repo_root: Path) -> str | None:
-    env_branch = os.getenv("AUTHORKIT_BOOK")
-    if env_branch:
-        return env_branch.strip()
-
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-    name = result.stdout.strip()
-    return name or None
-
-
-def resolve_book_dir(repo_root: Path, requested_book: str | None = None) -> Path:
-    """Resolve the active book directory."""
-    books_root = repo_root / BOOKS_DIR_NAME
-    books_root.mkdir(parents=True, exist_ok=True)
-
-    if requested_book:
-        candidate = Path(requested_book)
-        if not candidate.is_absolute():
-            candidate = books_root / requested_book
-        return candidate.resolve()
-
-    branch = _branch_name(repo_root)
-    if branch:
-        branch_candidate = books_root / branch
-        if branch_candidate.exists():
-            return branch_candidate
-
-        prefix_match = re.match(r"^(\d{3})-", branch)
-        if prefix_match:
-            prefix = prefix_match.group(1)
-            matches = sorted([p for p in books_root.iterdir() if p.is_dir() and p.name.startswith(f"{prefix}-")])
-            if len(matches) == 1:
-                return matches[0]
-
-    numeric_books: list[tuple[int, Path]] = []
-    for path in books_root.iterdir():
-        if not path.is_dir():
-            continue
-        match = re.match(r"^(\d{3})-", path.name)
-        if match:
-            numeric_books.append((int(match.group(1)), path))
-
-    if numeric_books:
-        return sorted(numeric_books, key=lambda item: item[0])[-1][1]
-
-    raise FileNotFoundError("No book directory found. Create one first (for example with /authorkit.conceive).")
+def resolve_book_dir(repo_root: Path) -> Path:
+    """Resolve the canonical single-book directory."""
+    book_dir = (repo_root / BOOK_DIR_NAME).resolve()
+    if not book_dir.exists():
+        raise FileNotFoundError(f"No book directory found at {book_dir}. Run /authorkit.conceive first.")
+    return book_dir
 
 
 def parse_book_config(book_dir: Path) -> BookConfig:
