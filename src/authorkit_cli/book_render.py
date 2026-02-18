@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -35,12 +36,13 @@ def ensure_system_tool(tool: str) -> None:
 
 def build_manuscript_markdown(config: BookConfig, drafts: list[ChapterDraft]) -> str:
     """Assemble a full manuscript markdown document."""
-    subtitle_line = f"subtitle: {config.subtitle}\n" if config.subtitle else ""
+    # JSON string literals are valid YAML scalars and prevent punctuation parse errors.
+    subtitle_line = f"subtitle: {json.dumps(config.subtitle, ensure_ascii=False)}\n" if config.subtitle else ""
     frontmatter = (
         "---\n"
-        f"title: {config.title}\n"
-        f"author: {config.author}\n"
-        f"lang: {config.language}\n"
+        f"title: {json.dumps(config.title, ensure_ascii=False)}\n"
+        f"author: {json.dumps(config.author, ensure_ascii=False)}\n"
+        f"lang: {json.dumps(config.language, ensure_ascii=False)}\n"
         f"{subtitle_line}"
         "---\n\n"
     )

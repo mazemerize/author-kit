@@ -12,6 +12,7 @@ import authorkit_cli as cli
 import authorkit_cli.book_core as book_core
 import authorkit_cli.book_commands as book_commands
 import authorkit_cli.book_audio as book_audio
+import authorkit_cli.book_render as book_render
 from typer.testing import CliRunner
 
 
@@ -333,6 +334,21 @@ def _seed_book_tree() -> Path:
     return root.parents[1].resolve()
 
 
+def test_parse_book_config_accepts_utf8_bom():
+    """Verify book.toml with UTF-8 BOM is parsed successfully."""
+    with runner.isolated_filesystem():
+        book_dir = Path("book")
+        book_dir.mkdir(parents=True, exist_ok=True)
+        (book_dir / "book.toml").write_text(
+            '[book]\ntitle = "BOM Title"\nauthor = "Test Author"\nlanguage = "en-US"\n',
+            encoding="utf-8-sig",
+        )
+
+        config = book_core.parse_book_config(book_dir.resolve())
+        assert config.title == "BOM Title"
+        assert config.author == "Test Author"
+
+
 def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
     """Verify book build assembles manuscript and calls format renderer."""
     with runner.isolated_filesystem():
@@ -346,6 +362,32 @@ def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
         assert result.exit_code == 0, result.output
         assert (book_dir / "dist" / "manuscript.md").exists()
         assert "Built:" in result.output
+
+
+def test_build_manuscript_markdown_quotes_yaml_metadata_values():
+    """Verify manuscript frontmatter quotes punctuation-heavy metadata safely."""
+    config = book_core.BookConfig(
+        title="Inside Author Kit: AI-Assisted Writing Done Right",
+        author="Mathieu Demarne: Author",
+        language="en-US",
+        subtitle='A "practical" guide',
+        default_formats=["docx"],
+        reference_docx="",
+        epub_css="",
+        audio_provider="openai",
+        audio_model="gpt-4o-mini-tts",
+        audio_voice="onyx",
+        speaking_rate_wpm=170,
+        reading_wpm=200,
+        tts_cost_per_1m_chars=0.0,
+    )
+    drafts = [book_core.ChapterDraft(chapter_number=1, draft_path=Path("book/chapters/01/draft.md"), text="# Ch1\n\nBody.")]
+
+    rendered = book_render.build_manuscript_markdown(config, drafts)
+
+    assert 'title: "Inside Author Kit: AI-Assisted Writing Done Right"' in rendered
+    assert 'author: "Mathieu Demarne: Author"' in rendered
+    assert 'subtitle: "A \\"practical\\" guide"' in rendered
 
 
 def test_book_build_prompts_and_skips_existing_output(monkeypatch):
@@ -682,6 +724,15 @@ def test_docs_prompts_templates_and_instructions_avoid_seeded_stock_examples():
         text = path.read_text(encoding="utf-8")
         for literal in banned_literals:
             assert literal not in text, f"Found banned stock example '{literal}' in {path}"
+
+
+def test_setup_book_powershell_writes_toml_without_bom():
+    """Verify setup-book.ps1 uses explicit UTF-8 without BOM for book.toml."""
+    repo_root = Path(__file__).resolve().parents[2]
+    ps_script = (repo_root / ".authorkit" / "scripts" / "powershell" / "setup-book.ps1").read_text(encoding="utf-8")
+
+    assert "[System.Text.UTF8Encoding]::new($false)" in ps_script
+    assert "Write-Utf8NoBom -Path $bookTomlPath -Content $bookToml" in ps_script
 
 
 def test_world_index_scripts_assume_lowercase_world_layout():
