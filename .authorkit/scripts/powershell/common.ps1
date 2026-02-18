@@ -72,6 +72,7 @@ function Get-BookPaths {
         HAS_GIT        = $hasGit
         BOOK_DIR       = $bookDir
         BOOK_CONCEPT   = Join-Path $bookDir 'concept.md'
+        STYLE_ANCHOR   = Join-Path $bookDir 'style-anchor.md'
         OUTLINE        = Join-Path $bookDir 'outline.md'
         CHAPTERS       = Join-Path $bookDir 'chapters.md'
         RESEARCH       = Join-Path $bookDir 'research.md'

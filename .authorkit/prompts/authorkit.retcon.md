@@ -39,7 +39,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
      - **New fact**: What it should become
      - **Scope** (optional): Limit to specific chapters or files
    - Accept formats:
-     - Explicit: "Elena was 42 -> Elena is 38"
+     - Explicit: "Transit from the harbor to the citadel takes 40 minutes -> Transit takes 75 minutes (distance remeasured after route audit)"
      - Natural language: "Change Marcus from a soldier to a spy"
      - Complex: "The magic system costs blood -> The magic system costs memories"
 
@@ -51,7 +51,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
    For the old fact, search for:
    - **Direct references**: Exact mentions of the old fact
    - **Indirect references**: Implications, consequences, or reactions based on the old fact
-   - **Derivative details**: Things that logically follow from the old fact (e.g., if changing age from 42 to 38, also find "she'd spent two decades..." which implies an age)
+   - **Derivative details**: Things that logically follow from the old fact (e.g., if changing travel time from 40 to 75 minutes, update any arrival windows, alibis, or timetable constraints that depended on 40)
 
    Search these files:
    a. **concept.md**: Check premise, characters, themes
@@ -74,7 +74,7 @@ This is more specific than `/authorkit.pivot` (which handles broad direction cha
    | File | Location | Current Text | Proposed Change |
    |------|----------|-------------|-----------------|
    | chapters/03/draft.md | Para 7 | "...her twenty years in the army..." | "...her years in the intelligence service..." |
-   | world/characters/elena.md | Background | "Military service (CONCEPT)" | "Intelligence service (RETCON)" |
+   | world/characters/iria.md | Background | "Military service (CONCEPT)" | "Intelligence service (RETCON)" |
 
    ### Indirect References (implications and consequences)
 

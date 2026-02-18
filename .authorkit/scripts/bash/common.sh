@@ -56,6 +56,7 @@ CURRENT_BRANCH='$current_branch'
 HAS_GIT='$has_git'
 BOOK_DIR='$book_dir'
 BOOK_CONCEPT='$book_dir/concept.md'
+STYLE_ANCHOR='$book_dir/style-anchor.md'
 OUTLINE='$book_dir/outline.md'
 CHAPTERS='$book_dir/chapters.md'
 RESEARCH='$book_dir/research.md'
@@ -73,8 +74,8 @@ book_paths_json() {
   if test_has_git; then has_git=true; else has_git=false; fi
   book_dir="$repo_root/$AUTHORKIT_BOOK_DIR"
 
-  printf '{"REPO_ROOT":"%s","BOOK_DIR":"%s","BOOK_CONCEPT":"%s","OUTLINE":"%s","CHAPTERS":"%s","HAS_GIT":%s}\n' \
-    "$repo_root" "$book_dir" "$book_dir/concept.md" "$book_dir/outline.md" "$book_dir/chapters.md" "$has_git"
+  printf '{"REPO_ROOT":"%s","BOOK_DIR":"%s","BOOK_CONCEPT":"%s","STYLE_ANCHOR":"%s","OUTLINE":"%s","CHAPTERS":"%s","HAS_GIT":%s}\n' \
+    "$repo_root" "$book_dir" "$book_dir/concept.md" "$book_dir/style-anchor.md" "$book_dir/outline.md" "$book_dir/chapters.md" "$has_git"
 }
 
 check_file() {

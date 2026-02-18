@@ -27,7 +27,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Outline
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR and AVAILABLE_DOCS. All paths must be absolute.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR, STYLE_ANCHOR, and AVAILABLE_DOCS. All paths must be absolute.
 
 2. **Parse chapter number** from user input:
    - Accept formats: "1", "01", "CH01", "chapter 1"
@@ -44,10 +44,11 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: `chapters/NN/plan.md` (what was planned)
    - **Required**: concept.md (book concept, themes, voice)
    - **Required**: `/memory/constitution.md` (writing principles)
+   - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md`
    - **Recommended**: characters.md (character consistency checks)
    - **Recommended**: outline.md (chapter's role in overall structure)
    - **Optional**: research.md and relevant `research/` topic files (scope `general` and `chapter CHNN`) for accuracy checks and claim verification
-   - **Recommended**: `world/` folder — load entity files across all categories (characters/, places/, organizations/, systems/, history/, notes/) for entities appearing in or relevant to this chapter. **If `world/_index.md` exists**: Read it. Scan the draft text for entity names and resolve them via the Alias Lookup (this catches variants like "Dr. Voss" ↔ "Elena Voss"). Use the Chapter Manifest to identify entities tagged for this chapter. Load only the matched world/ files, rather than all world/ files.
+   - **Recommended**: `world/` folder — load entity files across all categories (characters/, places/, organizations/, systems/, history/, notes/) for entities appearing in or relevant to this chapter. **If `world/_index.md` exists**: Read it. Scan the draft text for entity names and resolve them via the Alias Lookup (this catches variants like "Captain Iri" ↔ "Iria Calder"). Use the Chapter Manifest to identify entities tagged for this chapter. Load only the matched world/ files, rather than all world/ files.
    - **Optional**: Previous and next chapter drafts (continuity)
    - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)
 
@@ -66,6 +67,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - Is the tense correct throughout?
    - Does the prose style match the constitution's standards?
    - Are any constitution principles violated?
+   - Does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile?
 
    ### C. Craft Quality
    - **Pacing**: Does the chapter flow well? Are there sections that drag or rush?
@@ -146,6 +148,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    |-----------|-------|-------|
    | Plan Adherence | [A/B/C/D] | [Brief note] |
    | Constitution Compliance | [A/B/C/D] | [Brief note] |
+   | Style Anchor Compliance | [A/B/C/D] | [Brief note] |
    | Craft Quality | [A/B/C/D] | [Brief note] |
    | Character/Content | [A/B/C/D] | [Brief note] |
    | Continuity | [A/B/C/D] | [Brief note] |

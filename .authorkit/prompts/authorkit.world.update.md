@@ -63,7 +63,7 @@ After drafting or revising chapters, extract new world-building details and orga
       - **Systems**: Rules revealed, limitations discovered, new applications, exceptions
 
    c. For each detail found:
-      - Check if a world/ file already exists for this entity. If `world/_index.md` exists, use the Alias Lookup table to resolve the entity name (handles variants like "Dr. Voss" → `char-elena-voss`), then get the file path from the Entity Registry. If no index, search world/ files directly.
+      - Check if a world/ file already exists for this entity. If `world/_index.md` exists, use the Alias Lookup table to resolve the entity name (handles variants like "Captain Calder" → `char-iria-calder`), then get the file path from the Entity Registry. If no index, search world/ files directly.
       - **If exists**: Add the new detail to the appropriate section, tagged `(CHxx)`
       - **If new entity**: Create a new file in the appropriate category folder, with all details tagged `(CHxx)`. Include YAML frontmatter following the schema in `.authorkit/templates/world-entity-frontmatter.md`.
 
@@ -142,7 +142,7 @@ After drafting or revising chapters, extract new world-building details and orga
 - **Every detail MUST be chapter-tagged.** This is the core mechanism for tracking evolution. Use `(CHxx)` for fresh extraction, `(CHxx-rev)` for revision updates, `(CONCEPT)` entries from world.build are left as-is unless contradicted.
 - **Don't speculate.** Only record what is explicitly established in the chapter text. If a character's eye color isn't mentioned, don't infer it.
 - **Update incrementally.** Add to existing files rather than rewriting them. Preserve all existing entries from other chapters.
-- **Cross-reference generously.** When a detail connects entities (e.g., "Elena visited the Iron Quarter"), update both files.
+- **Cross-reference generously.** When a detail connects entities (e.g., "Iria visited the Iron Quarter"), update both files.
 - **Respect (CONCEPT) entries.** Details tagged `(CONCEPT)` from pre-writing world-building should not be removed. If a chapter contradicts a `(CONCEPT)` entry, flag the conflict but update the entry to reflect what's actually in the text, tagging the new value with the chapter number.
 - **Flag, don't fix.** When revision reconciliation reveals downstream impacts, flag them clearly in the report but do NOT automatically edit other chapters. The user decides how to handle ripple effects.
 

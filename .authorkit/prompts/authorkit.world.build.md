@@ -308,7 +308,7 @@ This command can be run multiple times to iteratively deepen specific areas.
 - **Tag everything (CONCEPT).** This tag is critical for the evolution tracking system. When chapters are drafted and `/authorkit.world.update` runs, new details will be tagged with chapter numbers.
 - **Include YAML frontmatter.** Every world/ file must have a frontmatter block with `id`, `type`, `name`, `aliases`, `chapters`, `first_appearance`, `relationships`, `tags`, and `last_updated`. See `.authorkit/templates/world-entity-frontmatter.md` for the full schema.
 - **Don't over-build.** Only create entries for things that will actually matter to the story. A magic system with 50 rules that only appears once is wasted effort. Focus on what the reader will encounter.
-- **Cross-reference.** Use relative paths to link related entries (e.g., "See characters/elena-voss.md" or "Related: history/the-great-war.md").
+- **Cross-reference.** Use relative paths to link related entries (e.g., "See characters/iria-calder.md" or "Related: history/the-great-war.md").
 - **Iterative by design.** This command can be run multiple times. Each run should deepen or add, not replace. If world/ already has entries, read them first and build on them.
 - **Genre-appropriate depth.** An epic fantasy might need 30+ world/ files. A contemporary romance might need 5. Scale to the book's needs.
 

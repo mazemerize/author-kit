@@ -20,7 +20,7 @@ scripts:
 {{USER_INPUT_TOKEN}}
 ```
 
-You **MUST** consider the user input before proceeding (if not empty). The user input specifies the verification scope (e.g., "all", "characters/", "characters/elena.md", "systems/ places/").
+You **MUST** consider the user input before proceeding (if not empty). The user input specifies the verification scope (e.g., "all", "characters/", "characters/iria.md", "systems/ places/").
 
 ## Goal
 
@@ -37,9 +37,9 @@ Unlike `/authorkit.analyze` (which requires multiple drafted chapters and covers
    - If not: ERROR "No world/ folder found. Run `/authorkit.world.build` first."
 
 3. **Parse scope** from user input:
-   - **Specific file**: `characters/elena.md`, `world/characters/elena.md` — verify that file plus its cross-references
+   - **Specific file**: `characters/iria.md`, `world/characters/iria.md` — verify that file plus its cross-references
    - **Category folder**: `characters/`, `organizations/`, `places/`, `history/`, `systems/`, `notes/` — verify all files in that category
-   - **Multiple targets**: `characters/elena.md systems/magic.md` — verify those files plus cross-references
+   - **Multiple targets**: `characters/iria.md systems/magic.md` — verify those files plus cross-references
    - **All** (default): `all`, empty, or no argument — verify the entire world/ folder
    - Normalize all paths relative to `BOOK_DIR/world/`
 
@@ -77,7 +77,7 @@ Unlike `/authorkit.analyze` (which requires multiple drafted chapters and covers
    - Characters referenced in history/ events should exist in characters/
    - Organizations referenced in history/ events should exist in organizations/
    - System users or practitioners mentioned in systems/ should appear in characters/ (if they are named individuals)
-   - Cross-reference links (e.g., "See characters/elena-voss.md") should point to files that actually exist
+   - Cross-reference links (e.g., "See characters/iria-calder.md") should point to files that actually exist
    - Entity names should be spelled consistently across all files
 
    ### C. System Coherence
@@ -152,7 +152,7 @@ Unlike `/authorkit.analyze` (which requires multiple drafted chapters and covers
 
    | ID | Category | Severity | File(s) | Description | Recommendation |
    |----|----------|----------|---------|-------------|----------------|
-   | R1 | Reciprocal | HIGH | characters/elena.md, characters/marcus.md | Elena lists Marcus as "mentor" but Marcus has no reference to Elena | Add Elena to Marcus's Relationships section |
+   | R1 | Reciprocal | HIGH | characters/iria.md, characters/marcus.md | Iria lists Marcus as "mentor" but Marcus has no reference to Iria | Add Iria to Marcus's Relationships section |
    | C1 | Cross-Entity | MEDIUM | organizations/guild.md, characters/ | Guild lists "Tomas" as member but no characters/tomas.md exists | Create a character file for Tomas or remove from guild roster |
 
    ### Verification Result
