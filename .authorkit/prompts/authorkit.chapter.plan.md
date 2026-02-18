@@ -21,7 +21,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Outline
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR and AVAILABLE_DOCS. All paths must be absolute.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR, STYLE_ANCHOR, and AVAILABLE_DOCS. All paths must be absolute.
 
 2. **Parse chapter number** from user input:
    - Accept formats: "1", "01", "CH01", "chapter 1", "Chapter 1"
@@ -32,6 +32,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: outline.md (this chapter's entry + overall structure)
    - **Required**: concept.md (voice, tone, themes, characters)
    - **Required**: chapters.md (chapter status, dependencies)
+   - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (create or refresh before planning)
    - **Recommended**: characters.md (character profiles for this chapter)
    - **Optional**: research.md and relevant `research/` topic files (prefer scope `general`, `outline`, `chapter CHNN`; if many files exist, load only those matching this chapter's entities/topics)
    - **Optional**: `/memory/constitution.md` (writing principles)
@@ -54,9 +55,23 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
      - After the plan is written, correct the stale outline entry to match the draft.
    - This step prevents upstream planning documents from introducing continuity errors into new chapters.
 
-6. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists (create if needed).
+6. **Build or refresh style anchor** at `STYLE_ANCHOR` before planning:
+   - Source style from constitution + the last two approved chapters (`[X]`) before this chapter number.
+   - Fallbacks:
+     - If one approved chapter exists: use constitution + that chapter.
+     - If none exist: use constitution only.
+   - Write the style anchor using this fixed schema:
+     - `## Non-Negotiables (POV, Tense, Narrative Distance)`
+     - `## Cadence Profile (Sentence and Paragraph Rhythm)`
+     - `## Dialogue Profile`
+     - `## Diction and Register`
+     - `## Imagery Density and Taboo Patterns`
+     - `## Drift Red Flags`
+     - `## Provenance`
 
-7. **Generate chapter plan**: Load `templates/chapter-plan-template.md` and fill it with:
+7. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists (create if needed).
+
+8. **Generate chapter plan**: Load `templates/chapter-plan-template.md` and fill it with:
 
    a. **Chapter Purpose**: Extract from outline.md entry for this chapter
 
@@ -84,15 +99,15 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
    k. **Estimated Length**: Target word count based on the book's overall scope
 
-8. **Write plan** to `BOOK_DIR/chapters/NN/plan.md`.
+9. **Write plan** to `BOOK_DIR/chapters/NN/plan.md`.
 
-9. **Update chapter status**: In chapters.md, change this chapter's status from `[ ]` to `[P]`:
+10. **Update chapter status**: In chapters.md, change this chapter's status from `[ ]` to `[P]`:
    - Find the line matching `- [ ] CHNN`
    - Replace `- [ ]` with `- [P]`
 
-10. **Fix stale outline entries**: If step 5 found any mismatches, update the relevant outline.md entries to match the drafted chapters. This keeps the outline accurate for future chapter planning.
+11. **Fix stale outline entries**: If step 5 found any mismatches, update the relevant outline.md entries to match the drafted chapters. This keeps the outline accurate for future chapter planning.
 
-11. **Report completion**:
+12. **Report completion**:
    - Path to chapter plan
    - Summary of scenes/sections planned
    - Key connections to other chapters
@@ -102,6 +117,8 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 - The plan must be detailed enough that the chapter can be drafted without re-reading the full outline
 - Respect the constitution's voice and style principles
+- Style continuity is mandatory: planning assumptions must align with `book/style-anchor.md` and constitution.
+- If you introduce new numeric facts in the plan, include rationale; when multiple values fit, pick a context-bounded varied value.
 - Each scene/section needs a clear "why" - if it doesn't advance plot/argument or develop character/concept, question whether it belongs
 - Opening hooks and closing beats are critical - spend extra thought on these
 - For fiction: ensure dialogue-heavy scenes have clear purpose; ensure action scenes have emotional stakes

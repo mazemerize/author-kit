@@ -606,6 +606,84 @@ def test_docs_and_prompts_use_lowercase_world_paths():
             assert re.search(pattern, text) is None, f"Found disallowed path casing '{pattern}' in {path}"
 
 
+def test_init_injects_shared_generation_guardrails_and_keeps_shared_asset_unrendered():
+    """Verify rendered generation prompts inject shared guardrails and do not render shared assets as commands."""
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        draft_prompt = Path(".codex/prompts/authorkit.chapter.draft.md").read_text(encoding="utf-8")
+        assert "## Shared Generation Guardrails" in draft_prompt
+        assert "### Name Originality Protocol" in draft_prompt
+
+        assert Path(".authorkit/prompts/_shared/generation-guardrails.md").exists()
+        assert not Path(".codex/prompts/generation-guardrails.md").exists()
+        assert not Path(".codex/prompts/_shared/generation-guardrails.md").exists()
+
+
+def test_chapter_prompts_enforce_style_anchor_workflow():
+    """Verify chapter lifecycle prompts include style-anchor loading and refresh instructions."""
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        plan_prompt = Path(".codex/prompts/authorkit.chapter.plan.md").read_text(encoding="utf-8")
+        draft_prompt = Path(".codex/prompts/authorkit.chapter.draft.md").read_text(encoding="utf-8")
+
+        for text in (plan_prompt, draft_prompt):
+            assert "STYLE_ANCHOR" in text
+            assert "last two approved chapters" in text
+            assert "## Non-Negotiables (POV, Tense, Narrative Distance)" in text
+
+
+def test_docs_prompts_templates_and_instructions_avoid_seeded_stock_examples():
+    """Verify seeded stock names and arbitrary age-retcon examples are absent from shipped assets."""
+    repo_root = Path(__file__).resolve().parents[2]
+    targets: list[Path] = []
+    targets.extend((repo_root / ".authorkit" / "prompts").rglob("*.md"))
+    targets.extend((repo_root / ".authorkit" / "templates").glob("*.md"))
+    targets.extend((repo_root / ".authorkit" / "instructions").glob("*.md.tmpl"))
+    targets.append(repo_root / "README.md")
+
+    banned_literals = [
+        "Elena Voss",
+        "Elena was 42 -> Elena is 38",
+    ]
+
+    for path in targets:
+        text = path.read_text(encoding="utf-8")
+        for literal in banned_literals:
+            assert literal not in text, f"Found banned stock example '{literal}' in {path}"
+
+
 def test_world_index_scripts_assume_lowercase_world_layout():
     """Verify world index scripts are configured for lowercase world directories."""
     repo_root = Path(__file__).resolve().parents[2]
@@ -618,6 +696,20 @@ def test_world_index_scripts_assume_lowercase_world_layout():
     for token in ["characters", "places", "organizations", "history", "systems", "notes"]:
         assert token in ps_script
         assert token in sh_script
+
+
+def test_path_scripts_expose_style_anchor_path():
+    """Verify shared path scripts include STYLE_ANCHOR path metadata."""
+    repo_root = Path(__file__).resolve().parents[2]
+    ps_common = (repo_root / ".authorkit" / "scripts" / "powershell" / "common.ps1").read_text(encoding="utf-8")
+    sh_common = (repo_root / ".authorkit" / "scripts" / "bash" / "common.sh").read_text(encoding="utf-8")
+    prereq_ps = (repo_root / ".authorkit" / "scripts" / "powershell" / "check-prerequisites.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "STYLE_ANCHOR" in ps_common
+    assert "STYLE_ANCHOR" in sh_common
+    assert "STYLE_ANCHOR" in prereq_ps
 
 
 def test_docs_prompts_templates_use_single_book_workspace_paths():

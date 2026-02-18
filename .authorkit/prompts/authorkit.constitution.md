@@ -44,6 +44,7 @@ Follow this execution flow:
    - **Tone**: Emotional register, humor policy, darkness/lightness balance
    - **Audience**: Target reader, assumed knowledge, accessibility requirements
    - **Prose Standards**: Show vs tell policy, dialogue rules, description density, sentence rhythm
+   - **Naming & Numbers**: Naming originality requirements and numeric-specificity policy (rationale-first numbers, uncertainty handling when precision is unsupported)
    - **Content Boundaries**: Sensitivity guidelines, research accuracy requirements, content warnings
    - **Structural Rules**: Chapter length targets, scene transition style, cliffhanger policy
 

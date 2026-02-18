@@ -74,7 +74,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **Examples**:
 
-- `- [ ] CH01 [Part 1] The Arrival - Elena discovers the abandoned estate and its hidden library`
+- `- [ ] CH01 [Part 1] The Arrival - Iria discovers the abandoned estate and its hidden library`
 - `- [ ] CH05 [Part 2] Breaking Point - The alliance fractures when secrets surface`
 - `- [ ] CH01 Introduction - Overview of distributed systems and why they matter`
 - `- [ ] CH08 Advanced Patterns - Saga pattern, event sourcing, and CQRS in practice`

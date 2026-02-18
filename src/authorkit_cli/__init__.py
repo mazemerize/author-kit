@@ -45,6 +45,28 @@ AGENT_CONFIG = {
 
 SCRIPT_CHOICES = {"sh": "POSIX Shell", "ps": "PowerShell"}
 PROTECTED_MANAGED_PATHS = {".authorkit/memory/constitution.md"}
+SHARED_GUARDRAILS_PATH = Path(".authorkit/prompts/_shared/generation-guardrails.md")
+GUARDRAIL_PROMPT_ALLOWLIST = {
+    "authorkit.analyze.md",
+    "authorkit.chapter.draft.md",
+    "authorkit.chapter.md",
+    "authorkit.chapter.plan.md",
+    "authorkit.chapter.review.md",
+    "authorkit.chapters.md",
+    "authorkit.checklist.md",
+    "authorkit.clarify.md",
+    "authorkit.conceive.md",
+    "authorkit.constitution.md",
+    "authorkit.outline.md",
+    "authorkit.pivot.md",
+    "authorkit.reconcile.md",
+    "authorkit.research.md",
+    "authorkit.retcon.md",
+    "authorkit.revise.md",
+    "authorkit.world.build.md",
+    "authorkit.world.update.md",
+    "authorkit.world.verify.md",
+}
 
 
 def show_banner() -> None:
@@ -267,19 +289,61 @@ def resolve_token_script(token: str, script_type: str) -> str:
     return f".authorkit/scripts/powershell/{stem}.ps1"
 
 
-def render_prompt(raw: str, ai: str, script_type: str) -> str:
+def load_generation_guardrails() -> str:
+    """Load shared generation guardrails text from assets.
+
+    Returns:
+        str: Guardrail content.
+
+    Raises:
+        typer.BadParameter: If the shared guardrail file is missing.
+    """
+    path = asset_root() / SHARED_GUARDRAILS_PATH
+    if not path.is_file():
+        raise typer.BadParameter(
+            f"Missing required shared guardrail file: {path}. "
+            "Restore .authorkit/prompts/_shared/generation-guardrails.md and rerun init."
+        )
+    return read_text(path).strip()
+
+
+def inject_generation_guardrails(body: str, prompt_name: str, guardrails: str) -> str:
+    """Inject shared guardrails into selected generation prompts.
+
+    Args:
+        body: Prompt body markdown.
+        prompt_name: Canonical prompt filename.
+        guardrails: Shared guardrail markdown.
+
+    Returns:
+        str: Prompt body with guardrails injected when applicable.
+    """
+    if prompt_name not in GUARDRAIL_PROMPT_ALLOWLIST:
+        return body
+    injected = (
+        "## Shared Generation Guardrails\n\n"
+        "Apply this central policy for this command.\n\n"
+        f"{guardrails}\n"
+    )
+    return f"{injected}\n{body.lstrip()}"
+
+
+def render_prompt(raw: str, ai: str, script_type: str, prompt_name: str, guardrails: str) -> str:
     """Render canonical prompt for a target AI and script flavor.
 
     Args:
         raw: Canonical prompt markdown.
         ai: Target AI flavor.
         script_type: Script flavor (`sh` or `ps`).
+        prompt_name: Canonical prompt filename.
+        guardrails: Shared generation guardrail markdown.
 
     Returns:
         str: Rendered prompt content.
     """
     fm, body = parse_frontmatter(raw)
     script = resolve_script(extract_script_path(fm), script_type)
+    body = inject_generation_guardrails(body, prompt_name, guardrails)
 
     if ai == "claude":
         body = body.replace("{{USER_INPUT_TOKEN}}", "$ARGUMENTS")
@@ -610,6 +674,7 @@ def init(
     managed: set[str] = set()
     assets = asset_root()
     prompt_files = sorted((assets / ".authorkit" / "prompts").glob("authorkit*.md"))
+    shared_guardrails = load_generation_guardrails()
     total_steps = 4 + (len(selected_ais) * (len(prompt_files) + 1)) + 1 + (0 if no_git else 1) + 1
 
     with Progress(
@@ -650,7 +715,7 @@ def init(
             for prompt in prompt_files:
                 progress.update(install_task, description=f"Rendering prompts for {selected_ai}...")
                 raw = read_text(prompt)
-                rendered = render_prompt(raw, selected_ai, selected_script)
+                rendered = render_prompt(raw, selected_ai, selected_script, prompt.name, shared_guardrails)
                 out_rel = prompt_out_path(selected_ai, prompt.name)
                 write_text(project_path / out_rel, rendered, project_path, managed)
                 progress.advance(install_task)

@@ -63,6 +63,7 @@ if ($PathsOnly) {
             REPO_ROOT    = $paths.REPO_ROOT
             BOOK_DIR     = $paths.BOOK_DIR
             BOOK_CONCEPT = $paths.BOOK_CONCEPT
+            STYLE_ANCHOR = $paths.STYLE_ANCHOR
             OUTLINE      = $paths.OUTLINE
             CHAPTERS     = $paths.CHAPTERS
         } | ConvertTo-Json -Compress
@@ -70,6 +71,7 @@ if ($PathsOnly) {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
         Write-Output "BOOK_DIR: $($paths.BOOK_DIR)"
         Write-Output "BOOK_CONCEPT: $($paths.BOOK_CONCEPT)"
+        Write-Output "STYLE_ANCHOR: $($paths.STYLE_ANCHOR)"
         Write-Output "OUTLINE: $($paths.OUTLINE)"
         Write-Output "CHAPTERS: $($paths.CHAPTERS)"
     }
@@ -117,10 +119,12 @@ if ($IncludeChapters -and (Test-Path $paths.CHAPTERS)) {
 if ($Json) {
     [PSCustomObject]@{
         BOOK_DIR       = $paths.BOOK_DIR
+        STYLE_ANCHOR   = $paths.STYLE_ANCHOR
         AVAILABLE_DOCS = $docs
     } | ConvertTo-Json -Compress
 } else {
     Write-Output "BOOK_DIR:$($paths.BOOK_DIR)"
+    Write-Output "STYLE_ANCHOR:$($paths.STYLE_ANCHOR)"
     Write-Output "AVAILABLE_DOCS:"
 
     Test-FileExists -Path $paths.RESEARCH -Description 'research.md' | Out-Null

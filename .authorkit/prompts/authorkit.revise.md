@@ -25,7 +25,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Outline
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR and AVAILABLE_DOCS. All paths must be absolute.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR, STYLE_ANCHOR, and AVAILABLE_DOCS. All paths must be absolute.
 
 2. **Determine revision scope** from user input:
    - Specific chapter: "Revise chapter 3" or "Fix CH05"
@@ -38,6 +38,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - The chapter's plan (`chapters/NN/plan.md`)
    - The chapter's review if it exists (`chapters/NN/review.md`)
    - concept.md, constitution, characters.md
+   - `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (refresh before revising each chapter)
    - `world/` folder files for entities appearing in this chapter (check which details are chapter-tagged to this chapter — these may need updating after revision)
    - Adjacent chapter drafts (for continuity)
    - Any analysis report findings relevant to this chapter
@@ -54,11 +55,26 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
       - Note which sections of the draft are affected
       - Consider ripple effects on other chapters
 
+   b1. **Build or refresh style anchor** at `STYLE_ANCHOR`:
+      - Source style from constitution + the last two approved chapters (`[X]`) before this chapter number.
+      - Fallbacks:
+        - If one approved chapter exists: use constitution + that chapter.
+        - If none exist: use constitution only.
+      - Use this fixed schema:
+        - `## Non-Negotiables (POV, Tense, Narrative Distance)`
+        - `## Cadence Profile (Sentence and Paragraph Rhythm)`
+        - `## Dialogue Profile`
+        - `## Diction and Register`
+        - `## Imagery Density and Taboo Patterns`
+        - `## Drift Red Flags`
+        - `## Provenance`
+
    c. **Apply revisions to the draft**:
       - Make targeted edits to `chapters/NN/draft.md`
       - Preserve what works well (don't rewrite from scratch unless necessary)
       - Ensure voice consistency is maintained
-      - Follow constitution principles
+      - Follow constitution principles and match `book/style-anchor.md`
+      - If introducing or changing numeric facts, ensure each number has explicit rationale; if multiple values are plausible, choose a context-bounded varied value
 
    d. **Update the chapter plan** if the revision changes the chapter's structure:
       - Update `chapters/NN/plan.md` to reflect the actual content
@@ -66,6 +82,10 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    e. **Update chapter status** in chapters.md:
       - If it was `[R]` (reviewed/needs revision): change to `[D]` (re-drafted, ready for re-review)
       - If it was `[X]` (approved) and revision was requested: change to `[D]`
+
+   f. **Style match pass**:
+      - Compare revised draft against constitution + `book/style-anchor.md`.
+      - Fix prose style drift before reporting completion.
 
 5. **Check for ripple effects**:
    - If a revision changes a fact, character detail, or plot point: identify all other chapters that reference it

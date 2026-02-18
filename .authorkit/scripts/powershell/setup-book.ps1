@@ -57,6 +57,7 @@ Set-Location $paths.REPO_ROOT
 $bookDir = $paths.BOOK_DIR
 $chaptersDir = $paths.CHAPTERS_DIR
 $conceptFile = $paths.BOOK_CONCEPT
+$styleAnchorFile = $paths.STYLE_ANCHOR
 $bookTomlPath = Join-Path $bookDir 'book.toml'
 
 New-Item -ItemType Directory -Path $bookDir -Force | Out-Null
@@ -67,6 +68,13 @@ if ((Test-Path $template) -and (-not (Test-Path $conceptFile -PathType Leaf))) {
     Copy-Item $template $conceptFile -Force
 } elseif (-not (Test-Path $conceptFile -PathType Leaf)) {
     New-Item -ItemType File -Path $conceptFile -Force | Out-Null
+}
+
+$styleTemplate = Join-Path $paths.REPO_ROOT '.authorkit/templates/style-anchor-template.md'
+if ((Test-Path $styleTemplate) -and (-not (Test-Path $styleAnchorFile -PathType Leaf))) {
+    Copy-Item $styleTemplate $styleAnchorFile -Force
+} elseif (-not (Test-Path $styleAnchorFile -PathType Leaf)) {
+    New-Item -ItemType File -Path $styleAnchorFile -Force | Out-Null
 }
 
 $existingTitle = Read-ExistingTomlValue -Path $bookTomlPath -Key 'title'
@@ -117,6 +125,7 @@ if ($Json) {
     $obj = [PSCustomObject]@{
         BOOK_DIR     = $bookDir
         CONCEPT_FILE = $conceptFile
+        STYLE_ANCHOR = $styleAnchorFile
         BOOK_TOML    = $bookTomlPath
         HAS_GIT      = $paths.HAS_GIT
     }
@@ -124,6 +133,7 @@ if ($Json) {
 } else {
     Write-Output "BOOK_DIR: $bookDir"
     Write-Output "CONCEPT_FILE: $conceptFile"
+    Write-Output "STYLE_ANCHOR: $styleAnchorFile"
     Write-Output "BOOK_TOML: $bookTomlPath"
     Write-Output "HAS_GIT: $($paths.HAS_GIT)"
 }

@@ -20,7 +20,7 @@ Automate the full chapter lifecycle for a single chapter: **plan → draft → r
 
 ### Phase 0: Setup and Target Selection
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR and AVAILABLE_DOCS. All paths must be absolute.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR, STYLE_ANCHOR, and AVAILABLE_DOCS. All paths must be absolute.
 
 2. **Load chapters.md**: Read `BOOK_DIR/chapters.md` and parse all chapter entries.
    - Extract chapter numbers, titles, and status markers: `[ ]` pending, `[P]` planned, `[D]` drafted, `[R]` reviewed/needs revision, `[X]` approved
@@ -59,6 +59,7 @@ Execute the full chapter planning workflow (equivalent to `/authorkit.chapter.pl
    - **Required**: outline.md (this chapter's entry + overall structure)
    - **Required**: concept.md (voice, tone, themes, characters)
    - **Required**: chapters.md (chapter status, dependencies)
+   - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (refresh before planning)
    - **Recommended**: characters.md (character profiles)
    - **Optional**: research.md, `/memory/constitution.md`
    - **Optional**: `world/` folder files relevant to this chapter's characters, locations, and systems
@@ -72,7 +73,21 @@ Execute the full chapter planning workflow (equivalent to `/authorkit.chapter.pl
 
 3. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists.
 
-4. **Generate chapter plan** at `BOOK_DIR/chapters/NN/plan.md` using `templates/chapter-plan-template.md`:
+4. **Build or refresh style anchor** at `STYLE_ANCHOR`:
+   - Source style from constitution + the last two approved chapters (`[X]`) before this chapter number.
+   - Fallbacks:
+     - If one approved chapter exists: use constitution + that chapter.
+     - If none exist: use constitution only.
+   - Use this fixed schema:
+     - `## Non-Negotiables (POV, Tense, Narrative Distance)`
+     - `## Cadence Profile (Sentence and Paragraph Rhythm)`
+     - `## Dialogue Profile`
+     - `## Diction and Register`
+     - `## Imagery Density and Taboo Patterns`
+     - `## Drift Red Flags`
+     - `## Provenance`
+
+5. **Generate chapter plan** at `BOOK_DIR/chapters/NN/plan.md` using `templates/chapter-plan-template.md`:
    - Chapter purpose (from outline.md, reconciled against drafts)
    - Context (previous chapter ending, this chapter's goals, next chapter needs)
    - Scene/section breakdown with settings, beats, emotional tone
@@ -82,11 +97,11 @@ Execute the full chapter planning workflow (equivalent to `/authorkit.chapter.pl
    - Opening hook and closing beat
    - Voice/style notes and target word count
 
-5. **Update status** in chapters.md: `[ ]` → `[P]`
+6. **Update status** in chapters.md: `[ ]` → `[P]`
 
-6. **Fix stale outline entries**: If step 2 found mismatches, update the outline.md entries to match drafted chapters.
+7. **Fix stale outline entries**: If step 2 found mismatches, update the outline.md entries to match drafted chapters.
 
-7. **Brief report**: "Chapter [NN] planned. [X] scenes/sections. Proceeding to draft."
+8. **Brief report**: "Chapter [NN] planned. [X] scenes/sections. Proceeding to draft."
 
 → Continue to Phase 2.
 
@@ -97,12 +112,14 @@ Execute the full chapter drafting workflow (equivalent to `/authorkit.chapter.dr
 1. **Load context**:
    - **Required**: `chapters/NN/plan.md`
    - **Required**: concept.md, `/memory/constitution.md`
+   - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md`
    - **Recommended**: characters.md, `world/` folder files for this chapter
    - **Recommended**: Previous chapter draft for continuity
    - **If re-drafting after review**: Also load `chapters/NN/review.md` and address all critical/important issues
 
 2. **Pre-flight**:
    - Internalize the constitution's voice/style rules
+   - Internalize `STYLE_ANCHOR` style constraints
    - If re-drafting: read the review feedback carefully and plan how to address each issue
 
 3. **Write the chapter** following the plan's scene/section breakdown:
@@ -112,13 +129,18 @@ Execute the full chapter drafting workflow (equivalent to `/authorkit.chapter.dr
    - Opening hook and closing beat must be effective
    - Pure prose — no meta-commentary or [TODO] markers
 
-4. **Quality self-check**: Verify constitution compliance, plan adherence, pacing, voice consistency.
+4. **Quality self-check**: Verify constitution compliance, style-anchor alignment, plan adherence, pacing, voice consistency.
 
-5. **Write draft** to `BOOK_DIR/chapters/NN/draft.md`.
+5. **Style match pass**:
+   - Compare draft against constitution + `book/style-anchor.md`.
+   - Fix style drift before saving.
+   - Validate any new numeric facts: rationale required; context-bounded varied selection when multiple values are plausible.
 
-6. **Update status** in chapters.md: `[P]` → `[D]` (or keep `[D]`/`[R]` → `[D]` if re-drafting).
+6. **Write draft** to `BOOK_DIR/chapters/NN/draft.md`.
 
-7. **Brief report**: "Chapter [NN] drafted. [word count] words. Proceeding to review."
+7. **Update status** in chapters.md: `[P]` → `[D]` (or keep `[D]`/`[R]` → `[D]` if re-drafting).
+
+8. **Brief report**: "Chapter [NN] drafted. [word count] words. Proceeding to review."
 
 → Continue to Phase 3.
 
@@ -129,6 +151,7 @@ Execute the full chapter review workflow (equivalent to `/authorkit.chapter.revi
 1. **Load review context**:
    - **Required**: `chapters/NN/draft.md`, `chapters/NN/plan.md`
    - **Required**: concept.md, `/memory/constitution.md`
+   - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md`
    - **Recommended**: characters.md, outline.md
    - **Recommended**: `world/` folder — ALL entity files for entities in this chapter
    - **Optional**: Previous/next chapter drafts, previous review
@@ -137,6 +160,7 @@ Execute the full chapter review workflow (equivalent to `/authorkit.chapter.revi
 
    **A. Plan Adherence** — scenes covered, beats executed, deviations assessed
    **B. Constitution Compliance** — voice, POV, tense, prose style
+   **B1. Style Anchor Compliance** — alignment to `book/style-anchor.md` (cadence, diction/register, imagery density, dialogue profile, drift flags)
    **C. Craft Quality** — pacing, show vs tell, dialogue, description, transitions, opening, closing
    **D. Character/Content Consistency** — character behavior, knowledge boundaries, narrative necessity
    **D1. World Consistency** (if world/ exists) — characters, places, headcount & logistics, organizations, systems, history vs world/ entries; flag new entities
@@ -186,6 +210,7 @@ When the chapter is approved (or the revision limit is reached), output a summar
 |-----------|-------|
 | Plan Adherence | [A/B/C/D] |
 | Constitution Compliance | [A/B/C/D] |
+| Style Anchor Compliance | [A/B/C/D] |
 | Craft Quality | [A/B/C/D] |
 | Character/Content | [A/B/C/D] |
 | Continuity | [A/B/C/D] |

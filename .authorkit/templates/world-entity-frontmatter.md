@@ -8,14 +8,14 @@ Every world/ entity file should have a YAML frontmatter block between `---` deli
 
 ```yaml
 ---
-id: char-elena-voss
+id: char-iria-calder
 type: character
-name: Elena Voss
-aliases: [Elena, Dr. Voss, the Doctor, Voss]
+name: Iria Calder
+aliases: [Iria, Captain Calder, the Navigator, Calder]
 chapters: [CONCEPT, CH01, CH03, CH05]
 first_appearance: CH01
 relationships:
-  - target: char-marcus-reid
+  - target: char-jonas-hale
     type: mentor-of
     since: CONCEPT
   - target: org-iron-guild
@@ -24,7 +24,7 @@ relationships:
 tags: [protagonist, magic-user]
 last_updated: 2026-02-13
 ---
-# Elena Voss
+# Iria Calder
 ... body content ...
 ```
 
@@ -53,7 +53,7 @@ IDs use the format: `{type_prefix}-{kebab-case-name}`
 
 | world/ Directory | `type` Value | ID Prefix | Example |
 |-----------------|-------------|-----------|---------|
-| characters/ | `character` | `char-` | `char-elena-voss` |
+| characters/ | `character` | `char-` | `char-iria-calder` |
 | places/ | `place` | `place-` | `place-iron-quarter` |
 | organizations/ | `organization` | `org-` | `org-iron-guild` |
 | history/ | `event` | `event-` | `event-great-war` |
@@ -70,7 +70,7 @@ IDs use the format: `{type_prefix}-{kebab-case-name}`
 
 ### Stability
 
-IDs **never change** once assigned, even if the entity is renamed. If "Elena Voss" becomes "Elena Reid", the ID remains `char-elena-voss` and "Elena Reid" is added to `aliases`. This prevents cascading updates to cross-references.
+IDs **never change** once assigned, even if the entity is renamed. If "Iria Calder" becomes "Iria Nareth", the ID remains `char-iria-calder` and "Iria Nareth" is added to `aliases`. This prevents cascading updates to cross-references.
 
 ### Uniqueness
 
@@ -80,10 +80,10 @@ The type prefix prevents collisions between entity types sharing a name. Within 
 
 Aliases capture all name variants readers or writers might use:
 
-- **Shortened forms**: "Elena" for "Elena Voss"
-- **Titles/honorifics**: "Dr. Voss", "Commander Reid", "Queen Lyra"
+- **Shortened forms**: "Iria" for "Iria Calder"
+- **Titles/honorifics**: "Captain Calder", "Commander Hale", "Queen Lyra"
 - **Nicknames**: "the Doctor", "the Iron Hand"
-- **Former names**: "Elena Voss" after she becomes "Elena Reid"
+- **Former names**: "Iria Calder" after she becomes "Iria Nareth"
 - **Role references**: "the protagonist", "the mentor" (only when unambiguous)
 
 The entity's `name` field is implicitly an alias (not listed in `aliases` since it's in `name`). The index builder includes both `name` and all `aliases` entries in the Alias Lookup.
@@ -122,13 +122,13 @@ Relationship types are freeform strings but should be descriptive and consistent
 
 **Event-to-Place**: `occurred-at`, `site-of`
 
-Relationships should ideally be reciprocal: if Elena has `member-of` → Iron Guild, the Iron Guild file should have `has-member` → Elena. The `world.verify` command checks for missing reciprocals.
+Relationships should ideally be reciprocal: if Iria has `member-of` → Iron Guild, the Iron Guild file should have `has-member` → Iria. The `world.verify` command checks for missing reciprocals.
 
 ## Backward Compatibility
 
 Files without frontmatter remain valid. The PowerShell index builder (`build-world-index.ps1`) handles them by:
 
-1. Deriving `id` from the file path (e.g., `characters/elena-voss.md` → `char-elena-voss`)
+1. Deriving `id` from the file path (e.g., `characters/iria-calder.md` → `char-iria-calder`)
 2. Extracting `name` from the first H1 heading
 3. Extracting `chapters` by scanning the body for `(CONCEPT)`, `(CHxx)`, etc.
 4. Setting `aliases` to empty

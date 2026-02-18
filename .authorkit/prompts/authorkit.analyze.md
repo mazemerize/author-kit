@@ -28,12 +28,13 @@ Identify inconsistencies, continuity errors, pacing problems, and unresolved thr
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any edits).
 
 **Constitution Authority**: The book constitution (`/memory/constitution.md`) is the authoritative style guide. Constitution violations are automatically CRITICAL.
+**Style Continuity Anchor**: `book/style-anchor.md` is the continuity baseline across model switches. Style-anchor drift is at least MEDIUM severity.
 
 ## Execution Steps
 
 ### 1. Initialize Analysis Context
 
-Run `{{SCRIPT_CHECK_PREREQ}}` once from repo root and parse JSON for BOOK_DIR and AVAILABLE_DOCS. Derive absolute paths.
+Run `{{SCRIPT_CHECK_PREREQ}}` once from repo root and parse JSON for BOOK_DIR, STYLE_ANCHOR, and AVAILABLE_DOCS. Derive absolute paths.
 
 Abort with an error message if required files are missing.
 
@@ -61,6 +62,9 @@ Abort with an error message if required files are missing.
 
 **From constitution:**
 - All writing principles
+
+**From style anchor (if exists):**
+- `book/style-anchor.md` cadence, diction/register, imagery density, dialogue profile, and drift flags
 
 ### 3. Detection Passes
 
@@ -95,6 +99,7 @@ Focus on high-signal findings. Limit to 50 findings total.
 - Tense shifts (unless intentional)
 - Prose style drift (e.g., becoming more/less literary)
 - Constitution principle violations
+- Drift from `book/style-anchor.md` profile
 
 #### F. Argument Coherence (Non-Fiction)
 - Claims made without support
@@ -166,6 +171,7 @@ Output a Markdown report (no file writes):
 |-----------|--------|---------------------|
 | [Voice] | PASS | - |
 | [Tense] | FAIL | CH04, CH09 |
+| [Style Anchor] | [PASS/FAIL] | [chapters] |
 
 ### World Consistency (if world/ exists)
 

@@ -27,6 +27,11 @@
 [PRINCIPLE_5_DESCRIPTION]
 <!-- Example: Each character has distinct speech patterns; Dialogue advances plot or reveals character; No exposition dumps through dialogue -->
 
+### [PRINCIPLE_6_NAME]
+<!-- Example: VI. Naming Originality & Numeric Specificity -->
+[PRINCIPLE_6_DESCRIPTION]
+<!-- Example: New names must be distinctive and setting-appropriate; avoid stock defaults and repeated name patterns. New numeric facts require rationale (logistical, historical, or narrative). If exact values are uncertain, use bounded ranges or explicit uncertainty. -->
+
 ## [SECTION_2_NAME]
 <!-- Example: Content & Thematic Boundaries, Research Standards, Sensitivity Guidelines, etc. -->
 

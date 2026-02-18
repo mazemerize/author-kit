@@ -469,19 +469,21 @@ Progress is tracked in `chapters.md` with status markers:
 | `[R]` | Reviewed | Review completed, needs revision |
 | `[X]` | Approved | Chapter passed review, ready for final manuscript |
 
+For cross-model prose continuity, chapter workflows also maintain `book/style-anchor.md`, derived from the constitution plus the last two approved chapters when available.
+
 Example `chapters.md`:
 
 ```markdown
 ## Part 1: The Observatory
 
-- [X] CH01 [Part 1] The Arrival - Elena discovers the abandoned observatory
+- [X] CH01 [Part 1] The Arrival - Iria discovers the abandoned observatory
 - [D] CH02 [Part 1] The Catalogue - She finds the star catalogue with odd annotations
 - [P] CH03 [Part 1] The Pattern - First hint that the annotations form a code
 - [ ] CH04 [Part 1] The Predecessor - Learning about the previous director
 
 ## Part 2: The Code
 
-- [ ] CH05 [Part 2] The Cipher - Elena begins decryption
+- [ ] CH05 [Part 2] The Cipher - Iria begins decryption
 ...
 ```
 
@@ -507,7 +509,7 @@ Author Kit includes a dedicated world-building system that tracks every detail o
 
 ### Why?
 
-As your book grows, keeping track of world details becomes harder. Was the tavern called The Iron Flagon or The Iron Flask? Did Elena have green eyes in chapter 2 and blue eyes in chapter 9? World maintenance prevents these consistency problems by maintaining a structured `world/` folder alongside your chapters.
+As your book grows, keeping track of world details becomes harder. Was the tavern called The Iron Flagon or The Iron Flask? Did Iria have green eyes in chapter 2 and blue eyes in chapter 9? World maintenance prevents these consistency problems by maintaining a structured `world/` folder alongside your chapters.
 
 ### The `world/` Folder
 
@@ -566,7 +568,7 @@ New details are tagged with their source chapter (e.g., `(CH03)`). If a chapter 
 
 This is a **read-only** diagnostic that checks for:
 
-- **Reciprocal references** — if Elena lists Marcus as her mentor, Marcus's file should reference Elena
+- **Reciprocal references** — if Iria lists Marcus as her mentor, Marcus's file should reference Iria
 - **Cross-entity consistency** — organization members should have character files, places in events should have place files
 - **System coherence** — rules within and across systems should not contradict
 - **Geographic plausibility** — travel times, climate, and spatial relationships should make sense
@@ -615,7 +617,7 @@ The index (`world/_index.md`) contains three lookup tables:
 
 | Section | Purpose | Example Query |
 |---------|---------|---------------|
-| **Entity Registry** | All entities with their IDs, names, file paths, and chapter tags | "Where is Elena's file?" |
+| **Entity Registry** | All entities with their IDs, names, file paths, and chapter tags | "Where is Iria's file?" |
 | **Alias Lookup** | Maps every name variant to its entity (flags ambiguous aliases) | "Who is 'the Doctor'?" |
 | **Chapter Manifest** | Inverted index: which entities appear in which chapter | "What world/ files do I need for CH05?" |
 
@@ -653,12 +655,12 @@ Changes are logged in `pivots/YYYY-MM-DD-[description].md` for traceability.
 When a specific fact needs to change retroactively — a character's age, a place's name, a world rule — retcon finds every reference (direct mentions, indirect implications, and logical consequences) and updates them consistently.
 
 ```bash
-/authorkit.retcon Elena was 42 -> Elena is 38
+/authorkit.retcon Transit from the harbor to the citadel takes 40 minutes -> Transit takes 75 minutes (distance remeasured after route audit)
 /authorkit.retcon Change Marcus from a soldier to a spy
 /authorkit.retcon The magic system costs blood -> The magic system costs memories
 ```
 
-Retcon generates a **change manifest** showing every occurrence before making changes. It distinguishes between direct references ("she was forty-two"), indirect references ("her two decades of service"), and derivative details ("her commanding officer"). You review and approve the manifest.
+Retcon generates a **change manifest** showing every occurrence before making changes. It distinguishes between direct references ("the transit takes forty minutes"), indirect references ("they can still make the same-day handoff"), and derivative details ("arrival windows in later chapters"). You review and approve the manifest.
 
 ### Deferring decisions: Park
 
@@ -848,6 +850,7 @@ Created when you run `/authorkit.conceive`:
 ```text
 book/
 |-- concept.md
+|-- style-anchor.md
 |-- outline.md
 |-- research.md
 |-- research/

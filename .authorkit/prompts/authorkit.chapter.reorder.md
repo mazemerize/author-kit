@@ -86,7 +86,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    | File | Current Reference | New Reference |
    |------|------------------|---------------|
    | chapters/01/plan.md | "CH05" | "CH02" |
-   | world/characters/elena.md | "(CH05)" | "(CH02)" |
+   | world/characters/iria.md | "(CH05)" | "(CH02)" |
    | outline.md | "Chapter 5" | "Chapter 2" |
    | ... |
 
