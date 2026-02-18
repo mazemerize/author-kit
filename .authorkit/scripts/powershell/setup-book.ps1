@@ -51,6 +51,15 @@ function Read-MetadataValue {
     return $inputValue.Trim()
 }
 
+function Write-Utf8NoBom {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
 $paths = Get-BookPaths
 Set-Location $paths.REPO_ROOT
 
@@ -119,7 +128,7 @@ reading_wpm = 200
 tts_cost_per_1m_chars = 0.0
 "@
 
-Set-Content -Path $bookTomlPath -Value $bookToml -Encoding UTF8 -NoNewline
+Write-Utf8NoBom -Path $bookTomlPath -Content $bookToml
 
 if ($Json) {
     $obj = [PSCustomObject]@{

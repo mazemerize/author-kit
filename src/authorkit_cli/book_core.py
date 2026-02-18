@@ -75,7 +75,8 @@ def parse_book_config(book_dir: Path) -> BookConfig:
     config_path = book_dir / "book.toml"
     raw: dict = {}
     if config_path.exists():
-        raw = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        # Accept legacy BOM-prefixed files created by some shell encodings.
+        raw = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))
 
     book_section = raw.get("book", {})
     build_section = raw.get("build", {})
