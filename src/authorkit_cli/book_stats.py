@@ -1,4 +1,11 @@
-﻿"""Statistics generation for Author Kit manuscripts."""
+﻿"""Statistics generation for Author Kit manuscripts.
+
+Computes per-chapter and aggregate metrics (word counts, dialogue ratio,
+estimated read/audio durations) and renders them as tables, JSON, or Markdown.
+
+Author:
+    Mazemerize contributors.
+"""
 
 from __future__ import annotations
 
@@ -28,11 +35,27 @@ class ChapterStats:
 
 
 def _count_dialogue_lines(markdown: str) -> int:
+    """Count non-empty lines that open with a quotation mark (dialogue heuristic).
+
+    Args:
+        markdown: Raw chapter markdown text.
+
+    Returns:
+        int: Number of lines identified as dialogue.
+    """
     lines = [line.strip() for line in markdown.splitlines() if line.strip()]
     return sum(1 for line in lines if line.startswith('"') or line.startswith("'"))
 
 
 def _mutagen_duration_seconds(path: Path) -> float:
+    """Read the actual audio duration from an MP3 file via mutagen.
+
+    Args:
+        path: Path to the MP3 file.
+
+    Returns:
+        float: Duration in seconds, or 0.0 on any read failure.
+    """
     try:
         audio_file = File(path)
         if audio_file and audio_file.info:

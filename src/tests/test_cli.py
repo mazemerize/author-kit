@@ -143,7 +143,11 @@ def test_init_errors_when_required_tool_missing(monkeypatch):
 
 
 def test_init_captures_git_init_output(monkeypatch):
-    """Verify init captures git output so progress rendering is not interrupted."""
+    """Verify init captures git output so progress rendering is not interrupted.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     calls: list[tuple[list[str], dict]] = []
 
     def fake_run(cmd, **kwargs):
@@ -328,6 +332,11 @@ def test_version_command_outputs_version():
 
 
 def _seed_book_tree() -> Path:
+    """Create a minimal book directory tree with one chapter draft.
+
+    Returns:
+        Path: Absolute path to the seeded book directory.
+    """
     root = Path("book") / "chapters" / "01"
     root.mkdir(parents=True, exist_ok=True)
     (root / "draft.md").write_text("# Chapter One\n\nThis is a test draft.\n", encoding="utf-8")
@@ -350,7 +359,11 @@ def test_parse_book_config_accepts_utf8_bom():
 
 
 def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
-    """Verify book build assembles manuscript and calls format renderer."""
+    """Verify book build assembles manuscript and calls format renderer.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     with runner.isolated_filesystem():
         book_dir = _seed_book_tree()
         outputs = [book_dir / "dist" / "manuscript.docx"]
@@ -391,7 +404,11 @@ def test_build_manuscript_markdown_quotes_yaml_metadata_values():
 
 
 def test_book_build_prompts_and_skips_existing_output(monkeypatch):
-    """Verify existing outputs are skipped when overwrite prompt is declined."""
+    """Verify existing outputs are skipped when overwrite prompt is declined.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     with runner.isolated_filesystem():
         book_dir = _seed_book_tree()
         dist_dir = book_dir / "dist"
@@ -414,7 +431,11 @@ def test_book_build_prompts_and_skips_existing_output(monkeypatch):
 
 
 def test_book_build_prompts_and_overwrites_existing_output(monkeypatch):
-    """Verify existing outputs are rebuilt when overwrite prompt is accepted."""
+    """Verify existing outputs are rebuilt when overwrite prompt is accepted.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     with runner.isolated_filesystem():
         book_dir = _seed_book_tree()
         dist_dir = book_dir / "dist"
@@ -440,7 +461,11 @@ def test_book_build_prompts_and_overwrites_existing_output(monkeypatch):
 
 
 def test_book_build_command_reports_render_failures(monkeypatch):
-    """Verify build command prints a concise error when rendering fails."""
+    """Verify build command prints a concise error when rendering fails.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     with runner.isolated_filesystem():
         book_dir = _seed_book_tree()
 
@@ -507,7 +532,11 @@ def test_book_stats_table_includes_est_audio_minutes():
 
 
 def test_book_audio_command_uses_generator(monkeypatch):
-    """Verify audio command delegates to audio generator with defaults."""
+    """Verify audio command delegates to audio generator with defaults.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     with runner.isolated_filesystem():
         book_dir = _seed_book_tree()
         called = {}
@@ -533,7 +562,11 @@ def test_check_command_reports_no_pdflatex_status():
 
 
 def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypatch):
-    """Verify skipped existing chapter audio gets metadata backfilled."""
+    """Verify skipped existing chapter audio gets metadata backfilled.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     with runner.isolated_filesystem():
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 

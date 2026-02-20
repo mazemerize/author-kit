@@ -1,4 +1,11 @@
-﻿"""Core utilities for Author Kit book commands."""
+﻿"""Core utilities for Author Kit book commands.
+
+Provides shared data structures, path helpers, config parsing, and text
+utilities consumed by the build, audio, and stats pipelines.
+
+Author:
+    Mazemerize contributors.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +15,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+# Canonical directory names relative to the project root.
 BOOK_DIR_NAME = "book"
 WORLD_DIR_NAME = "world"
 CHAPTERS_DIR_NAME = "chapters"

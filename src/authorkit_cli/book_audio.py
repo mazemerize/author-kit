@@ -1,4 +1,11 @@
-﻿"""Audio generation pipeline for Author Kit."""
+﻿"""Audio generation pipeline for Author Kit.
+
+Converts chapter drafts to MP3 files via the OpenAI TTS API, handles
+chunking, concatenation with ffmpeg, and ID3 metadata tagging.
+
+Author:
+    Mazemerize contributors.
+"""
 
 from __future__ import annotations
 
@@ -17,9 +24,13 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from .book_core import BookConfig, ChapterDraft, chapter_title, markdown_to_plain_text
 from .book_render import ensure_system_tool
 
+# Maximum characters per TTS API request; avoids payload size rejections.
 MAX_CHARS_PER_REQUEST = 3500
+# Inline marker instructing the narrator to take a deliberate pause.
 PAUSE_MARKER = "[PAUSE]"
+# Inline marker instructing the narrator to shift to a conversational tone.
 DIALOG_MARKER = "[DIALOG]"
+# Shared Rich console for progress output.
 console = Console()
 
 
@@ -179,6 +190,15 @@ def _concat_mp3_files(input_files: list[Path], output_file: Path) -> None:
 
 
 def _chapter_output_path(audio_dir: Path, draft: ChapterDraft) -> Path:
+    """Build the output MP3 path for a chapter draft.
+
+    Args:
+        audio_dir: Target audio output directory.
+        draft: Chapter draft providing chapter number and title text.
+
+    Returns:
+        Path: Filesystem-safe MP3 path inside audio_dir.
+    """
     title = chapter_title(draft.text, f"CH{draft.chapter_number:02d}")
     filename = f"{draft.chapter_number:02d}-{title.lower().replace(' ', '-')}.mp3"
     filename = "".join(ch for ch in filename if ch.isalnum() or ch in "-._")

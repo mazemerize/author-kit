@@ -1,5 +1,8 @@
 """Author Kit CLI installer and updater.
 
+Handles project initialisation, prompt rendering for all AI agent flavours,
+asset management, and environment validation.
+
 Author:
     Mazemerize contributors.
 """
@@ -22,6 +25,7 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
 from .book_commands import book_app
 
+# Shared Rich console for terminal output.
 console = Console()
 app = typer.Typer(add_completion=False, help="Author Kit project installer")
 app.add_typer(book_app, name="book")
@@ -34,6 +38,7 @@ BANNER = r"""
  /_/    \_\__,_|\__|_| |_|\___/|_|    |_|\_\_|\__|
 """
 
+# One-line tagline displayed beneath the ASCII banner.
 TAGLINE = "Write books with structured AI assistance."
 
 # Supported AI targets and CLI requirements.
@@ -43,9 +48,13 @@ AGENT_CONFIG = {
     "codex": {"name": "Codex CLI", "folder": ".codex", "requires_cli": True, "tool": "codex"},
 }
 
+# Maps --script flag values to human-readable names used in prompts.
 SCRIPT_CHOICES = {"sh": "POSIX Shell", "ps": "PowerShell"}
+# Managed paths that are never removed during re-init (user-edited files).
 PROTECTED_MANAGED_PATHS = {".authorkit/memory/constitution.md"}
+# Canonical path to the shared generation guardrail source asset.
 SHARED_GUARDRAILS_PATH = Path(".authorkit/prompts/_shared/generation-guardrails.md")
+# Prompts that receive the shared generation guardrail block when rendered.
 GUARDRAIL_PROMPT_ALLOWLIST = {
     "authorkit.analyze.md",
     "authorkit.chapter.draft.md",
@@ -191,7 +200,7 @@ def parse_frontmatter(text: str) -> tuple[list[str], str]:
     Returns:
         tuple[list[str], str]: Frontmatter lines and body markdown.
     """
-    text = text.lstrip("\ufeff")
+    text = text.lstrip("\ufeff")  # Strip UTF-8 BOM; its presence silently breaks startswith("---\n").
     if not text.startswith("---\n"):
         return [], text
     end = text.find("\n---\n", 4)
