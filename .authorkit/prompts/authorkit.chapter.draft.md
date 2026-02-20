@@ -1,4 +1,4 @@
-﻿---
+---
 description: Write the actual chapter prose based on the chapter plan.
 handoffs:
   - label: Review This Chapter

@@ -1,4 +1,4 @@
-﻿---
+---
 description: Create or update the book constitution - voice, tone, style guide, and writing principles.
 handoffs:
   - label: Conceive Book

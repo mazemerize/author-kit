@@ -1,4 +1,4 @@
-﻿---
+---
 description: Explore an alternative direction on an experimental branch without committing to it.
 handoffs:
   - label: Compare Branches

@@ -1,4 +1,11 @@
-﻿"""Typer subcommands for book build/audio/stats workflows."""
+﻿"""Typer subcommands for book build/audio/stats workflows.
+
+Registers the `book` command group and delegates to the core, render,
+audio, and stats modules.
+
+Author:
+    mdemarne
+"""
 
 from __future__ import annotations
 
@@ -21,11 +28,21 @@ from .book_core import (
 from .book_render import SUPPORTED_FORMATS, build_manuscript_markdown, render_formats
 from .book_stats import collect_stats, render_stats_markdown
 
+# Shared Rich console for book subcommand output.
 console = Console()
+# Root Typer group registered as `authorkit book`.
 book_app = typer.Typer(help="Book publishing tools")
 
 
 def _resolve_context() -> tuple[Path, Path]:
+    """Locate the repository root and the canonical book directory.
+
+    Returns:
+        tuple[Path, Path]: Resolved (repo_root, book_dir) pair.
+
+    Raises:
+        typer.BadParameter: If the book directory cannot be found.
+    """
     repo_root = find_repo_root()
     try:
         book_dir = resolve_book_dir(repo_root)
@@ -37,6 +54,18 @@ def _resolve_context() -> tuple[Path, Path]:
 
 
 def _resolve_formats(formats: list[str] | None, default_formats: list[str]) -> list[str]:
+    """Normalise and validate requested output formats.
+
+    Args:
+        formats: Raw --format values from the CLI, or None.
+        default_formats: Fallback formats read from book.toml.
+
+    Returns:
+        list[str]: Lower-cased, validated format names.
+
+    Raises:
+        typer.BadParameter: If any requested format is unsupported.
+    """
     selected = [item.lower() for item in (formats or default_formats)]
     if not selected:
         selected = ["docx"]

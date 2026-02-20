@@ -1,4 +1,4 @@
-﻿---
+---
 description: Bookmark the current book state with narrative context before a risky change.
 handoffs:
   - label: Apply Pivot

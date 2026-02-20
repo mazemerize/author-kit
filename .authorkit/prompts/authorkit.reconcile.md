@@ -1,4 +1,4 @@
-﻿---
+---
 description: Check upstream documents (outline, concept, chapters.md, world/) for drift against drafted chapters.
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireChapters -IncludeChapters

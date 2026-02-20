@@ -1,4 +1,4 @@
-﻿---
+---
 description: Create the full book outline with chapter breakdowns, character arcs, and thematic mapping.
 handoffs:
   - label: Create Chapter Breakdown

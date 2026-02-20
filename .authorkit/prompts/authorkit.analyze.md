@@ -1,4 +1,4 @@
-﻿---
+---
 description: Perform a read-only cross-chapter consistency and quality analysis across the entire book.
 handoffs:
   - label: Verify World

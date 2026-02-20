@@ -1,4 +1,4 @@
-﻿---
+---
 description: Automate the full chapter lifecycle — plan, draft, review, and revise until approved.
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters

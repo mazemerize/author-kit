@@ -1,4 +1,4 @@
-﻿---
+---
 description: Identify underspecified areas in the book concept by asking targeted clarification questions and encoding answers back into the concept.
 handoffs:
   - label: Create Book Outline

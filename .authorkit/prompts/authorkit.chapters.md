@@ -1,4 +1,4 @@
-﻿---
+---
 description: Generate the chapter-level task breakdown from the book outline.
 handoffs:
   - label: Plan First Chapter

@@ -1,4 +1,4 @@
-﻿---
+---
 description: Build or rebuild the world/ entity index for fast lookups and consistency checking.
 handoffs:
   - label: Verify World

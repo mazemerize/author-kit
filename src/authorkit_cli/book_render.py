@@ -1,4 +1,11 @@
-﻿"""Document rendering pipeline for Author Kit."""
+﻿"""Document rendering pipeline for Author Kit.
+
+Assembles chapter drafts into a single manuscript and invokes pandoc to
+produce the requested output formats (docx, epub).
+
+Author:
+    mdemarne
+"""
 
 from __future__ import annotations
 
@@ -9,6 +16,7 @@ from pathlib import Path
 
 from .book_core import BookConfig, ChapterDraft
 
+# Output formats supported by the pandoc build pipeline.
 SUPPORTED_FORMATS = {"docx", "epub"}
 
 

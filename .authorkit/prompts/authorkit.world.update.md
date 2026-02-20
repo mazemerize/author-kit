@@ -1,4 +1,4 @@
-﻿---
+---
 description: Extract and organize world-building details from drafted chapters into the world/ folder.
 handoffs:
   - label: Plan Next Chapter

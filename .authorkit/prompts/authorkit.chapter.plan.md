@@ -1,4 +1,4 @@
-﻿---
+---
 description: Plan a specific chapter in detail - scenes/sections, beats, emotional arc, and connections.
 handoffs:
   - label: Draft This Chapter
