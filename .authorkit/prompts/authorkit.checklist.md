@@ -1,4 +1,4 @@
-﻿---
+---
 description: Generate a custom quality checklist for the book based on user requirements.
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json

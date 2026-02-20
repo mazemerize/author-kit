@@ -1,4 +1,4 @@
-﻿---
+---
 description: Reorder, split, or merge chapters with automatic renumbering and cross-reference updates.
 handoffs:
   - label: Update Outline

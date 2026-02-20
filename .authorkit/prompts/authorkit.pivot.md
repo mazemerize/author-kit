@@ -1,4 +1,4 @@
-﻿---
+---
 description: Propagate a mid-process direction change across all book artifacts with impact analysis.
 handoffs:
   - label: Revise Affected Chapters

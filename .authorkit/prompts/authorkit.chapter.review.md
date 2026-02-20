@@ -1,4 +1,4 @@
-﻿---
+---
 description: Review a drafted chapter against the plan, concept, constitution, and quality criteria.
 handoffs:
   - label: Revise This Chapter

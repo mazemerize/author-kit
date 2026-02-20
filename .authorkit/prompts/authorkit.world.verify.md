@@ -1,4 +1,4 @@
-﻿---
+---
 description: Verify world/ files for internal consistency and manuscript alignment.
 handoffs:
   - label: Fix World Issues

@@ -1,4 +1,4 @@
-﻿---
+---
 description: Defer a creative decision for later resolution without blocking the writing process.
 handoffs:
   - label: Resolve a Parked Decision

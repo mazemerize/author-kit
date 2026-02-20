@@ -1,4 +1,4 @@
-﻿---
+---
 description: Apply revisions to specific chapters based on analysis findings or user feedback.
 handoffs:
   - label: Re-Review Chapter

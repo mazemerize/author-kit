@@ -1,4 +1,4 @@
-﻿---
+---
 description: Build the book's world before writing - establish rules, geography, characters, history, and systems.
 handoffs:
   - label: Build Outline

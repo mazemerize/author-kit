@@ -1,4 +1,4 @@
-﻿---
+---
 description: Retroactively change an established fact across all chapters, plans, and world files.
 handoffs:
   - label: Review Affected Chapters

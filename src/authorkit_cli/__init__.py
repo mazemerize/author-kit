@@ -115,7 +115,7 @@ def read_text(path: Path) -> str:
     Returns:
         str: File contents.
     """
-    return path.read_text(encoding="utf-8")
+    return path.read_text(encoding="utf-8-sig")
 
 
 def record_managed(path: Path, root: Path, managed: set[str]) -> None:
@@ -191,6 +191,7 @@ def parse_frontmatter(text: str) -> tuple[list[str], str]:
     Returns:
         tuple[list[str], str]: Frontmatter lines and body markdown.
     """
+    text = text.lstrip("\ufeff")
     if not text.startswith("---\n"):
         return [], text
     end = text.find("\n---\n", 4)
