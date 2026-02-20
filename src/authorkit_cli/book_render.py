@@ -4,7 +4,7 @@ Assembles chapter drafts into a single manuscript and invokes pandoc to
 produce the requested output formats (docx, epub).
 
 Author:
-    Mazemerize contributors.
+    mdemarne
 """
 
 from __future__ import annotations

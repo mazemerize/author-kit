@@ -4,7 +4,7 @@ Handles project initialisation, prompt rendering for all AI agent flavours,
 asset management, and environment validation.
 
 Author:
-    Mazemerize contributors.
+    mdemarne
 """
 
 from __future__ import annotations

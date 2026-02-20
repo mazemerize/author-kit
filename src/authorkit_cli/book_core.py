@@ -4,7 +4,7 @@ Provides shared data structures, path helpers, config parsing, and text
 utilities consumed by the build, audio, and stats pipelines.
 
 Author:
-    Mazemerize contributors.
+    mdemarne
 """
 
 from __future__ import annotations

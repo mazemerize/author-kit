@@ -4,7 +4,7 @@ Converts chapter drafts to MP3 files via the OpenAI TTS API, handles
 chunking, concatenation with ffmpeg, and ID3 metadata tagging.
 
 Author:
-    Mazemerize contributors.
+    mdemarne
 """
 
 from __future__ import annotations

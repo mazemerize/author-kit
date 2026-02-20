@@ -4,7 +4,7 @@ Registers the `book` command group and delegates to the core, render,
 audio, and stats modules.
 
 Author:
-    Mazemerize contributors.
+    mdemarne
 """
 
 from __future__ import annotations

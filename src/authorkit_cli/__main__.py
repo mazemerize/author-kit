@@ -1,7 +1,7 @@
 """Module entrypoint for `python -m authorkit_cli`.
 
 Author:
-    Mazemerize contributors.
+    mdemarne
 """
 
 from . import main

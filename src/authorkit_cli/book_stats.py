@@ -4,7 +4,7 @@ Computes per-chapter and aggregate metrics (word counts, dialogue ratio,
 estimated read/audio durations) and renders them as tables, JSON, or Markdown.
 
 Author:
-    Mazemerize contributors.
+    mdemarne
 """
 
 from __future__ import annotations
