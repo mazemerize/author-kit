@@ -28,6 +28,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 - `scope: clarify|world|outline|chapter N|general` (default: `general`)
 - `sources: auto|web|news|wikipedia|mcp` (default: `auto`)
 - `action: suggest|sync-world` (default: `suggest`)
+- `folder: <relative-path-under-research>` (optional explicit placement override)
 
 Prefer free-form interpretation first. Treat explicit directives as optional overrides.
 
@@ -36,7 +37,7 @@ Prefer free-form interpretation first. Treat explicit directives as optional ove
 Perform grounded research from available sources, then store results as reusable artifacts:
 
 - `BOOK_DIR/research.md` (index + summary)
-- `BOOK_DIR/research/*.md` (topic-level notes)
+- `BOOK_DIR/research/**/*.md` (topic-level notes; flat or nested)
 
 By default, this command is **suggest-only** and does not modify `world/` files. World updates happen only when `action: sync-world` is explicitly requested.
 
@@ -46,9 +47,10 @@ By default, this command is **suggest-only** and does not modify `world/` files.
 
 2. **Parse user intent and optional directives**:
    - Infer topic, scope, source preferences, and sync intent from free-form text first.
-   - Extract explicit `scope:`, `sources:`, and `action:` directives if present.
+   - Extract explicit `scope:`, `sources:`, `action:`, and `folder:` directives if present.
    - Explicit directives override inferred values.
    - If topic is empty after parsing: ERROR "Please provide a research topic (for example: `/authorkit.research Research forensic botany for chapter 7`)."
+   - If `folder:` is provided, validate it is a safe relative path under `research/` (no absolute paths, no traversal like `..`). If invalid: ERROR with correction guidance.
    - If inference is unclear, normalize defaults:
      - `scope = general`
      - `sources = auto`
@@ -58,19 +60,37 @@ By default, this command is **suggest-only** and does not modify `world/` files.
    - `chapter N` from either free-form text or `scope: chapter N` should normalize to `CHNN` and include chapter targets in the topic file.
    - Other scopes map directly: `clarify`, `world`, `outline`, `general`.
 
-4. **Load context**:
+4. **Resolve topic file path**:
+   - Ensure `BOOK_DIR/research/` exists.
+   - First, search recursively under `BOOK_DIR/research/` for an existing topic file with matching frontmatter `id`. If found, update that file in place.
+   - Otherwise, if `folder:` is provided, write to `BOOK_DIR/research/<folder>/<id>-<slug>.md`.
+   - Otherwise use adaptive flat-first placement:
+     - Default to `BOOK_DIR/research/<id>-<slug>.md`.
+     - Route to a nested scope folder only when there is a clear grouping reason:
+       - matching scope folder already exists, or
+       - there are already 3 or more topic files in that scope cluster, or
+       - user intent clearly requests grouped/series organization.
+   - Scope folder map when nested placement is warranted:
+     - `clarify` -> `research/clarify/`
+     - `world` -> `research/world/`
+     - `outline` -> `research/outline/`
+     - `general` -> `research/general/`
+     - `chapter N` -> `research/chapters/CHNN/`
+   - For simple one-off topics with no grouping signal, keep flat placement.
+
+5. **Load context**:
    - **Required**: `concept.md`
    - **Optional**: `outline.md`
    - **Optional**: `chapters/NN/plan.md` and `chapters/NN/draft.md` for chapter scope
    - **Optional**: `world/_index.md` and relevant world/ files
-   - **Optional**: existing `research.md` and existing files in `research/`
+   - **Optional**: existing `research.md` and existing files in `research/` (recursive)
 
-5. **Determine source strategy**:
+6. **Determine source strategy**:
    - If sources resolve to `auto`, use all available source families: web/news/Wikipedia/MCP.
    - If a subset is requested or overridden, use only that subset.
    - If one source family is unavailable, continue with available sources and log it under "Source Availability Notes".
 
-6. **Run research and synthesize findings**:
+7. **Run research and synthesize findings**:
    - Collect facts, constraints, and tradeoffs relevant to the topic and scope.
    - Track claims with citations and confidence.
    - Surface contradictions between sources or with existing book artifacts.
@@ -79,12 +99,9 @@ By default, this command is **suggest-only** and does not modify `world/` files.
      - interpretation/inference
      - unresolved questions
 
-7. **Write research artifacts**:
+8. **Write research artifacts**:
 
-   a. Ensure `BOOK_DIR/research/` exists.
-
-   b. Create or update a topic file:
-   - Path: `BOOK_DIR/research/<id>-<slug>.md`
+   a. Create or update the topic file at the resolved path from Step 4.
    - Use `.authorkit/templates/research-topic-template.md`
    - Required frontmatter fields:
      - `id`, `topic`, `scope`, `chapter_targets`, `sources_used`, `created_at`, `updated_at`, `status`, `world_sync_status`
@@ -92,19 +109,22 @@ By default, this command is **suggest-only** and does not modify `world/` files.
      - `Claim ID`, `Claim`, `Source Type`, `Source Title`, `Locator`, `Accessed`, `Confidence`
    - `Locator` must be URL or MCP URI.
 
-   c. Create or update `BOOK_DIR/research.md`:
+   b. Create or update `BOOK_DIR/research.md`:
    - Use `.authorkit/templates/research-index-template.md`
    - Add/update row for this topic with status and world sync state.
    - Keep an "Open follow-ups" section for unresolved questions.
 
-8. **Optional world sync** (only when action resolves to `sync-world`):
-   - Create/update `BOOK_DIR/world/notes/research-<slug>.md`.
+9. **Optional world sync** (only when action resolves to `sync-world`):
+   - Resolve world note path using this order:
+     - If an existing note for this slug is found at either `BOOK_DIR/world/notes/research-<slug>.md` or `BOOK_DIR/world/notes/research/<slug>.md`, update that path in place.
+     - Else if the resolved research topic path from Step 4 is nested OR `BOOK_DIR/world/notes/research/` already exists, write to `BOOK_DIR/world/notes/research/<slug>.md`.
+     - Else write to `BOOK_DIR/world/notes/research-<slug>.md`.
    - Convert durable findings to world notes tagged with `(CONCEPT)` or `(CHxx)` based on scope.
    - Update frontmatter fields in the world note according to `.authorkit/templates/world-entity-frontmatter.md`.
    - Rebuild world index by running `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root.
    - Update topic frontmatter `world_sync_status` to `synced`.
 
-9. **Report completion**:
+10. **Report completion**:
    - Topic researched and scope used
    - Source families requested vs used
    - Paths written (`research.md`, topic file, optional world note)
@@ -121,5 +141,6 @@ By default, this command is **suggest-only** and does not modify `world/` files.
 - **Grounding first**: Prefer verifiable sources over speculation.
 - **Suggest-only by default**: Do not modify `world/` unless `action: sync-world` is explicit.
 - **Preserve compatibility**: `research.md` remains the top-level index for downstream commands.
-- **Structured output required**: always maintain both `research.md` and at least one topic file in `research/`.
+- **Structured output required**: always maintain both `research.md` and at least one topic file in `research/` (flat or nested).
+- **Preserve human layout**: if a topic already exists in a human-organized folder, update it there; do not auto-migrate files.
 - **Use absolute paths** when reading or writing files.

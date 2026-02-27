@@ -348,11 +348,13 @@ $subDirs = @('characters', 'places', 'organizations', 'history', 'systems', 'not
 foreach ($subDir in $subDirs) {
     $dirPath = Join-Path $worldDir $subDir
     if (Test-Path $dirPath -PathType Container) {
-        Get-ChildItem -Path $dirPath -Filter '*.md' -File | ForEach-Object {
+        Get-ChildItem -Path $dirPath -Filter '*.md' -File -Recurse | ForEach-Object {
+            $relPath = $_.FullName.Substring($worldDir.Length).TrimStart('\', '/')
+            $relPath = $relPath -replace '\\', '/'
             $entityFiles += @{
                 FullPath = $_.FullName
                 SubDir   = $subDir
-                RelPath  = "$subDir/$($_.Name)"
+                RelPath  = $relPath
             }
         }
     }

@@ -29,7 +29,7 @@ Execution steps:
 
 1. Run `{{SCRIPT_CHECK_PREREQ}}` from repo root **once**. Parse JSON payload for `BOOK_DIR` and `BOOK_CONCEPT`. If JSON parsing fails, abort and instruct user to re-run `/authorkit.conceive`.
 
-2. Load the current concept file. If `research.md` or `research/` exists, load relevant research artifacts first and use them to resolve or narrow accuracy-sensitive ambiguities. Then perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing.
+2. Load the current concept file. If `research.md` or `research/` exists, load relevant research artifacts first (including nested topic folders) and use them to resolve or narrow accuracy-sensitive ambiguities. Then perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing.
 
    Premise & Scope:
    - Core conflict/thesis clarity

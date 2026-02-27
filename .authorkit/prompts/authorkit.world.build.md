@@ -42,7 +42,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - **Required**: concept.md (premise, genre, themes, characters, setting)
    - **Optional**: `/memory/constitution.md` (voice, tone — informs world-building style)
    - **Optional**: Existing `world/` folder (if running iteratively to deepen)
-   - **Optional**: `research.md` and relevant `research/` topic files (use these grounded findings as inputs when they match requested focus areas)
+   - **Optional**: `research.md` and relevant `research/` topic files discovered recursively (use these grounded findings as inputs when they match requested focus areas)
 
 3. **Assess genre and determine relevant categories**:
 
@@ -63,7 +63,7 @@ This command can be run multiple times to iteratively deepen specific areas.
 
    a. **If user input specifies details**: Accept them directly, organize into the appropriate format.
 
-   b. **If concept.md is rich enough**: Extract and expand details from the concept. If `research/` contains relevant grounded findings, prefer those over unsupported assumptions.
+   b. **If concept.md is rich enough**: Extract and expand details from the concept. If `research/` contains relevant grounded findings (including nested folders), prefer those over unsupported assumptions.
 
    c. **If details are sparse**: Ask the user targeted questions. Limit to the most impactful questions per category (max 3 questions per category to avoid overwhelming).
 
@@ -88,7 +88,16 @@ This command can be run multiple times to iteratively deepen specific areas.
 
    Only create folders for categories relevant to this book.
 
-6. **Create initial files** in each category using the chapter-tagged format:
+6. **Decide file placement per entity before writing**:
+   - If an entity already exists (resolve via `world/_index.md` by `id`/aliases, or by recursive world/ scan if no index), update that existing file in place.
+   - Never relocate or normalize existing files; preserve human-organized folder layouts.
+   - For new entities, default to category root (`characters/`, `places/`, etc.).
+   - Create/use a category subfolder only when there is a clear grouping reason:
+     - an appropriate grouping subfolder already exists, or
+     - this run creates 3+ new entities sharing one clear grouping label (region/faction/era/domain).
+   - Auto-created nesting depth is one level under the category root. Deeper human-created nesting remains valid and should be preserved.
+
+7. **Create initial files** in each category using the chapter-tagged format:
 
    All pre-writing entries are tagged `(CONCEPT)` to indicate they were established before any chapter was written. This distinguishes them from details that emerge during drafting (which will be tagged `(CHxx)` by `/authorkit.world.update`).
 
@@ -285,16 +294,16 @@ This command can be run multiple times to iteratively deepen specific areas.
    - [Note] (CONCEPT)
    ```
 
-7. **Build the world/ index**: Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to generate `world/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
+8. **Build the world/ index**: Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to generate `world/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
 
-8. **Internal consistency validation**:
+9. **Internal consistency validation**:
    - Check that character relationships are reciprocal (if A is B's enemy, B should know about A)
    - Check that systems don't contradict each other
    - Check that geography is plausible (travel times, climate zones, resource distribution)
    - Check that history is internally consistent (cause precedes effect)
    - Flag any contradictions or gaps for the user
 
-9. **Report completion**:
+10. **Report completion**:
    - Summary of world/ files created, organized by category
    - Count of entries per category
    - Any consistency warnings or gaps flagged
@@ -310,5 +319,6 @@ This command can be run multiple times to iteratively deepen specific areas.
 - **Don't over-build.** Only create entries for things that will actually matter to the story. A magic system with 50 rules that only appears once is wasted effort. Focus on what the reader will encounter.
 - **Cross-reference.** Use relative paths to link related entries (e.g., "See characters/iria-calder.md" or "Related: history/the-great-war.md").
 - **Iterative by design.** This command can be run multiple times. Each run should deepen or add, not replace. If world/ already has entries, read them first and build on them.
+- **Preserve human structure.** If files are manually moved into logical subfolders, keep updating them in place.
 - **Genre-appropriate depth.** An epic fantasy might need 30+ world/ files. A contemporary romance might need 5. Scale to the book's needs.
 
