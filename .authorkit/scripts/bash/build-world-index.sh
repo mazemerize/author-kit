@@ -74,9 +74,9 @@ for sub in sub_dirs:
     d = world_dir / sub
     if not d.is_dir():
         continue
-    for f in sorted(d.glob("*.md")):
+    for f in sorted(d.rglob("*.md")):
         text = f.read_text(encoding="utf-8")
-        rel = f"{sub}/{f.name}"
+        rel = f.relative_to(world_dir).as_posix()
         m = re.match(r"---\\n(.*?)\\n---\\n", text, flags=re.S)
         if m:
             fm = m.group(1)

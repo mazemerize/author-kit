@@ -137,8 +137,8 @@ Run targeted research before outlining, during world-building, or while drafting
 /authorkit.research Research maritime signaling systems in 1890 and sync durable findings to world notes (action:sync-world)
 ```
 
-This writes a top-level `research.md` summary plus topic files in `research/`.
-With `sync-world` enabled (for example via `action:sync-world`), grounded findings are also synced into `world/notes/`.
+This writes a top-level `research.md` summary plus topic files in `research/` (flat by default for simple topics, nested when grouping is useful).
+With `sync-world` enabled (for example via `action:sync-world`), grounded findings are also synced into `world/notes/` while preserving any existing note path.
 
 ### 6. Build the world (optional)
 
@@ -158,7 +158,7 @@ Generate the full book structure: chapter summaries, character arcs, thematic th
 /authorkit.outline
 ```
 
-This also generates `research.md` (world-building notes) and `characters.md` (character profiles), and uses existing `research/` topic files if present.
+This also generates `research.md` (world-building notes) and `characters.md` (character profiles), and uses existing `research/` topic files recursively if present.
 
 ### 8. Break into chapters
 
@@ -307,7 +307,7 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | `/authorkit.constitution` | Create or update writing principles (voice, tone, style guide) | Style description | `constitution.md` |
 | `/authorkit.conceive` | Define book concept from a natural language description | Book idea | `concept.md`, `book.toml`, `checklists/concept-quality.md` |
 | `/authorkit.clarify` | Resolve ambiguities in the book concept | Optional focus areas | Updated `concept.md` with clarifications |
-| `/authorkit.research` | Ground a topic using available sources (web/news/wikipedia/MCP) and store reusable notes | Free-form topic/request + optional `scope:`, `sources:`, `action:` overrides | `research.md`, `research/*.md`, optional `world/notes/research-*.md` |
+| `/authorkit.research` | Ground a topic using available sources (web/news/wikipedia/MCP) and store reusable notes | Free-form topic/request + optional `scope:`, `sources:`, `action:`, `folder:` overrides | `research.md`, `research/**/*.md` (flat or nested), optional `world/notes/research-*.md` or `world/notes/research/*.md` |
 | `/authorkit.outline` | Create the full book outline with chapter summaries and arcs | — | `outline.md`, `research.md`, `characters.md` |
 | `/authorkit.chapters` | Generate chapter-level task breakdown from the outline | — | `chapters.md` with status markers |
 
@@ -367,7 +367,7 @@ constitution ──> conceive ──> clarify ──> research ──> world.bui
 - **Clarify** refines the concept. Run it before outlining if the concept has ambiguities.
 - **Research** is optional and repeatable. Run it before outline, during world-building, or during chapter work to ground details.
 - **World Build** is optional but recommended for genres with rich worlds. Can run before or after outline.
-- **Outline** requires concept.md. Produces outline.md, research.md, characters.md, and consumes existing `research/` topic files when available.
+- **Outline** requires concept.md. Produces outline.md, research.md, characters.md, and consumes existing `research/` topic files recursively when available.
 - **Chapters** requires outline.md. Produces the chapter task list.
 
 ### Chapter Iteration (repeat per chapter)
@@ -413,7 +413,7 @@ These commands work alongside the main workflow. Here's when to reach for each o
 
 | Situation | Command | What It Does |
 |-----------|---------|-------------|
-| "I need grounded facts before I outline or draft this" | **Research** | Collects source-backed findings into `research.md` and `research/*.md`, with optional sync to `world/notes/` |
+| "I need grounded facts before I outline or draft this" | **Research** | Collects source-backed findings into `research.md` and `research/` topic files (flat or nested), with optional sync to `world/notes/` |
 | "I want to change the ending" | **Pivot** | Scans all artifacts, shows impact, propagates changes top-down |
 | "Character X should have been a spy, not a soldier" | **Retcon** | Finds every reference (direct, indirect, derivative), updates consistently |
 | "I'm not sure if Marcus should die — I'll decide later" | **Park** | Records the decision with deadline, warns when deadline approaches |
@@ -545,8 +545,10 @@ All entries from initial world-building are tagged `(CONCEPT)` to distinguish th
 /authorkit.research Research Victorian shipboard medical protocols and sync durable facts to world notes (action:sync-world)
 ```
 
-Default mode is suggest-only (`research.md` + `research/*.md`).
+Default mode is suggest-only (`research.md` + topic files under `research/`).
+Placement is adaptive: simple one-off topics stay flat, while grouped series can be placed in logical subfolders.
 Use `sync-world` (for example `action:sync-world`) to write durable findings into `world/notes/` and rebuild `world/_index.md`.
+When both flat and nested note layouts are possible, Author Kit updates existing note paths in place and avoids forced migration.
 
 **3. Update after drafting** (after each chapter):
 
@@ -854,7 +856,10 @@ book/
 |-- outline.md
 |-- research.md
 |-- research/
-|   `-- 20260217-victorian-observatory-architecture.md
+|   |-- 20260217-victorian-observatory-architecture.md
+|   `-- chapters/
+|       `-- CH07/
+|           `-- 20260218-forensic-botany-basements.md
 |-- characters.md
 |-- chapters.md
 |-- book.toml
@@ -870,7 +875,8 @@ book/
 |   |-- history/
 |   |-- systems/
 |   `-- notes/
-|       `-- research-victorian-signaling.md
+|       `-- research/
+|           `-- victorian-signaling.md
 `-- chapters/
     |-- 01/
     |   |-- plan.md

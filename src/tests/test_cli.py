@@ -781,6 +781,68 @@ def test_world_index_scripts_assume_lowercase_world_layout():
         assert token in ps_script
         assert token in sh_script
 
+    assert "Get-ChildItem -Path $dirPath -Filter '*.md' -File -Recurse" in ps_script
+    assert "Substring($worldDir.Length)" in ps_script
+    assert "for f in sorted(d.rglob(\"*.md\")):" in sh_script
+    assert "rel = f.relative_to(world_dir).as_posix()" in sh_script
+
+
+def test_research_prompt_supports_adaptive_routing_and_sync_paths():
+    """Verify research prompt documents adaptive topic routing and sync path compatibility."""
+    repo_root = Path(__file__).resolve().parents[2]
+    research_prompt = (repo_root / ".authorkit" / "prompts" / "authorkit.research.md").read_text(encoding="utf-8")
+
+    assert "folder: <relative-path-under-research>" in research_prompt
+    assert "search recursively under `BOOK_DIR/research/` for an existing topic file" in research_prompt
+    assert "adaptive flat-first placement" in research_prompt
+    assert "BOOK_DIR/research/**/*.md" in research_prompt
+    assert "BOOK_DIR/world/notes/research-<slug>.md" in research_prompt
+    assert "BOOK_DIR/world/notes/research/<slug>.md" in research_prompt
+    assert "Preserve human layout" in research_prompt
+
+
+def test_world_prompts_document_recursive_layout_and_path_preservation():
+    """Verify world prompts describe recursive scans and preserving human-organized paths."""
+    repo_root = Path(__file__).resolve().parents[2]
+    world_build = (repo_root / ".authorkit" / "prompts" / "authorkit.world.build.md").read_text(encoding="utf-8")
+    world_update = (repo_root / ".authorkit" / "prompts" / "authorkit.world.update.md").read_text(encoding="utf-8")
+    world_verify = (repo_root / ".authorkit" / "prompts" / "authorkit.world.verify.md").read_text(encoding="utf-8")
+
+    assert "Never relocate or normalize existing files; preserve human-organized folder layouts." in world_build
+    assert "Auto-created nesting depth is one level under the category root." in world_build
+    assert "search world/ files recursively under category folders." in world_update
+    assert "Preserve file layout." in world_update
+    assert "verify all files in that category recursively (including nested descendants)" in world_verify
+    assert "Fall back to loading all world/ files within scope recursively." in world_verify
+
+
+def test_research_consumers_use_recursive_topic_loading_language():
+    """Verify prompts that consume research artifacts mention recursive topic discovery."""
+    repo_root = Path(__file__).resolve().parents[2]
+    targets = [
+        repo_root / ".authorkit" / "prompts" / "authorkit.outline.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.chapter.plan.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.chapter.draft.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.chapter.review.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.chapters.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.clarify.md",
+    ]
+
+    for target in targets:
+        text = target.read_text(encoding="utf-8")
+        assert "recursively" in text or "nested" in text
+
+
+def test_readme_documents_adaptive_research_layout():
+    """Verify README describes adaptive flat-first research placement and dual sync paths."""
+    repo_root = Path(__file__).resolve().parents[2]
+    readme = (repo_root / "README.md").read_text(encoding="utf-8")
+
+    assert "`research/**/*.md`" in readme
+    assert "Placement is adaptive: simple one-off topics stay flat" in readme
+    assert "`world/notes/research-*.md` or `world/notes/research/*.md`" in readme
+    assert "preserving any existing note path" in readme
+
 
 def test_path_scripts_expose_style_anchor_path():
     """Verify shared path scripts include STYLE_ANCHOR path metadata."""

@@ -40,14 +40,14 @@ After drafting or revising chapters, extract new world-building details and orga
 
 3. **Determine mode** for each chapter:
    - If `world/_index.md` exists, read it. Check the Entity Registry `Chapters` column for `CHxx` matching this chapter number — this tells you which entities already have tags for this chapter without scanning every file.
-   - If `_index.md` does not exist, fall back to scanning world/ files for `(CHxx)` tags.
+   - If `_index.md` does not exist, fall back to scanning world/ files recursively for `(CHxx)` tags.
    - **If no existing tags for this chapter**: Fresh extraction mode
    - **If existing tags found**: Revision reconciliation mode
    - Report the mode to the user before proceeding
 
 4. **Load context**:
    - **Required**: The specified chapter draft(s) at `BOOK_DIR/chapters/NN/draft.md`
-   - **Required**: Existing world/ folder and all files within (if exists)
+   - **Required**: Existing world/ folder and all files within, including nested subfolders (if exists)
    - **Optional**: concept.md (for understanding the world's baseline)
    - **Optional**: constitution (for understanding naming/style conventions)
 
@@ -63,9 +63,9 @@ After drafting or revising chapters, extract new world-building details and orga
       - **Systems**: Rules revealed, limitations discovered, new applications, exceptions
 
    c. For each detail found:
-      - Check if a world/ file already exists for this entity. If `world/_index.md` exists, use the Alias Lookup table to resolve the entity name (handles variants like "Captain Calder" → `char-iria-calder`), then get the file path from the Entity Registry. If no index, search world/ files directly.
-      - **If exists**: Add the new detail to the appropriate section, tagged `(CHxx)`
-      - **If new entity**: Create a new file in the appropriate category folder, with all details tagged `(CHxx)`. Include YAML frontmatter following the schema in `.authorkit/templates/world-entity-frontmatter.md`.
+      - Check if a world/ file already exists for this entity. If `world/_index.md` exists, use the Alias Lookup table to resolve the entity name (handles variants like "Captain Calder" → `char-iria-calder`), then get the file path from the Entity Registry. If no index, search world/ files recursively under category folders.
+      - **If exists**: Add the new detail to the existing file path in place, tagged `(CHxx)` (never move the file).
+      - **If new entity**: Create a new file in the appropriate category folder, with all details tagged `(CHxx)`. Default to category root. Only create/use a one-level subfolder when there is a clear grouping reason (existing group folder or 3+ new entities sharing one grouping label). Include YAML frontmatter following the schema in `.authorkit/templates/world-entity-frontmatter.md`.
 
    d. Follow the file format established by `/authorkit.world.build`:
       - Characters: Identity, Appearance, Personality, Relationships, Background, Arc
@@ -142,6 +142,7 @@ After drafting or revising chapters, extract new world-building details and orga
 - **Every detail MUST be chapter-tagged.** This is the core mechanism for tracking evolution. Use `(CHxx)` for fresh extraction, `(CHxx-rev)` for revision updates, `(CONCEPT)` entries from world.build are left as-is unless contradicted.
 - **Don't speculate.** Only record what is explicitly established in the chapter text. If a character's eye color isn't mentioned, don't infer it.
 - **Update incrementally.** Add to existing files rather than rewriting them. Preserve all existing entries from other chapters.
+- **Preserve file layout.** If humans organize world files into subfolders, keep updating those paths in place and do not normalize locations.
 - **Cross-reference generously.** When a detail connects entities (e.g., "Iria visited the Iron Quarter"), update both files.
 - **Respect (CONCEPT) entries.** Details tagged `(CONCEPT)` from pre-writing world-building should not be removed. If a chapter contradicts a `(CONCEPT)` entry, flag the conflict but update the entry to reflect what's actually in the text, tagging the new value with the chapter number.
 - **Flag, don't fix.** When revision reconciliation reveals downstream impacts, flag them clearly in the report but do NOT automatically edit other chapters. The user decides how to handle ripple effects.

@@ -38,7 +38,7 @@ Unlike `/authorkit.analyze` (which requires multiple drafted chapters and covers
 
 3. **Parse scope** from user input:
    - **Specific file**: `characters/iria.md`, `world/characters/iria.md` — verify that file plus its cross-references
-   - **Category folder**: `characters/`, `organizations/`, `places/`, `history/`, `systems/`, `notes/` — verify all files in that category
+   - **Category folder**: `characters/`, `organizations/`, `places/`, `history/`, `systems/`, `notes/` — verify all files in that category recursively (including nested descendants)
    - **Multiple targets**: `characters/iria.md systems/magic.md` — verify those files plus cross-references
    - **All** (default): `all`, empty, or no argument — verify the entire world/ folder
    - Normalize all paths relative to `BOOK_DIR/world/`
@@ -51,7 +51,7 @@ Unlike `/authorkit.analyze` (which requires multiple drafted chapters and covers
 
 5. **Load context**:
    - **If `world/_index.md` exists**: Read it first. Use the Entity Registry for quick entity enumeration, the Alias Lookup for name resolution, and the Chapter Manifest to identify which entities appear in which chapters. This avoids reading every world/ file upfront — load only the files within scope plus their cross-referenced files (identified via Entity Registry file paths).
-   - **If no index**: Fall back to loading all world/ files within scope directly.
+   - **If no index**: Fall back to loading all world/ files within scope recursively.
    - **Required**: All world/ files within the specified scope
    - **Required**: world/ files outside scope that are cross-referenced by in-scope files (for reciprocal checks)
    - **Optional**: concept.md (for checking CONCEPT entries against the original concept)

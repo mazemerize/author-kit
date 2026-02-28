@@ -34,7 +34,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: chapters.md (chapter status, dependencies)
    - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (create or refresh before planning)
    - **Recommended**: characters.md (character profiles for this chapter)
-   - **Optional**: research.md and relevant `research/` topic files (prefer scope `general`, `outline`, `chapter CHNN`; if many files exist, load only those matching this chapter's entities/topics)
+   - **Optional**: research.md and relevant `research/` topic files discovered recursively (prefer scope `general`, `outline`, `chapter CHNN`; if many files exist, load only those matching this chapter's entities/topics)
    - **Optional**: `/memory/constitution.md` (writing principles)
    - **Optional**: `world/` folder files relevant to this chapter's characters, locations, and systems (ensures world consistency). **If `world/_index.md` exists**: Read it. Use the Chapter Manifest to find entities from the previous chapter (carry-over context). Resolve entity names mentioned in the outline entry for this chapter via the Alias Lookup. Load only the world/ files identified by these lookups, rather than all world/ files.
    - **Optional**: Previous chapter drafts in `chapters/NN-1/draft.md` (for continuity)
