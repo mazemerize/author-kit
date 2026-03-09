@@ -45,6 +45,7 @@ class BookConfig:
     audio_provider: str
     audio_model: str
     audio_voice: str
+    audio_instructions: str
     speaking_rate_wpm: int
     reading_wpm: int
     tts_cost_per_1m_chars: float | None
@@ -115,6 +116,7 @@ def parse_book_config(book_dir: Path) -> BookConfig:
         audio_provider=str(audio_section.get("provider") or "openai").strip().lower(),
         audio_model=str(audio_section.get("model") or "gpt-4o-mini-tts").strip(),
         audio_voice=str(audio_section.get("voice") or "onyx").strip(),
+        audio_instructions=str(audio_section.get("instructions") or "").strip(),
         speaking_rate_wpm=int(audio_section.get("speaking_rate_wpm") or 170),
         reading_wpm=int(stats_section.get("reading_wpm") or 200),
         tts_cost_per_1m_chars=parsed_tts_cost,

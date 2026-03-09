@@ -4,7 +4,10 @@
       "Bash(find:*)",
       "Bash(powershell:*)",
       "Bash(head:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:cookbook.openai.com)",
+      "WebFetch(domain:developers.openai.com)"
     ]
   }
 }

@@ -390,6 +390,7 @@ def test_build_manuscript_markdown_quotes_yaml_metadata_values():
         audio_provider="openai",
         audio_model="gpt-4o-mini-tts",
         audio_voice="onyx",
+        audio_instructions="",
         speaking_rate_wpm=170,
         reading_wpm=200,
         tts_cost_per_1m_chars=0.0,
@@ -598,6 +599,7 @@ def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypa
             audio_provider="openai",
             audio_model="gpt-4o-mini-tts",
             audio_voice="onyx",
+            audio_instructions="",
             speaking_rate_wpm=170,
             reading_wpm=200,
             tts_cost_per_1m_chars=0.0,
@@ -616,6 +618,11 @@ def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypa
             "_write_mp3_metadata",
             lambda **kwargs: metadata_calls.append(kwargs["path"]),
         )
+        monkeypatch.setattr(
+            book_audio,
+            "resolve_audio_instructions",
+            lambda book_dir, config: "Test instructions.",
+        )
 
         result = book_audio.generate_audiobook(
             drafts=drafts,
@@ -632,28 +639,37 @@ def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypa
         assert metadata_calls == [existing]
 
 
-def test_audio_enhancer_adds_dialog_and_pause_markers():
-    """Verify speech enhancer inserts dialog and pause markers."""
-    markdown = """# Chapter One
+def test_audio_instructions_loaded_from_template():
+    """Verify instructions are loaded from the default template file."""
+    repo_root = Path(__file__).resolve().parents[2]
+    template_path = repo_root / book_audio.DEFAULT_INSTRUCTIONS_REL
+    assert template_path.exists(), f"Default audio instructions template not found at {template_path}"
 
-> _An opening epigraph line_
-> — Someone
+    config = book_core.BookConfig(
+        title="T", author="A", language="en", subtitle="", default_formats=[],
+        reference_docx="", epub_css="", audio_provider="openai",
+        audio_model="m", audio_voice="v", audio_instructions="",
+        speaking_rate_wpm=170, reading_wpm=200, tts_cost_per_1m_chars=None,
+    )
+    instructions = book_audio.resolve_audio_instructions(repo_root / "book", config)
+    assert "Voice:" in instructions
+    assert "Delivery:" in instructions
 
-"I know this is a trap," she said.
-"""
-    enhanced = book_audio._enhance_text_for_speech(markdown)
 
-    assert book_audio.PAUSE_MARKER in enhanced
-    assert book_audio.DIALOG_MARKER in enhanced
+def test_audio_instructions_custom_path():
+    """Verify custom instructions path from config is used."""
+    with runner.isolated_filesystem():
+        custom = Path("my-instructions.txt")
+        custom.write_text("Custom narrator instructions.", encoding="utf-8")
 
-
-def test_audio_instruction_mentions_markers():
-    """Verify marker-aware instruction text is generated."""
-    chunk = f"{book_audio.PAUSE_MARKER} {book_audio.DIALOG_MARKER} Hello."
-    instructions = book_audio._speech_instructions(chunk)
-    assert "do not say the marker" in instructions
-    assert book_audio.PAUSE_MARKER in instructions
-    assert book_audio.DIALOG_MARKER in instructions
+        config = book_core.BookConfig(
+            title="T", author="A", language="en", subtitle="", default_formats=[],
+            reference_docx="", epub_css="", audio_provider="openai",
+            audio_model="m", audio_voice="v", audio_instructions="my-instructions.txt",
+            speaking_rate_wpm=170, reading_wpm=200, tts_cost_per_1m_chars=None,
+        )
+        instructions = book_audio.resolve_audio_instructions(Path("."), config)
+        assert instructions == "Custom narrator instructions."
 
 
 def test_docs_and_prompts_use_lowercase_world_paths():
