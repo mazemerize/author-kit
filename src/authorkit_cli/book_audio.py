@@ -10,7 +10,6 @@ Author:
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 from pathlib import Path
 
@@ -21,15 +20,13 @@ from openai import OpenAI
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 
-from .book_core import BookConfig, ChapterDraft, chapter_title, markdown_to_plain_text
+from .book_core import BookConfig, ChapterDraft, chapter_title, find_repo_root, markdown_to_plain_text
 from .book_render import ensure_system_tool
 
 # Maximum characters per TTS API request; avoids payload size rejections.
 MAX_CHARS_PER_REQUEST = 3500
-# Inline marker instructing the narrator to take a deliberate pause.
-PAUSE_MARKER = "[PAUSE]"
-# Inline marker instructing the narrator to shift to a conversational tone.
-DIALOG_MARKER = "[DIALOG]"
+# Default location of the narration instructions template inside the repo.
+DEFAULT_INSTRUCTIONS_REL = ".authorkit/templates/publishing/audio-instructions.txt"
 # Shared Rich console for progress output.
 console = Console()
 
@@ -60,74 +57,31 @@ def _extract_key_from_dotenv(dotenv_path: Path) -> str | None:
     return None
 
 
-def _strip_inline_markdown(text: str) -> str:
-    """Strip common inline markdown syntax while preserving prose."""
-    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
-    text = re.sub(r"`([^`]*)`", r"\1", text)
-    text = re.sub(r"[*_~]", "", text)
-    return text.strip()
+def resolve_audio_instructions(book_dir: Path, config: BookConfig) -> str:
+    """Resolve and read the narration instructions template.
 
+    Resolution order mirrors the asset path logic used for epub/docx templates:
+    configured path (absolute → relative to book dir → relative to repo root),
+    then the shipped default.
+    """
+    repo_root = find_repo_root(book_dir)
+    candidates: list[Path] = []
+    if config.audio_instructions:
+        cfg = Path(config.audio_instructions)
+        candidates.extend([cfg, book_dir / cfg, repo_root / cfg])
+    candidates.append(repo_root / DEFAULT_INSTRUCTIONS_REL)
 
-def _enhance_text_for_speech(markdown: str) -> str:
-    """Enhance markdown prose with speech markers for better narration."""
-    lines = markdown.splitlines()
-    enhanced_lines: list[str] = []
-    in_epigraph = False
-
-    for raw_line in lines:
-        stripped = raw_line.strip()
-        if not stripped:
-            enhanced_lines.append("")
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
             continue
+        seen.add(resolved)
+        if resolved.exists():
+            return resolved.read_text(encoding="utf-8").strip()
 
-        if stripped.startswith("# "):
-            # Chapter title is handled separately in the audio intro.
-            continue
-
-        is_blockquote = stripped.startswith(">")
-        working = stripped[1:].strip() if is_blockquote else stripped
-        clean_line = _strip_inline_markdown(working)
-        if not clean_line:
-            continue
-
-        if is_blockquote and (working.startswith("_") or working.startswith("*")) and not in_epigraph:
-            in_epigraph = True
-            enhanced_lines.append(clean_line)
-            continue
-
-        if in_epigraph and (clean_line.startswith("—") or clean_line.startswith("--")):
-            enhanced_lines.append(clean_line)
-            enhanced_lines.append(PAUSE_MARKER)
-            in_epigraph = False
-            continue
-
-        if in_epigraph and is_blockquote:
-            enhanced_lines.append(clean_line)
-            continue
-
-        quote_count = clean_line.count('"')
-        if quote_count >= 2:
-            enhanced_lines.append(f"{DIALOG_MARKER} {clean_line}")
-        else:
-            enhanced_lines.append(clean_line)
-
-    compact = "\n".join(enhanced_lines)
-    compact = re.sub(r"\n{3,}", "\n\n", compact)
-    return compact.strip()
-
-
-def _speech_instructions(chunk: str) -> str:
-    """Build TTS instructions for a chunk based on included markers."""
-    instructions = [
-        "You are the narrator for an audiobook.",
-        "Speak clearly with steady pacing and natural expression.",
-        "Do not read markdown syntax.",
-    ]
-    if PAUSE_MARKER in chunk:
-        instructions.append(f"When you encounter {PAUSE_MARKER}, take a deliberate 2-3 second pause and do not say the marker.")
-    if DIALOG_MARKER in chunk:
-        instructions.append(f"When you encounter {DIALOG_MARKER}, shift to a conversational tone and do not say the marker.")
-    return " ".join(instructions)
+    # Inline fallback when no template file is found anywhere.
+    return "You are the narrator for an audiobook. Speak clearly with steady pacing and natural expression."
 
 
 def _chunk_text(text: str, max_chars: int = MAX_CHARS_PER_REQUEST) -> list[str]:
@@ -146,13 +100,13 @@ def _chunk_text(text: str, max_chars: int = MAX_CHARS_PER_REQUEST) -> list[str]:
     return chunks
 
 
-def _synthesize_openai_chunk(client: object, model: str, voice: str, chunk: str, out_file: Path) -> None:
+def _synthesize_openai_chunk(client: object, model: str, voice: str, chunk: str, out_file: Path, instructions: str) -> None:
     """Generate one chunk of speech audio to a file."""
     response = client.audio.speech.create(
         model=model,
         voice=voice,
         input=chunk,
-        instructions=_speech_instructions(chunk),
+        instructions=instructions,
     )
     response.stream_to_file(str(out_file))
 
@@ -250,6 +204,7 @@ def generate_audiobook(
     force: bool,
     yes: bool,
     dotenv_search_roots: list[Path] | None = None,
+    book_dir: Path | None = None,
 ) -> dict[str, object]:
     """Generate chapter audio files and optional merged audiobook file."""
     if config.audio_provider != "openai":
@@ -293,6 +248,7 @@ def generate_audiobook(
 
     audio_dir.mkdir(parents=True, exist_ok=True)
     client = OpenAI(api_key=api_key)
+    instructions = resolve_audio_instructions(book_dir or audio_dir.parent.parent, config)
     chapter_total = len(drafts)
 
     chapter_jobs: list[tuple[int, ChapterDraft, Path, bool]] = []
@@ -337,16 +293,13 @@ def generate_audiobook(
                 progress.advance(chapter_task)
                 continue
 
-            enhanced_text = _enhance_text_for_speech(draft.text)
-            if not enhanced_text:
+            speech_text = markdown_to_plain_text(draft.text)
+            if not speech_text:
                 skipped += 1
                 progress.advance(chapter_task)
                 continue
 
-            # Add a short title prelude and pause to improve chapter transitions.
-            title_prefix = f"{PAUSE_MARKER}\n{clean_title}\n{PAUSE_MARKER}\n\n"
-            speech_input = title_prefix + enhanced_text
-            speech_input = markdown_to_plain_text(speech_input)
+            speech_input = f"{clean_title}\n\n{speech_text}"
             chunks = _chunk_text(speech_input)
             temp_files: list[Path] = []
             for idx, chunk in enumerate(chunks, start=1):
@@ -355,7 +308,7 @@ def generate_audiobook(
                     description=f"CH{draft.chapter_number:02d}: synthesizing chunk {idx}/{len(chunks)}",
                 )
                 temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
-                _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk)
+                _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk, instructions)
                 temp_files.append(temp_chunk)
 
             progress.update(chapter_task, description=f"CH{draft.chapter_number:02d}: combining chunks")

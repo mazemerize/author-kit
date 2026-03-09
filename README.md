@@ -740,6 +740,7 @@ Defaults and behavior:
 - Built-in style assets:
   - DOCX fallback: `.authorkit/templates/publishing/reference.docx`
   - EPUB fallback: `.authorkit/templates/publishing/epub.css`
+  - Audio narration instructions: `.authorkit/templates/publishing/audio-instructions.txt`
 
 `book.toml` baseline (created automatically):
 
@@ -759,6 +760,7 @@ epub_css = ".authorkit/templates/publishing/epub.css"
 provider = "openai"
 model = "gpt-4o-mini-tts"
 voice = "onyx"
+instructions = ".authorkit/templates/publishing/audio-instructions.txt"
 speaking_rate_wpm = 170
 
 [stats]
@@ -782,16 +784,14 @@ tts_cost_per_1m_chars = 0.0
 - Model selection order: `--model` CLI flag, then `[audio].model`, then default `gpt-4o-mini-tts`
   - Read more about [OpenAI audio models](https://developers.openai.com/api/docs/guides/text-to-speech)
 - Generated chapter files and merged audiobook output include ID3 metadata tags (title/album/artist/language and chapter tracking)
+- OpenAI recommends `marin` or `cedar` voices for best quality; `onyx` remains the default
 
-Audio marker behavior (internal speech shaping):
-- Markers used: `[DIALOG]` and `[PAUSE]`
-- Dialogue-like lines are prefixed with `[DIALOG]`
-- Epigraph attribution lines and chapter transitions inject `[PAUSE]`
-- Marker-aware instructions are sent to TTS so markers are not read aloud and delivery is adjusted
-
-Future provider support:
-- The marker pipeline is provider-agnostic; other TTS providers can map markers to instruction text or SSML equivalents.
-- This preserves narration behavior while changing only provider integration/auth.
+Audio narration instructions:
+- A template file controls narrator style sent to the TTS model via the `instructions` parameter
+- Default template: `.authorkit/templates/publishing/audio-instructions.txt`
+- Override with a custom file: set `instructions` in `[audio]` to your own path (absolute, relative to `book/`, or relative to repo root)
+- Instructions selection order: `[audio].instructions` config path, then default template, then built-in fallback
+- The default template follows openai.fm-style guidance covering voice, punctuation, delivery, phrasing, tone, pauses, and markdown handling
 
 ---
 
@@ -949,11 +949,11 @@ book/
 - New audio runs write ID3 metadata automatically.
 - If older files were created before metadata support, rerun `authorkit book audio` for those chapters.
 
-### Marker behavior seems absent
+### Audio delivery sounds flat or unnatural
 
-- Marker shaping (`[DIALOG]`, `[PAUSE]`) is internal and instruction-driven.
-- Markers are not intended to appear in final spoken output.
-- If delivery sounds flat, verify the selected voice/model and try regenerating with `--force`.
+- Verify the selected voice/model and try regenerating with `--force`.
+- Customize the narration instructions template at `.authorkit/templates/publishing/audio-instructions.txt` or provide your own via `[audio].instructions` in `book.toml`.
+- OpenAI recommends `marin` or `cedar` voices for best quality.
 
 ---
 

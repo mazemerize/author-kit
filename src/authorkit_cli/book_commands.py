@@ -167,6 +167,7 @@ def audio(
         force=force,
         yes=yes,
         dotenv_search_roots=[book_dir, repo_root],
+        book_dir=book_dir,
     )
 
     console.print(f"Audio directory: {audio_dir}")
