@@ -38,6 +38,16 @@ Traditional AI-assisted writing often means dumping an idea and hoping for a goo
 
 This works for **any genre**: literary fiction, thrillers, non-fiction guides, memoirs, technical books, and everything in between.
 
+### Read and Learn More about Author Kit 💡
+
+Before getting started, read more about Author Kit, its benefits and drawbacks, and how it operates.
+
+**Read our articles on Medium**:
+- [Why AI Writes the Same Book Every Time](https://medium.com/@mdemarne/why-ai-writes-the-same-book-every-time-0b02323f618a)
+- [The World Your AI Forgot to Build](https://medium.com/@mdemarne/the-world-your-ai-forgot-to-build-c7fda0fe71c7)
+- [Catching What Drifts in Your Human-Led, AI-Assisted Manuscript](https://medium.com/@mdemarne/catching-what-drifts-in-your-human-led-ai-assisted-manuscript-4d4fb7334a24)
+- [Writing with AI: What Works, What Doesn’t, and What’s Left](https://medium.com/@mdemarne/writing-with-ai-what-works-what-doesnt-and-what-s-left-72d53d95a6da)
+
 ---
 
 ## Get Started
