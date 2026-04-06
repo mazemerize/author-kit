@@ -310,7 +310,7 @@ def generate_audiobook(
     ) as progress:
         chapter_task = progress.add_task("Generating chapter audio...", total=chapter_total)
         for chapter_index, draft, chapter_out, should_generate in chapter_jobs:
-            clean_title = chapter_title(draft.text, f"Chapter {draft.chapter_number:02d}")
+            clean_title = chapter_title(draft.text, f"Chapter {draft.chapter_number}")
             metadata_title = chapter_title(draft.text, f"CH{draft.chapter_number:02d}")
 
             if not should_generate:
