@@ -4,9 +4,9 @@ handoffs:
   - label: Resolve a Parked Decision
     agent: authorkit.park
     prompt: Resolve the parked decision about...
-  - label: Pivot Based on Decision
-    agent: authorkit.pivot
-    prompt: Apply the resolved decision as a pivot
+  - label: Amend Based on Decision
+    agent: authorkit.amend
+    prompt: Apply the resolved decision as an amendment
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
@@ -144,7 +144,7 @@ The command operates in three modes:
 
    d. **Assess downstream impact**:
       - Does the resolution require changes to existing artifacts?
-      - If yes: recommend `/authorkit.pivot` for broad changes or `/authorkit.revise` for targeted fixes
+      - If yes: recommend `/authorkit.amend` for broad changes or `/authorkit.revise` for targeted fixes
       - If the resolution introduces new world-building elements: recommend `/authorkit.world.build` to establish them
 
    e. Report: Decision resolved, any recommended follow-up actions.

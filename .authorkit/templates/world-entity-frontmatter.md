@@ -122,7 +122,7 @@ Relationship types are freeform strings but should be descriptive and consistent
 
 **Event-to-Place**: `occurred-at`, `site-of`
 
-Relationships should ideally be reciprocal: if Iria has `member-of` → Iron Guild, the Iron Guild file should have `has-member` → Iria. The `world.verify` command checks for missing reciprocals.
+Relationships should ideally be reciprocal: if Iria has `member-of` → Iron Guild, the Iron Guild file should have `has-member` → Iria. The `world.sync` command checks for missing reciprocals.
 
 ## Backward Compatibility
 

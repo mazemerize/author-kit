@@ -11,8 +11,8 @@ handoffs:
     agent: authorkit.outline
     prompt: Create an outline for this book concept.
   - label: Clarify Book Concept
-    agent: authorkit.clarify
-    prompt: Clarify the book concept requirements
+    agent: authorkit.discuss
+    prompt: Clarify the book concept — resolve ambiguities
     send: true
 scripts:
   ps: scripts/powershell/setup-book.ps1 -Json
@@ -107,7 +107,7 @@ Given that book description, do this:
 
       ## Notes
 
-      - Items marked incomplete require concept updates before `/authorkit.clarify` or `/authorkit.outline`
+      - Items marked incomplete require concept updates before `/authorkit.discuss` (clarify mode) or `/authorkit.outline`
       ```
 
    b. **Run Validation Check**: Review the concept against each checklist item.
@@ -119,7 +119,7 @@ Given that book description, do this:
       - **If [NEEDS CLARIFICATION] markers remain** (max 3):
         Present each as a question with options, wait for user answers, then update the concept.
 
-6. Report completion with concept path, checklist results, and readiness for the next phase (`/authorkit.clarify` or `/authorkit.outline`).
+6. Report completion with concept path, checklist results, and readiness for the next phase (`/authorkit.discuss` to clarify ambiguities, or `/authorkit.outline`).
 
 ## General Guidelines
 

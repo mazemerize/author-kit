@@ -17,9 +17,6 @@ handoffs:
   - label: Discuss Ideas
     agent: authorkit.discuss
     prompt: Brainstorm ideas before outlining
-  - label: Create Checklist
-    agent: authorkit.checklist
-    prompt: Create a checklist for...
 scripts:
   ps: scripts/powershell/setup-outline.ps1 -Json
 ---

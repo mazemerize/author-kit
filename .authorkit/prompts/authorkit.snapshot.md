@@ -1,9 +1,9 @@
 ---
 description: Bookmark the current book state with narrative context before a risky change.
 handoffs:
-  - label: Apply Pivot
-    agent: authorkit.pivot
-    prompt: Now apply the pivot I was planning
+  - label: Apply Amendment
+    agent: authorkit.amend
+    prompt: Now apply the change I was planning
   - label: Compare With Snapshot
     agent: authorkit.snapshot
     prompt: Compare current state with snapshot...
@@ -172,6 +172,6 @@ The command operates in three modes:
 - **Snapshots are lightweight.** The file is a narrative summary, not a copy of all artifacts. Git handles the actual state preservation.
 - **Always create a git tag.** The snapshot file provides context; the git tag provides the actual revertible state.
 - **Capture narrative, not just metrics.** "What's working well" and "what's uncertain" are more valuable than chapter counts.
-- **Recommend before risky changes.** When `/authorkit.pivot` detects 5+ artifacts affected, it should suggest snapshotting first.
+- **Recommend before risky changes.** When `/authorkit.amend` detects 5+ artifacts affected, it should suggest snapshotting first.
 - **Don't clutter.** Snapshots are for decision points, not routine checkpoints. Git commits handle the latter.
 

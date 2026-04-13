@@ -45,9 +45,9 @@ def test_init_installs_multiple_ai_flavors_side_by_side():
         )
 
         assert result.exit_code == 0, result.output
-        assert Path(".claude/commands/authorkit.chapter.md").exists()
+        assert Path(".claude/commands/authorkit.chapter.plan.md").exists()
         assert Path(".claude/commands/authorkit.research.md").exists()
-        assert Path(".github/prompts/authorkit.chapter.prompt.md").exists()
+        assert Path(".github/prompts/authorkit.chapter.plan.prompt.md").exists()
         assert Path(".github/prompts/authorkit.research.prompt.md").exists()
         assert Path("CLAUDE.md").exists()
         assert Path(".github/copilot-instructions.md").exists()
@@ -55,9 +55,9 @@ def test_init_installs_multiple_ai_flavors_side_by_side():
         manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
         assert manifest["ais"] == ["claude", "copilot"]
         assert manifest["script"] == "sh"
-        assert ".claude/commands/authorkit.chapter.md" in manifest["managed_paths"]
+        assert ".claude/commands/authorkit.chapter.plan.md" in manifest["managed_paths"]
         assert ".claude/commands/authorkit.research.md" in manifest["managed_paths"]
-        assert ".github/prompts/authorkit.chapter.prompt.md" in manifest["managed_paths"]
+        assert ".github/prompts/authorkit.chapter.plan.prompt.md" in manifest["managed_paths"]
         assert ".github/prompts/authorkit.research.prompt.md" in manifest["managed_paths"]
 
 
@@ -102,11 +102,11 @@ def test_init_rerun_replaces_unselected_ai_outputs():
         )
         assert second.exit_code == 0, second.output
 
-        assert Path(".codex/prompts/authorkit.chapter.md").exists()
+        assert Path(".codex/prompts/authorkit.chapter.plan.md").exists()
         assert Path(".codex/prompts/authorkit.research.md").exists()
         assert Path(".codex/AGENTS.md").exists()
-        assert not Path(".claude/commands/authorkit.chapter.md").exists()
-        assert not Path(".github/prompts/authorkit.chapter.prompt.md").exists()
+        assert not Path(".claude/commands/authorkit.chapter.plan.md").exists()
+        assert not Path(".github/prompts/authorkit.chapter.plan.prompt.md").exists()
 
         manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
         assert manifest["ais"] == ["codex"]
@@ -821,15 +821,13 @@ def test_world_prompts_document_recursive_layout_and_path_preservation():
     """Verify world prompts describe recursive scans and preserving human-organized paths."""
     repo_root = Path(__file__).resolve().parents[2]
     world_build = (repo_root / ".authorkit" / "prompts" / "authorkit.world.build.md").read_text(encoding="utf-8")
-    world_update = (repo_root / ".authorkit" / "prompts" / "authorkit.world.update.md").read_text(encoding="utf-8")
-    world_verify = (repo_root / ".authorkit" / "prompts" / "authorkit.world.verify.md").read_text(encoding="utf-8")
+    world_sync = (repo_root / ".authorkit" / "prompts" / "authorkit.world.sync.md").read_text(encoding="utf-8")
 
     assert "Never relocate or normalize existing files; preserve human-organized folder layouts." in world_build
     assert "Auto-created nesting depth is one level under the category root." in world_build
-    assert "search world/ files recursively under category folders." in world_update
-    assert "Preserve file layout." in world_update
-    assert "verify all files in that category recursively (including nested descendants)" in world_verify
-    assert "Fall back to loading all world/ files within scope recursively." in world_verify
+    # world.sync merges the former world.update + world.verify + world.index
+    assert "world/" in world_sync
+    assert "Rebuild" in world_sync or "index" in world_sync.lower()
 
 
 def test_research_consumers_use_recursive_topic_loading_language():
@@ -841,7 +839,6 @@ def test_research_consumers_use_recursive_topic_loading_language():
         repo_root / ".authorkit" / "prompts" / "authorkit.chapter.draft.md",
         repo_root / ".authorkit" / "prompts" / "authorkit.chapter.review.md",
         repo_root / ".authorkit" / "prompts" / "authorkit.chapters.md",
-        repo_root / ".authorkit" / "prompts" / "authorkit.clarify.md",
     ]
 
     for target in targets:

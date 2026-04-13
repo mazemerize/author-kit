@@ -1,12 +1,15 @@
 ---
-description: Perform a read-only cross-chapter consistency and quality analysis across the entire book.
+description: Perform a read-only cross-chapter consistency and quality analysis across the entire book, including upstream document drift detection.
 handoffs:
-  - label: Verify World
-    agent: authorkit.world.verify
-    prompt: Run a dedicated world consistency verification
+  - label: Sync World
+    agent: authorkit.world.sync
+    prompt: Sync and verify world files
   - label: Revise Chapter
     agent: authorkit.revise
     prompt: Address the critical issues from the analysis
+  - label: Amend A Fact
+    agent: authorkit.amend
+    prompt: Change an established fact across the manuscript
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireChapters -IncludeChapters
 ---
@@ -66,9 +69,46 @@ Abort with an error message if required files are missing.
 **From style anchor (if exists):**
 - `book/style-anchor.md` cadence, diction/register, imagery density, dialogue profile, and drift flags
 
-### 3. Detection Passes
+### 3. Upstream Drift Detection (Reconciliation)
 
-Focus on high-signal findings. Limit to 50 findings total.
+Before analyzing cross-chapter quality, check whether upstream planning documents have drifted from what was actually drafted. Drafted chapters are the canonical source of truth — everything else may be stale.
+
+**Scope**: All drafted chapters (or user-specified range from input).
+
+#### 3a. Outline Drift (outline.md)
+
+For each chapter entry in outline.md that corresponds to a drafted chapter:
+- Read the outline's Summary, Key Events, Characters Present, Ends With, and Connections fields.
+- For each factual claim, grep the corresponding `chapters/NN/draft.md` for verification.
+- Flag claims that don't match the draft.
+- Common drift: characters acting differently, events playing out differently, endings that don't match.
+
+For not-yet-drafted chapters: check if their claims about already-drafted chapters are accurate.
+
+#### 3b. Concept Drift (concept.md)
+
+- Focus on Synopsis, Characters, and Clarifications sections.
+- Identify claims about specific events, character behaviors, or plot mechanics that have been concretized differently in drafts.
+
+#### 3c. Chapters.md Drift
+
+- Check each chapter's summary text against the draft. Key details should match.
+
+#### 3d. World Drift (world/ files)
+
+- For world/ files tagged `(CHxx)`: verify tagged claims against the actual draft.
+- For `(CONCEPT)` entries: check if drafts now cover that topic differently.
+
+**Drift severity**:
+- **High**: A future chapter plan referencing this claim would produce a continuity error.
+- **Medium**: The claim is inaccurate but unlikely to cause downstream errors.
+- **Low**: Technically compatible but could be more precise.
+
+**Offer drift fixes**: After presenting drift findings, ask the user: "Fix all / Fix high-severity only / Review one by one / Skip?" If fixing, update upstream documents to match drafts (never modify drafts).
+
+### 4. Detection Passes
+
+Focus on high-signal findings. Limit to 50 findings total (excluding drift findings from step 3).
 
 #### A. Continuity & Timeline
 - Events referenced in later chapters that weren't established in earlier ones
@@ -128,14 +168,14 @@ If a `world/` folder exists in BOOK_DIR, perform these checks by cross-referenci
 
 Each finding should cite the specific world/ file and the chapter(s) where the contradiction occurs.
 
-### 4. Severity Assignment
+### 5. Severity Assignment
 
 - **CRITICAL**: Constitution violation, major plot hole, timeline contradiction, character inconsistency that breaks immersion, world rule violation that breaks established system logic, major geography/timeline contradiction
 - **HIGH**: Unresolved subplot, significant pacing issue, theme dropped, important foreshadowing unfulfilled, character detail contradiction across chapters, significant setting drift
 - **MEDIUM**: Minor continuity error, slight voice drift, pacing could be improved, minor character inconsistency, minor world detail inconsistency, cultural detail mismatch
 - **LOW**: Style nitpick, optional improvement, very minor detail mismatch
 
-### 5. Produce Analysis Report
+### 6. Produce Analysis Report
 
 Output a Markdown report (no file writes):
 
@@ -144,6 +184,12 @@ Output a Markdown report (no file writes):
 
 **Chapters Analyzed**: [N] of [Total]
 **Analysis Date**: [DATE]
+
+### Upstream Drift (Reconciliation)
+
+| Source | Claim | Draft Reality | Severity | Fixed? |
+|--------|-------|---------------|----------|--------|
+| outline.md CH03 | [claim] | [reality] | High | [Yes/No/Skipped] |
 
 ### Findings
 
@@ -193,10 +239,12 @@ Output a Markdown report (no file writes):
 - Constitution violations: [N]
 ```
 
-### 6. Next Actions
+### 7. Next Actions
 
+- If drift was found and fixed: note what upstream documents were updated
+- If drift was found but skipped: recommend running `/authorkit.analyze` again after fixing
 - If CRITICAL issues exist: Recommend resolving before drafting more chapters
 - Provide specific `/authorkit.revise` suggestions for top issues
-- If world-building issues dominate: Recommend `/authorkit.world.verify` for deeper world-specific analysis
+- If world-building issues dominate: Recommend `/authorkit.world.sync verify only` for deeper world-specific analysis
 - If mostly clean: Suggest continuing with next chapter or moving to final polish
 

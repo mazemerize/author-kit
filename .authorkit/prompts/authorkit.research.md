@@ -7,9 +7,9 @@ handoffs:
   - label: Build World
     agent: authorkit.world.build
     prompt: Expand world-building with the latest research findings
-  - label: Rebuild World Index
-    agent: authorkit.world.index
-    prompt: Rebuild world index after research sync
+  - label: Sync World
+    agent: authorkit.world.sync
+    prompt: Sync world files after research
   - label: Plan Chapter
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N] with updated research context
@@ -134,7 +134,7 @@ By default, this command is **suggest-only** and does not modify `world/` files.
    - Suggested next step:
      - clarify/world scope -> `/authorkit.world.build` or `/authorkit.outline`
      - chapter scope -> `/authorkit.chapter.plan [N]`
-     - sync-world mode -> `/authorkit.world.verify`
+     - sync-world mode -> `/authorkit.world.sync`
 
 ## Key Rules
 

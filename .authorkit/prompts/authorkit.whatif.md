@@ -87,7 +87,7 @@ The command operates in four modes:
       - [How to evaluate whether this direction is better — user-provided or inferred]
       ```
 
-   f. Report: Branch created, snapshot taken, instructions for what to do next (use normal commands like `/authorkit.chapter.plan`, `/authorkit.chapter.draft`, `/authorkit.revise`, `/authorkit.pivot` to make experimental changes).
+   f. Report: Branch created, snapshot taken, instructions for what to do next (use normal commands like `/authorkit.chapter.plan`, `/authorkit.chapter.draft`, `/authorkit.revise`, `/authorkit.amend` to make experimental changes).
 
 4. **Compare Mode** — Summarize narrative differences:
 

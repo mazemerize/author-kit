@@ -34,7 +34,7 @@ Traditional AI-assisted writing often means dumping an idea and hoping for a goo
 5. **Collaborative chapter writing** — Write chapters together: draft scene by scene, get help on specific paragraphs, or let the AI continue where you left off
 6. **Chapter-level iteration** — Each chapter goes through its own plan-draft-review cycle, so quality is built in, not bolted on
 7. **Cross-chapter consistency** — Analyze the full manuscript for continuity, pacing, and thematic coherence
-8. **Mid-process flexibility** — Pivot, defer decisions, explore alternatives, and restructure without losing work
+8. **Mid-process flexibility** — Amend direction or facts, defer decisions, explore alternatives, and restructure without losing work
 9. **Manuscript generation** — Export the fully generated content as a word or epub document
 10. **Audiobook export** — Use AI to generate an audio version of your manuscript
 
@@ -44,7 +44,7 @@ This works for **any genre**: literary fiction, thrillers, non-fiction guides, m
 
 Before getting started, read more about Author Kit, its benefits and drawbacks, and how it operates.
 
-**Read our articles on Medium**:
+**Read our articles on Medium** (written for an earlier version of Author Kit — the specific commands have evolved, but the core philosophy and approach remain the same):
 - [Why AI Writes the Same Book Every Time](https://medium.com/@mdemarne/why-ai-writes-the-same-book-every-time-0b02323f618a)
 - [The World Your AI Forgot to Build](https://medium.com/@mdemarne/the-world-your-ai-forgot-to-build-c7fda0fe71c7)
 - [Catching What Drifts in Your Human-Led, AI-Assisted Manuscript](https://medium.com/@mdemarne/catching-what-drifts-in-your-human-led-ai-assisted-manuscript-4d4fb7334a24)
@@ -133,10 +133,11 @@ This creates a `concept.md` with the premise, genre, themes, characters, voice, 
 
 ### 4. Clarify the concept (optional)
 
-Identify and resolve any ambiguities in the concept before outlining.
+Identify and resolve any ambiguities in the concept before outlining. Use the discuss command in clarify mode — it walks through structured questions and records answers directly into concept.md.
 
 ```bash
-/authorkit.clarify
+/authorkit.discuss clarify
+/authorkit.discuss clarify the magic system's rules and limitations
 ```
 
 ### 5. Research grounding (optional, repeatable)
@@ -199,16 +200,7 @@ Convert the outline into a chapter-level task list with status tracking.
 
 ### 9. Write chapter by chapter
 
-The fastest way is the automated chapter command — it runs the full plan → draft → review cycle for you, looping on draft → review until the chapter passes:
-
-```bash
-/authorkit.chapter          # Auto-detect the next chapter and run the full lifecycle
-/authorkit.chapter 3        # Run the full lifecycle for chapter 3 specifically
-```
-
-This handles everything: plans the chapter, writes the prose, reviews it, and if the review finds issues, re-drafts and re-reviews (up to 3 cycles). It picks up from wherever the chapter left off — if you already have a plan, it skips to drafting.
-
-Or run each step individually for more control:
+Each chapter goes through a plan → draft → review cycle:
 
 ```bash
 /authorkit.chapter.plan 1     # Plan chapter 1 (scenes, beats, arc)
@@ -232,7 +224,7 @@ Or get targeted help on specific passages while you write:
 /authorkit.chapter.help chapter 5 I'm stuck on the transition to the next scene
 ```
 
-After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
+After drafting a chapter, run `/authorkit.world.sync` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
 
 ### 10. Analyze the full manuscript
 
@@ -244,7 +236,7 @@ After drafting several chapters (or all of them), run a cross-chapter analysis:
 
 This checks for continuity errors, plot holes, pacing problems, unresolved threads, and constitution violations across all drafted chapters.
 
-You can also run `/authorkit.world.verify` at any point to check the `world/` folder for internal consistency and alignment with the manuscript.
+You can also run `/authorkit.world.sync verify` at any point to check the `world/` folder for internal consistency and alignment with the manuscript.
 
 ### 11. Revise as needed
 
@@ -275,13 +267,17 @@ The key insight: **the workflow is sequential at its core, but every step has es
 
 ```
   ┌─────────────────────────────────────────────────────────────┐
-  │                    FOUNDATION PHASE                         │
+  │                       FOUNDATION PHASE                      │
   │                                                             │
-  │   Constitution ──> Conceive ──> Clarify (opt) ──> Research  │
-  │                       │                  (opt, repeatable)  │
-  │                       │            Discuss (opt, repeatable) │
-  │                       │                 World Build (opt)   │
-  │                       └── Discuss ──────────────────────>───┘
+  │   Constitution ──> Conceive ──────────────────────────────  │
+  │                       │                                     │
+  │                       ├──> Discuss (opt, repeatable)        │
+  │                       │    (clarify concept or brainstorm)  │
+  │                       │                                     │
+  │                       ├──> Research (opt, repeatable)       │
+  │                       │                                     │
+  │                       └──> World Build (opt)                │
+  │                                                             │
   └────────────────────────┬────────────────────────────────────┘
                            │
                            v
@@ -309,7 +305,7 @@ The key insight: **the workflow is sequential at its core, but every step has es
   │        └── [R] Needs revision ──────────┘                   │
   │                                                             │
   │   During drafting:  Chapter Help (targeted passage help)    │
-  │   After each chapter:  World Update ──> World Verify        │
+  │   After each chapter:  World Sync                           │
   └────────────────────────┬────────────────────────────────────┘
                            │
                            v
@@ -317,22 +313,18 @@ The key insight: **the workflow is sequential at its core, but every step has es
   │                  QUALITY PHASE                              │
   │                                                             │
   │   Analyze ──> Revise ──> Analyze (repeat until clean)       │
+  │   (includes drift reconciliation as first phase)            │
   │                                                             │
-  │   Reconcile ──> Fix drift ──> Reconcile                     │
-  │                                                             │
-  │   World Verify ──> World Build (fix) ──> World Verify       │
-  │                                                             │
-  │   Checklist ──> Manual review                               │
+  │   World Sync (verify) ──> World Build (fix) ──> World Sync  │
   └─────────────────────────────────────────────────────────────┘
 
   ╔═════════════════════════════════════════════════════════════╗
   ║             AVAILABLE AT ANY TIME (steps 5-12)              ║
   ║                                                             ║
-  ║   Discuss ─ Brainstorm ideas interactively                  ║
-  ║   Pivot ─── Change direction across all artifacts           ║
-  ║   Retcon ── Change an established fact everywhere           ║
-  ║   Research  Ground details from web/news/wikipedia/MCP      ║
-  ║   Park ──── Defer a decision for later                      ║
+  ║   Discuss ── Brainstorm ideas interactively                 ║
+  ║   Amend ──── Change direction or facts across artifacts     ║
+  ║   Research ─ Ground details from web/news/wikipedia/MCP     ║
+  ║   Park ───── Defer a decision for later                     ║
   ║   Snapshot ─ Bookmark state before a risky change           ║
   ║   What-If ── Explore alternatives on a branch               ║
   ║   Reorder ── Move, split, merge, or insert chapters         ║
@@ -359,10 +351,9 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `/authorkit.constitution` | Create or update writing principles (voice, tone, style guide) | Style description | `constitution.md` |
-| `/authorkit.conceive` | Define book concept from a natural language description | Book idea | `concept.md`, `book.toml`, `checklists/concept-quality.md` |
-| `/authorkit.clarify` | Resolve ambiguities in the book concept | Optional focus areas | Updated `concept.md` with clarifications |
+| `/authorkit.conceive` | Define book concept from a natural language description | Book idea | `concept.md`, `book.toml` |
 | `/authorkit.research` | Ground a topic using available sources (web/news/wikipedia/MCP) and store reusable notes | Free-form topic/request + optional `scope:`, `sources:`, `action:`, `folder:` overrides | `research.md`, `research/**/*.md` (flat or nested), optional `world/notes/research-*.md` or `world/notes/research/*.md` |
-| `/authorkit.discuss` | Brainstorm and discuss book ideas interactively — world, characters, arcs, themes | Topic to discuss | Optional `notes/discuss-*.md` |
+| `/authorkit.discuss` | Brainstorm ideas interactively, or clarify the concept with structured Q&A | Topic to discuss, or "clarify" | Optional `notes/discuss-*.md`, or updated `concept.md` in clarify mode |
 | `/authorkit.outline` | Create a full or partial book outline with chapter summaries and arcs. Supports incremental outlining | Optional scope (e.g., "part 1", "extend") | `outline.md`, `research.md`, `characters.md` |
 | `/authorkit.chapters` | Generate chapter-level task breakdown from the outline (works with partial outlines) | — | `chapters.md` with status markers |
 
@@ -370,7 +361,6 @@ The key insight: **the workflow is sequential at its core, but every step has es
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
-| `/authorkit.chapter` | **Automated** — run the full plan → draft → review cycle, looping until approved | Optional chapter number | `plan.md`, `draft.md`, `review.md`, status → `[X]` |
 | `/authorkit.chapter.plan [N]` | Plan a specific chapter in detail (scenes, beats, connections) | Chapter number | `chapters/NN/plan.md`, status → `[P]` |
 | `/authorkit.chapter.draft [N]` | Write chapter prose — full chapter, scene by scene, or continue a partial draft | Chapter number + optional mode | `chapters/NN/draft.md`, status → `[D]` |
 | `/authorkit.chapter.help [N]` | Get targeted writing help on a specific passage, scene, or paragraph | Chapter + passage description | Updated `draft.md` |
@@ -382,25 +372,20 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `/authorkit.world.build` | Build the book's world — establish rules, geography, characters, history, and systems | Optional focus areas | `world/` folder with entity files |
-| `/authorkit.world.update [N]` | Extract world-building details from drafted chapters into the `world/` folder | Chapter number(s) | Updated `world/` files, impact report |
-| `/authorkit.world.verify` | Verify `world/` files for internal consistency and manuscript alignment | Optional scope | Verification report (read-only) |
-| `/authorkit.world.index` | Build or rebuild the `world/_index.md` entity index for fast lookups | Optional: `add-frontmatter` | `world/_index.md`, stats |
+| `/authorkit.world.sync` | Extract, verify, and index world details — handles chapter extraction, consistency checks, and index rebuilding in one command | Chapter number(s), "verify", or "add-frontmatter" | Updated `world/` files, `world/_index.md`, verification report |
 
 ### Quality & Analysis
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
-| `/authorkit.analyze` | Cross-chapter consistency and quality analysis (read-only) | Optional context | Analysis report |
-| `/authorkit.reconcile` | Check outline, concept, chapters.md, and world/ for drift against drafted chapters | Optional scope | Drift report, optional fixes |
+| `/authorkit.analyze` | Cross-chapter consistency, quality analysis, and upstream drift reconciliation | Optional context | Analysis report with drift findings |
 | `/authorkit.revise` | Apply revisions to specific chapters based on feedback | Chapter(s) and issues | Updated drafts, ripple effect report |
-| `/authorkit.checklist` | Generate custom quality checklists (craft, continuity, pacing, etc.) | Checklist type | `checklists/[type].md` |
 
 ### Mid-Process Changes
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
-| `/authorkit.pivot` | Propagate a direction change across all artifacts with impact analysis | Change description | Updated artifacts, pivot log |
-| `/authorkit.retcon` | Retroactively change an established fact across the entire manuscript | Old fact → new fact | Change manifest, updated files, retcon log |
+| `/authorkit.amend` | Change direction or retroactively change facts across all artifacts | Change description | Updated artifacts, amendment log |
 | `/authorkit.park` | Defer a creative decision for later resolution without blocking | Question or "list" or "resolve" | `parked-decisions.md` |
 | `/authorkit.snapshot` | Bookmark the current book state with narrative context | Description or "list" or "compare" | `snapshots/` file, git tag |
 | `/authorkit.whatif` | Explore an alternative direction on an experimental branch | Hypothesis or "compare" or "merge" or "discard" | `whatif/*` git branch |
@@ -414,24 +399,22 @@ Understanding which commands feed into which helps you navigate the workflow eff
 ### Foundation Phase (run once, in order)
 
 ```
-constitution ──> conceive ──> clarify ──> research ──> world.build ──> outline ──> chapters
-                    │           (opt)      (opt)       (opt)            (full
-                    │                                                  or partial)
+constitution ──> conceive ──> discuss ──> research ──> world.build ──> outline ──> chapters
+                    │          (clarify,   (opt)       (opt)            (full
+                    │           brainstorm)                            or partial)
                     └── discuss (opt, repeatable) ─────────────────────────┘
 ```
 
 - **Constitution** must exist before conceive (it sets the voice rules).
 - **Conceive** initializes `book/` and creates/updates the concept. Everything else builds on this.
 - **Discuss** is optional and repeatable. Use it to brainstorm world-building, character arcs, plot directions, or themes before committing to artifacts.
-- **Clarify** refines the concept. Run it before outlining if the concept has ambiguities.
+- **Discuss** (clarify mode) refines the concept. Use it before outlining if the concept has ambiguities. Regular discuss mode is for open-ended brainstorming.
 - **Research** is optional and repeatable. Run it before outline, during world-building, or during chapter work to ground details.
 - **World Build** is optional but recommended for genres with rich worlds. Can run before or after outline.
 - **Outline** requires concept.md. Produces outline.md, research.md, characters.md. Can outline all chapters at once or incrementally (part by part). Consumes existing `research/` topic files recursively when available.
 - **Chapters** requires outline.md. Produces the chapter task list. Works with partial outlines — run again after extending.
 
 ### Chapter Iteration (repeat per chapter)
-
-Use `/authorkit.chapter` to auto-detect the next step, or run each command individually:
 
 ```
 chapter.plan N ──> chapter.draft N ──> chapter.review N
@@ -440,7 +423,7 @@ chapter.plan N ──> chapter.draft N ──> chapter.review N
                         │           ┌─────┤
                    chapter.help N   v     v
                    (as needed)  [R] Rev  [X] Approved
-                                re-draft  ──> world.update N
+                                re-draft  ──> world.sync N
                                 ──> review    ──> next chapter
 ```
 
@@ -449,7 +432,7 @@ chapter.plan N ──> chapter.draft N ──> chapter.review N
 - **Help** provides targeted assistance on specific passages during drafting — alternatives, improvements, continuations, dialogue polish, etc. Use it as needed without disrupting the plan-draft-review flow.
 - **Review** grades the draft against plan, constitution, characters, and world/ files.
 - **Research** can be run before planning or revising a chapter to ground domain-specific details.
-- **PASS** → status becomes `[X]`. Run `world.update` to capture new world details, then move to the next chapter.
+- **PASS** → status becomes `[X]`. Run `world.sync` to capture new world details, then move to the next chapter.
 - **NEEDS REVISION** → status becomes `[R]`. Re-plan with feedback, re-draft, re-review.
 
 ### Quality Phase (run after several chapters)
@@ -457,15 +440,12 @@ chapter.plan N ──> chapter.draft N ──> chapter.review N
 ```
 analyze ──> revise ──> chapter.review ──> analyze (repeat)
    │
-   ├──> world.verify ──> world.build (fix) ──> world.verify
-   │
-   └──> reconcile ──> fix drift ──> reconcile (repeat)
+   └──> world.sync (verify) ──> world.build (fix) ──> world.sync
 ```
 
-- **Analyze** is read-only. It identifies issues across all drafted chapters.
-- **Reconcile** is read-first. It checks upstream documents (outline, concept, chapters.md, world/) for drift against drafted chapters, then optionally fixes stale entries.
+- **Analyze** identifies issues across all drafted chapters and includes upstream drift reconciliation (checking outline, concept, chapters.md, and world/ for drift).
 - **Revise** applies fixes. It may recommend re-reviewing affected chapters.
-- **World Verify** is read-only. It checks world/ consistency.
+- **World Sync** (verify mode) checks world/ consistency.
 - Run analyze → revise → analyze until critical issues reach zero.
 
 ### Mid-Process Commands (available anytime once `concept.md` exists)
@@ -475,8 +455,8 @@ These commands work alongside the main workflow. Here's when to reach for each o
 | Situation | Command | What It Does |
 |-----------|---------|-------------|
 | "I need grounded facts before I outline or draft this" | **Research** | Collects source-backed findings into `research.md` and `research/` topic files (flat or nested), with optional sync to `world/notes/` |
-| "I want to change the ending" | **Pivot** | Scans all artifacts, shows impact, propagates changes top-down |
-| "Character X should have been a spy, not a soldier" | **Retcon** | Finds every reference (direct, indirect, derivative), updates consistently |
+| "I want to change the ending" | **Amend** | Scans all artifacts, shows impact, propagates changes top-down |
+| "Character X should have been a spy, not a soldier" | **Amend** | Finds every reference (direct, indirect, derivative), updates consistently |
 | "I'm not sure if Marcus should die — I'll decide later" | **Park** | Records the decision with deadline, warns when deadline approaches |
 | "I'm about to make a big change and want to be safe" | **Snapshot** | Creates a git tag + narrative bookmark of current state |
 | "What if I tried first-person POV for the flashbacks?" | **What-If** | Creates an experimental branch, lets you try it, compare, merge or discard |
@@ -484,21 +464,20 @@ These commands work alongside the main workflow. Here's when to reach for each o
 
 #### How mid-process commands interact with each other
 
-- **Snapshot** is often used *before* a **Pivot** or **What-If** (as a safety net)
-- **Pivot** may recommend **Retcon** for specific fact changes within the broader direction change
-- **Park** decisions often get resolved via **Pivot** when the author decides
+- **Snapshot** is often used *before* an **Amend** or **What-If** (as a safety net)
+- **Amend** handles both direction changes and fact changes in a single command
+- **Park** decisions often get resolved via **Amend** when the author decides
 - **What-If** uses **Snapshot** automatically when creating a branch
-- **Reorder** may trigger **Pivot** if the structural change affects the narrative direction
-- **Retcon** logs are stored in `pivots/` alongside pivot logs for a unified change history
+- **Reorder** may trigger **Amend** if the structural change affects the narrative direction
+- Amendment logs are stored in `pivots/` for a unified change history
 
 #### How mid-process commands interact with core commands
 
-- After a **Pivot**: run `analyze` to verify consistency, `world.verify` to check world, re-`review` affected chapters
-- After a **Retcon**: re-`review` chapters with significant prose changes, run `world.verify`
+- After an **Amend**: run `analyze` to verify consistency, `world.sync` to check world, re-`review` affected chapters
 - **Park** checks deadlines when you run `chapter.plan` or `chapter.draft` — warns if you're approaching a parked decision's deadline
 - **Park** decisions appear as findings in `analyze` reports if their deadlines have passed
 - After **What-If** merge: run `analyze` to verify the merged content is consistent
-- After **Reorder**: run `analyze` and `world.verify` to confirm renumbering didn't break references
+- After **Reorder**: run `analyze` and `world.sync` to confirm renumbering didn't break references
 
 ---
 
@@ -613,33 +592,16 @@ Placement is adaptive: simple one-off topics stay flat, while grouped series can
 Use `sync-world` (for example `action:sync-world`) to write durable findings into `world/notes/` and rebuild `world/_index.md`.
 When both flat and nested note layouts are possible, Author Kit updates existing note paths in place and avoids forced migration.
 
-**3. Update after drafting** (after each chapter):
+**3. Sync after drafting** (after each chapter):
 
 ```bash
-/authorkit.world.update 3       # Extract details from chapter 3
-/authorkit.world.update 1-5     # Scan a range of chapters
-/authorkit.world.update all     # Scan all drafted chapters
+/authorkit.world.sync 3         # Extract details from chapter 3
+/authorkit.world.sync 1-5       # Scan a range of chapters
+/authorkit.world.sync all       # Scan all drafted chapters
+/authorkit.world.sync verify    # Verify-only mode (read-only diagnostic)
 ```
 
-New details are tagged with their source chapter (e.g., `(CH03)`). If a chapter has been revised and is re-scanned, entries are tagged `(CH03-rev)` and a downstream impact report highlights which other chapters may need attention.
-
-**4. Verify consistency** (anytime):
-
-```bash
-/authorkit.world.verify                  # Verify everything
-/authorkit.world.verify characters/      # Verify just character files
-/authorkit.world.verify systems/ places/ # Verify specific categories
-```
-
-This is a **read-only** diagnostic that checks for:
-
-- **Reciprocal references** — if Iria lists Marcus as her mentor, Marcus's file should reference Iria
-- **Cross-entity consistency** — organization members should have character files, places in events should have place files
-- **System coherence** — rules within and across systems should not contradict
-- **Geographic plausibility** — travel times, climate, and spatial relationships should make sense
-- **Timeline consistency** — causes precede effects, ages match historical events
-- **Chapter tag integrity** — every `(CHxx)` tag should reference an actual drafted chapter
-- **Staleness detection** — entities referenced in chapters but never updated in `world/`
+World sync handles everything in one command: extracts new details from chapters (tagged with source chapter, e.g., `(CH03)`), verifies internal consistency (reciprocal references, system coherence, timeline, chapter tag integrity), and rebuilds the `world/_index.md` entity index.
 
 Issues are rated by severity (Critical, High, Medium, Low) with specific file paths and actionable recommendations.
 
@@ -652,14 +614,13 @@ world/ files track how details evolve across the manuscript:
 | `(CONCEPT)` | Established during pre-writing world-building |
 | `(CHxx)` | First appeared or was confirmed in chapter xx |
 | `(CHxx-rev)` | Updated when chapter xx was revised |
-| `(PIVOT-YYYY-MM-DD)` | Changed as part of a direction pivot |
-| `(RETCON-YYYY-MM-DD)` | Changed as part of a retroactive fact change |
+| `(AMEND-YYYY-MM-DD)` | Changed as part of a direction or fact amendment |
 
 ### Entity index
 
 As a book's world grows, finding the right information becomes increasingly expensive — every world/-touching command would need to scan all files. Author Kit solves this with a **PowerShell-generated central index** at `world/_index.md`, which costs zero LLM tokens to maintain.
 
-Every world/ entity file includes **YAML frontmatter** with structured metadata:
+world/ entity files can include **YAML frontmatter** with structured metadata (recommended but optional — files without frontmatter are still readable by all commands):
 
 ```yaml
 ---
@@ -689,11 +650,11 @@ The index (`world/_index.md`) contains three lookup tables:
 **Rebuilding the index:**
 
 ```bash
-/authorkit.world.index                  # Full rebuild
-/authorkit.world.index add-frontmatter  # Add YAML frontmatter to files that lack it
+/authorkit.world.sync                    # Full sync including index rebuild
+/authorkit.world.sync add-frontmatter    # Add YAML frontmatter to files that lack it
 ```
 
-The index is rebuilt automatically by `world.build`, `world.update`, `retcon`, `pivot`, and `chapter.reorder`. You only need to run `world.index` manually if you've edited world/ files by hand.
+The index is rebuilt automatically by `world.build`, `world.sync`, `amend`, and `chapter.reorder`. You only need to run `world.sync` manually if you've edited world/ files by hand.
 
 ---
 
@@ -701,31 +662,20 @@ The index is rebuilt automatically by `world.build`, `world.update`, `retcon`, `
 
 Books rarely go exactly according to plan. Author Kit provides structured tools for handling the most common mid-process situations.
 
-### Changing direction: Pivot
+### Changing direction or facts: Amend
 
-When your vision for the book changes — a character needs cutting, a subplot should be added, the ending should be different — use pivot to propagate the change across all artifacts.
-
-```bash
-/authorkit.pivot Cut the romance subplot entirely
-/authorkit.pivot Merge characters Marcus and David into a single character
-/authorkit.pivot Change the ending so the protagonist fails
-```
-
-Pivot performs an **impact analysis** across concept, outline, chapters.md, world/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made.
-
-Changes are logged in `pivots/YYYY-MM-DD-[description].md` for traceability.
-
-### Changing established facts: Retcon
-
-When a specific fact needs to change retroactively — a character's age, a place's name, a world rule — retcon finds every reference (direct mentions, indirect implications, and logical consequences) and updates them consistently.
+When your vision for the book changes or a specific fact needs to change — use amend to propagate the change across all artifacts. It auto-classifies whether the change is a direction change, a fact change, or both.
 
 ```bash
-/authorkit.retcon Transit from the harbor to the citadel takes 40 minutes -> Transit takes 75 minutes (distance remeasured after route audit)
-/authorkit.retcon Change Marcus from a soldier to a spy
-/authorkit.retcon The magic system costs blood -> The magic system costs memories
+/authorkit.amend Cut the romance subplot entirely
+/authorkit.amend Change the ending so the protagonist fails
+/authorkit.amend Transit from the harbor to the citadel takes 40 minutes -> Transit takes 75 minutes
+/authorkit.amend Change Marcus from a soldier to a spy
 ```
 
-Retcon generates a **change manifest** showing every occurrence before making changes. It distinguishes between direct references ("the transit takes forty minutes"), indirect references ("they can still make the same-day handoff"), and derivative details ("arrival windows in later chapters"). You review and approve the manifest.
+Amend performs an **impact analysis** across concept, outline, chapters.md, world/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made. For fact changes, it generates a **change manifest** showing every occurrence — direct references, indirect implications, and derivative details.
+
+Changes are logged in `pivots/YYYY-MM-DD-[description].md` with `(AMEND-YYYY-MM-DD)` tags for traceability.
 
 ### Deferring decisions: Park
 
@@ -777,13 +727,12 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 | Brainstorm ideas before committing | `/authorkit.discuss` |
 | Get help on a specific passage while writing | `/authorkit.chapter.help` |
 | Ground a topic with sources and keep reusable notes | `/authorkit.research` |
-| Change the book's direction | `/authorkit.pivot` |
-| Change a specific fact everywhere | `/authorkit.retcon` |
+| Change the book's direction or a specific fact | `/authorkit.amend` |
 | Decide something later | `/authorkit.park` |
 | Save your current state before a big change | `/authorkit.snapshot` |
 | Try something without committing | `/authorkit.whatif` |
 | Move, split, or merge chapters | `/authorkit.chapter.reorder` |
-| Check if outline/concept drifted from drafts | `/authorkit.reconcile` |
+| Check if outline/concept drifted from drafts | `/authorkit.analyze` |
 | Fix issues found by review or analysis | `/authorkit.revise` |
 
 ## Book Export, Audiobook and Statistics
@@ -896,7 +845,6 @@ Audio narration instructions:
 |   |-- research-topic-template.md
 |   |-- chapters-template.md
 |   |-- chapter-plan-template.md
-|   |-- checklist-template.md
 |   |-- agent-file-template.md
 |   |-- publishing/
 |   |   |-- reference.docx
@@ -929,7 +877,6 @@ book/
 |-- chapters.md
 |-- book.toml
 |-- parked-decisions.md
-|-- checklists/
 |-- pivots/
 |-- snapshots/
 |-- world/

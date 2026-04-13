@@ -56,27 +56,21 @@ PROTECTED_MANAGED_PATHS = {".authorkit/memory/constitution.md"}
 SHARED_GUARDRAILS_PATH = Path(".authorkit/prompts/_shared/generation-guardrails.md")
 # Prompts that receive the shared generation guardrail block when rendered.
 GUARDRAIL_PROMPT_ALLOWLIST = {
+    "authorkit.amend.md",
     "authorkit.analyze.md",
     "authorkit.chapter.draft.md",
     "authorkit.chapter.help.md",
-    "authorkit.chapter.md",
     "authorkit.chapter.plan.md",
     "authorkit.chapter.review.md",
     "authorkit.chapters.md",
-    "authorkit.checklist.md",
-    "authorkit.clarify.md",
     "authorkit.conceive.md",
     "authorkit.constitution.md",
     "authorkit.discuss.md",
     "authorkit.outline.md",
-    "authorkit.pivot.md",
-    "authorkit.reconcile.md",
     "authorkit.research.md",
-    "authorkit.retcon.md",
     "authorkit.revise.md",
     "authorkit.world.build.md",
-    "authorkit.world.update.md",
-    "authorkit.world.verify.md",
+    "authorkit.world.sync.md",
 }
 
 

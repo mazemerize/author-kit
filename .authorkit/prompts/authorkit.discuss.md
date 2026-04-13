@@ -60,12 +60,13 @@ This command can be used at any point: before conceiving, between outline and dr
    - **Flag implications**: If an idea would conflict with established elements (concept, outline, world/, drafted chapters), mention it — but as information, not a veto. The author decides.
    - **Stay in character for the genre**: If discussing a thriller, think like a thriller writer. If discussing fantasy world-building, think about systems, costs, and consistency. Match the genre's sensibilities.
    - **Track decisions**: Mentally maintain a running list of decisions and directions the author has settled on during this conversation. Periodically summarize: "So far we've decided X, Y, and Z."
-   - **No artifacts during discussion**: Do not write to concept.md, outline.md, world/ files, or any book files. The discussion is exploratory. Committing to artifacts happens via handoffs after the discussion.
+   - **No artifacts during general discussion**: Do not write to outline.md, world/ files, or other book files. The discussion is exploratory. Committing to artifacts happens via handoffs after the discussion. **Exception**: In clarify mode, accepted answers are written directly to concept.md.
 
    ### Discussion Scopes (non-exhaustive)
 
    The author might want to discuss any of these. Adapt to whatever they bring:
 
+   - **Concept clarification**: Resolve ambiguities in the concept — unclear premise, vague audience, underspecified characters. When discussing clarifications, offer recommended answers with reasoning and record accepted answers directly into concept.md (see "Clarify mode" below).
    - **World-building**: Magic systems, technology, geography, politics, history, social structures, rules and their costs
    - **Characters**: Motivations, arcs, relationships, backstory, voice, flaws, growth
    - **Plot & structure**: Story direction, act structure, pacing, twists, subplots, endings
@@ -74,6 +75,22 @@ This command can be used at any point: before conceiving, between outline and dr
    - **Specific problems**: "I'm stuck on X", "Chapter Y doesn't feel right", "I don't know how to connect A to B"
    - **What-if exploration**: "What if the villain was actually right?", "What if we killed this character?"
    - **Pre-concept brainstorming**: The author has a vague idea and wants to shape it before running `/authorkit.conceive`
+
+   ### Clarify Mode
+
+   When the user's topic is about **resolving concept ambiguities** (e.g., "clarify the concept", "the premise is unclear", "help me decide on the audience"), switch to a more structured approach:
+
+   1. Scan concept.md for underspecified areas across: Premise & Scope, Genre & Audience, Characters/Subjects, Voice & Tone, Themes, Structure & Pacing, Setting/world, Research Requirements.
+   2. Prioritize the most impactful ambiguities (premise > audience > structure > voice > details).
+   3. Present ONE clarification question at a time (max 5 total), each answerable with a short answer or multiple-choice.
+   4. For each question, provide a **recommended answer** with reasoning based on genre conventions and existing concept context.
+   5. After the author answers, **record the clarification directly into concept.md**:
+      - Ensure a `## Clarifications` section exists (create if missing).
+      - Under a `### Session YYYY-MM-DD` subheading, append: `- Q: <question> -> A: <answer>`.
+      - Apply the answer to the relevant concept section.
+   6. Continue until ambiguities are resolved, the author says "done", or 5 questions are asked.
+
+   This replaces the former `/authorkit.clarify` command. The key difference from general discussion: clarify mode writes to concept.md after each accepted answer (rather than waiting for a handoff).
 
 4. **Saving notes** (only when the author asks):
 
@@ -116,6 +133,6 @@ This command can be used at any point: before conceiving, between outline and dr
 - **This is a conversation, not a report.** Do not dump walls of text. Keep responses focused and let the author steer.
 - **The author's instinct is canonical.** If they have a strong feeling about something, support it and help them develop it — don't argue for the "correct" narrative choice.
 - **Avoid premature commitment.** The whole point of this command is to explore before deciding. Don't push the author to finalize things.
-- **No file writes except discussion notes.** Everything else goes through the handoff commands.
+- **No file writes except discussion notes and clarify mode.** General discussion saves nothing. Clarify mode writes accepted answers directly to concept.md. Everything else goes through the handoff commands.
 - **Be specific, not generic.** "You could add more conflict" is useless. "What if Iria's mentor turns out to have been the one who hid the catalogue, forcing her to choose between loyalty and truth?" is useful.
 - **Respect existing work.** If chapters are already drafted, don't casually suggest changes that would invalidate them without flagging the cost.

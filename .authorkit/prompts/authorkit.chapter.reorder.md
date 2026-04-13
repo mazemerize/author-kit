@@ -4,9 +4,9 @@ handoffs:
   - label: Update Outline
     agent: authorkit.outline
     prompt: Update the outline to reflect the restructured chapters
-  - label: Verify World Tags
-    agent: authorkit.world.verify
-    prompt: Verify chapter tags in world/ files after reorder
+  - label: Sync World Tags
+    agent: authorkit.world.sync
+    prompt: Sync world files after chapter reorder
   - label: Run Analysis
     agent: authorkit.analyze
     prompt: Analyze consistency after chapter restructuring
@@ -196,7 +196,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    ### Next Steps
 
    - `/authorkit.analyze` — verify cross-chapter consistency after restructure
-   - `/authorkit.world.verify` — check world/ tag integrity
+   - `/authorkit.world.sync` — check world/ tag integrity
    - [For splits]: `/authorkit.chapter.plan [N]` — plan the new chapter(s)
    - [For merges]: `/authorkit.chapter.review [N]` — review the combined chapter
    ```

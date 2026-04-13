@@ -10,12 +10,9 @@ handoffs:
   - label: Deepen World
     agent: authorkit.world.build
     prompt: Expand world-building in the area of...
-  - label: Verify World
-    agent: authorkit.world.verify
+  - label: Sync World
+    agent: authorkit.world.sync
     prompt: Verify the world files for internal consistency
-  - label: Clarify Concept
-    agent: authorkit.clarify
-    prompt: Clarify aspects of the book concept
   - label: Research A Topic
     agent: authorkit.research
     prompt: Research a world-building topic before adding it to world files
@@ -79,17 +76,19 @@ This command can be run multiple times to iteratively deepen specific areas.
 
 5. **Create the world/ folder structure**:
 
+   Only create folders for categories that have content to put in them. Use the genre relevance table in step 3 to guide this — if a category is "Rarely" or "Sometimes" for this genre and neither the concept nor user input mentions anything for it, **skip that folder entirely**. Do not create empty placeholder folders.
+
+   For example, a contemporary romance might only need `characters/` and `notes/`. An epic fantasy might need all six. A non-fiction book might only need `systems/` and `notes/`.
+
    ```
    BOOK_DIR/world/
-   ├── characters/
-   ├── organizations/
-   ├── places/
-   ├── history/
-   ├── systems/
-   └── notes/
+   ├── characters/      (if needed)
+   ├── organizations/   (if needed)
+   ├── places/          (if needed)
+   ├── history/         (if needed)
+   ├── systems/         (if needed)
+   └── notes/           (if needed)
    ```
-
-   Only create folders for categories relevant to this book.
 
 6. **Decide file placement per entity before writing**:
    - If an entity already exists (resolve via `world/_index.md` by `id`/aliases, or by recursive world/ scan if no index), update that existing file in place.
@@ -102,7 +101,7 @@ This command can be run multiple times to iteratively deepen specific areas.
 
 7. **Create initial files** in each category using the chapter-tagged format:
 
-   All pre-writing entries are tagged `(CONCEPT)` to indicate they were established before any chapter was written. This distinguishes them from details that emerge during drafting (which will be tagged `(CHxx)` by `/authorkit.world.update`).
+   All pre-writing entries are tagged `(CONCEPT)` to indicate they were established before any chapter was written. This distinguishes them from details that emerge during drafting (which will be tagged `(CHxx)` by `/authorkit.world.sync`).
 
    **characters/** — One file per major character (see `.authorkit/templates/world-entity-frontmatter.md` for full schema):
    ```markdown
@@ -311,14 +310,14 @@ This command can be run multiple times to iteratively deepen specific areas.
    - Count of entries per category
    - Any consistency warnings or gaps flagged
    - Areas that could benefit from more depth
-   - Suggested next step: `/authorkit.research [topic]` for additional grounding, `/authorkit.world.build [specific area]` to deepen, `/authorkit.world.verify` to check internal consistency, or `/authorkit.outline` to proceed to outlining
+   - Suggested next step: `/authorkit.research [topic]` for additional grounding, `/authorkit.world.build [specific area]` to deepen, `/authorkit.world.sync` to check internal consistency, or `/authorkit.outline` to proceed to outlining
 
 ## Key Rules
 
 - **This is reference material, not prose.** world/ files should read like an encyclopedia, not a novel.
 - **Be specific, not vague.** "A large city" is bad. "A port city of ~200,000 on the western coast, built on steep hills overlooking a natural harbor" is good.
-- **Tag everything (CONCEPT).** This tag is critical for the evolution tracking system. When chapters are drafted and `/authorkit.world.update` runs, new details will be tagged with chapter numbers.
-- **Include YAML frontmatter.** Every world/ file must have a frontmatter block with `id`, `type`, `name`, `aliases`, `chapters`, `first_appearance`, `relationships`, `tags`, and `last_updated`. See `.authorkit/templates/world-entity-frontmatter.md` for the full schema.
+- **Tag everything (CONCEPT).** This tag is critical for the evolution tracking system. When chapters are drafted and `/authorkit.world.sync` runs, new details will be tagged with chapter numbers.
+- **YAML frontmatter is recommended but optional.** New files created by this command include full frontmatter (`id`, `type`, `name`, `aliases`, `chapters`, `first_appearance`, `relationships`, `tags`, `last_updated` — see `.authorkit/templates/world-entity-frontmatter.md`). However, files the author creates or edits by hand do not need frontmatter — `/authorkit.world.sync` can read them without it and can add frontmatter later via its `add-frontmatter` mode.
 - **Don't over-build.** Only create entries for things that will actually matter to the story. A magic system with 50 rules that only appears once is wasted effort. Focus on what the reader will encounter.
 - **Cross-reference.** Use relative paths to link related entries (e.g., "See characters/iria-calder.md" or "Related: history/the-great-war.md").
 - **Iterative by design.** This command can be run multiple times. Each run should deepen or add, not replace. If world/ already has entries, read them first and build on them.

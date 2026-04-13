@@ -4,9 +4,9 @@ handoffs:
   - label: Re-Review Chapter
     agent: authorkit.chapter.review
     prompt: Review chapter [N] after revision
-  - label: Update World After Revision
-    agent: authorkit.world.update
-    prompt: Update world files after revising chapter [N]
+  - label: Sync World After Revision
+    agent: authorkit.world.sync
+    prompt: Sync world files after revising chapter [N]
   - label: Run Analysis Again
     agent: authorkit.analyze
     prompt: Run a fresh cross-chapter analysis
@@ -91,7 +91,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - If a revision changes a fact, character detail, or plot point: identify all other chapters that reference it
    - List any other chapters that may need updates as a result
    - Do NOT automatically edit other chapters - flag them for the user
-   - **world/ synchronization**: Recommend running `/authorkit.world.update [N]` after revision to update world/ files and get a full downstream impact report of what changed and which chapters may be affected
+   - **world/ synchronization**: Recommend running `/authorkit.world.sync [N]` after revision to update world/ files and get a full downstream impact report of what changed and which chapters may be affected
 
 6. **Report completion**:
    - Chapters revised and their paths
