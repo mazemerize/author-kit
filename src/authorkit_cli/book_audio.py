@@ -111,14 +111,48 @@ def _synthesize_openai_chunk(client: object, model: str, voice: str, chunk: str,
     response.stream_to_file(str(out_file))
 
 
-def _concat_mp3_files(input_files: list[Path], output_file: Path) -> None:
-    """Concatenate mp3 files losslessly with ffmpeg concat demuxer."""
+def _generate_silence(duration_s: float, out_file: Path) -> None:
+    """Generate a silent MP3 of the given duration using ffmpeg."""
+    ensure_system_tool("ffmpeg")
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", f"anullsrc=r=24000:cl=mono",
+        "-t", str(duration_s),
+        "-c:a", "libmp3lame", "-b:a", "64k",
+        str(out_file),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown error"
+        raise RuntimeError(f"FFmpeg silence generation failed: {detail}")
+
+
+def _concat_mp3_files(
+    input_files: list[Path],
+    output_file: Path,
+    gap_seconds: float = 0.0,
+) -> None:
+    """Concatenate mp3 files with ffmpeg concat demuxer.
+
+    When *gap_seconds* is positive a short silence is inserted between
+    every pair of input files so that chapter segments don't run together.
+    """
     if not input_files:
         return
 
     ensure_system_tool("ffmpeg")
+
+    silence_file: Path | None = None
+    if gap_seconds > 0:
+        silence_file = output_file.parent / "_silence_gap.mp3"
+        _generate_silence(gap_seconds, silence_file)
+
     temp_list = output_file.parent / "_concat_list.txt"
-    lines = [f"file '{f.resolve().as_posix()}'" for f in input_files]
+    lines: list[str] = []
+    for i, f in enumerate(input_files):
+        lines.append(f"file '{f.resolve().as_posix()}'")
+        if silence_file and i < len(input_files) - 1:
+            lines.append(f"file '{silence_file.resolve().as_posix()}'")
     temp_list.write_text("\n".join(lines), encoding="utf-8")
 
     try:
@@ -141,6 +175,8 @@ def _concat_mp3_files(input_files: list[Path], output_file: Path) -> None:
             raise RuntimeError(f"FFmpeg concat failed: {detail}")
     finally:
         temp_list.unlink(missing_ok=True)
+        if silence_file:
+            silence_file.unlink(missing_ok=True)
 
 
 def _chapter_output_path(audio_dir: Path, draft: ChapterDraft) -> Path:
@@ -274,7 +310,7 @@ def generate_audiobook(
     ) as progress:
         chapter_task = progress.add_task("Generating chapter audio...", total=chapter_total)
         for chapter_index, draft, chapter_out, should_generate in chapter_jobs:
-            clean_title = chapter_title(draft.text, f"Chapter {draft.chapter_number:02d}")
+            clean_title = chapter_title(draft.text, f"Chapter {draft.chapter_number}")
             metadata_title = chapter_title(draft.text, f"CH{draft.chapter_number:02d}")
 
             if not should_generate:
@@ -299,20 +335,44 @@ def generate_audiobook(
                 progress.advance(chapter_task)
                 continue
 
+            # The title text survives markdown_to_plain_text (only the
+            # "#" marker is stripped), so remove it to avoid reading the
+            # title twice — we prepend clean_title ourselves with a
+            # better pause.
+            speech_lines = speech_text.split("\n", 1)
+            if speech_lines and speech_lines[0].strip().lower() == clean_title.strip().lower():
+                speech_text = speech_lines[1].strip() if len(speech_lines) > 1 else ""
+
             speech_input = f"{clean_title}\n\n{speech_text}"
             chunks = _chunk_text(speech_input)
             temp_files: list[Path] = []
+            prev_chunk: str | None = None
             for idx, chunk in enumerate(chunks, start=1):
                 progress.update(
                     chapter_task,
                     description=f"CH{draft.chapter_number:02d}: synthesizing chunk {idx}/{len(chunks)}",
                 )
                 temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
-                _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk, instructions)
+
+                # Give the TTS model trailing context from the previous
+                # chunk so it can maintain consistent tone and pacing
+                # across segment boundaries.
+                chunk_instructions = instructions
+                if prev_chunk is not None:
+                    tail = prev_chunk.strip().rsplit("\n\n", 1)[-1][-300:]
+                    chunk_instructions = (
+                        f"{instructions}\n\n"
+                        "Continue seamlessly from the previous passage. "
+                        "Match the tone, pace, and energy of the preceding text "
+                        f"which ended with:\n\"{tail}\""
+                    )
+
+                _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk, chunk_instructions)
+                prev_chunk = chunk
                 temp_files.append(temp_chunk)
 
             progress.update(chapter_task, description=f"CH{draft.chapter_number:02d}: combining chunks")
-            _concat_mp3_files(temp_files, chapter_out)
+            _concat_mp3_files(temp_files, chapter_out, gap_seconds=0.8)
             for temp in temp_files:
                 temp.unlink(missing_ok=True)
             _write_mp3_metadata(
@@ -339,7 +399,7 @@ def generate_audiobook(
             if overwrite_merged:
                 merged_path.unlink(missing_ok=True)
         if not merged_path.exists():
-            _concat_mp3_files(chapter_outputs, merged_path)
+            _concat_mp3_files(chapter_outputs, merged_path, gap_seconds=1.5)
         _write_mp3_metadata(
             path=merged_path,
             title=f"{config.title} (Audiobook)",
