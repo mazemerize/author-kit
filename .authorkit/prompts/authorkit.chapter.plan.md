@@ -4,6 +4,9 @@ handoffs:
   - label: Draft This Chapter
     agent: authorkit.chapter.draft
     prompt: Draft chapter [N]
+  - label: Get Help Writing
+    agent: authorkit.chapter.help
+    prompt: Help with chapter [N]
   - label: Plan Next Chapter
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N+1]

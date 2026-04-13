@@ -1,6 +1,9 @@
 ---
 description: Create or refresh the book concept from a natural language book idea description.
 handoffs:
+  - label: Discuss Ideas First
+    agent: authorkit.discuss
+    prompt: Brainstorm and explore ideas before committing
   - label: Build World
     agent: authorkit.world.build
     prompt: Build the world for this book concept

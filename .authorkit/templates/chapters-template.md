@@ -117,6 +117,19 @@ description: "Chapter breakdown template for book implementation"
 
 ---
 
+## Incremental Outlining
+
+<!--
+  If the outline was generated incrementally (part by part), only chapters with
+  detailed outline entries appear above. As you draft the outlined chapters and
+  discover more about your book, extend the outline and chapter list:
+
+  1. Run `/authorkit.outline extend` to outline the next section
+  2. Run `/authorkit.chapters` again to add entries for newly outlined chapters
+
+  Existing entries and their statuses are preserved when re-running this command.
+-->
+
 ## Notes
 
 - Each chapter should be planned before drafting (`/authorkit.chapter.plan`)

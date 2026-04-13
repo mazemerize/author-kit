@@ -1,6 +1,9 @@
 ---
 description: Build the book's world before writing - establish rules, geography, characters, history, and systems.
 handoffs:
+  - label: Discuss World Ideas
+    agent: authorkit.discuss
+    prompt: Brainstorm world-building ideas before committing
   - label: Build Outline
     agent: authorkit.outline
     prompt: Create the book outline using the established world

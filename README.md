@@ -1,8 +1,8 @@
 ﻿![Author Kit Logo](./media/logo.png)
 
-**Write books with structured AI assistance. Chapter by chapter. Draft by draft.**
+**Write books with structured AI assistance. Chapter by chapter. Draft by draft. Together.**
 
-An open-source toolkit that brings structured, template-driven principles to book writing. Instead of vibe-writing an entire manuscript, Author Kit guides you through a structured workflow: define your concept, outline the structure, then iteratively plan, draft, and review each chapter — with full support for changing direction mid-process.
+An open-source toolkit that brings structured, template-driven principles to book writing. Instead of vibe-writing an entire manuscript, Author Kit guides you through a structured workflow: define your concept, outline the structure, then iteratively plan, draft, and review each chapter — with full support for changing direction mid-process. Outline incrementally as you discover your story, brainstorm interactively, and co-write chapters scene by scene.
 
 ---
 
@@ -28,13 +28,15 @@ An open-source toolkit that brings structured, template-driven principles to boo
 Traditional AI-assisted writing often means dumping an idea and hoping for a good result. Author Kit takes a different approach:
 
 1. **Concept first** — Define your book's premise, themes, audience, and voice before writing a single word
-2. **Outline before prose** — Create a structural outline with chapter summaries, character arcs, and thematic maps
-3. **World maintenance** — Build and track your book's world (characters, places, systems, history) as a living reference
-4. **Chapter-level iteration** — Each chapter goes through its own plan-draft-review cycle, so quality is built in, not bolted on
-5. **Cross-chapter consistency** — Analyze the full manuscript for continuity, pacing, and thematic coherence
-6. **Mid-process flexibility** — Pivot, defer decisions, explore alternatives, and restructure without losing work
-7. **Manuscript generation** - Export the fully generated content as a word or epub document
-8. **Audiobook export** - use AI to generate an audio version of your manuscript
+2. **Incremental discovery** — Outline part of the book, draft those chapters, then extend the outline based on what emerged. Brainstorm ideas interactively before committing
+3. **Outline before prose** — Create a structural outline with chapter summaries, character arcs, and thematic maps — all at once or part by part
+4. **World maintenance** — Build and track your book's world (characters, places, systems, history) as a living reference
+5. **Collaborative chapter writing** — Write chapters together: draft scene by scene, get help on specific paragraphs, or let the AI continue where you left off
+6. **Chapter-level iteration** — Each chapter goes through its own plan-draft-review cycle, so quality is built in, not bolted on
+7. **Cross-chapter consistency** — Analyze the full manuscript for continuity, pacing, and thematic coherence
+8. **Mid-process flexibility** — Pivot, defer decisions, explore alternatives, and restructure without losing work
+9. **Manuscript generation** — Export the fully generated content as a word or epub document
+10. **Audiobook export** — Use AI to generate an audio version of your manuscript
 
 This works for **any genre**: literary fiction, thrillers, non-fiction guides, memoirs, technical books, and everything in between.
 
@@ -160,13 +162,30 @@ Establish the rules, geography, characters, history, and systems of your book's 
 
 You can run this multiple times to iteratively deepen specific areas. See [World Maintenance](#world-maintenance) for the full workflow.
 
-### 7. Create the outline
+### 6b. Discuss ideas (optional, repeatable)
 
-Generate the full book structure: chapter summaries, character arcs, thematic thread maps, and narrative arc.
+Brainstorm world-building, character arcs, plot directions, or themes interactively before committing to an outline.
 
 ```bash
-/authorkit.outline
+/authorkit.discuss the magic system and its limitations
+/authorkit.discuss should the protagonist succeed or fail at the end?
+/authorkit.discuss I'm not sure about the villain's motivation
 ```
+
+This is a conversation — no files are created unless you say "save" or "note this". When you're ready, follow the suggested handoff to apply decisions via `/authorkit.world.build`, `/authorkit.outline`, etc.
+
+### 7. Create the outline
+
+Generate the book structure: chapter summaries, character arcs, thematic thread maps, and narrative arc. You can outline everything at once, or incrementally — part by part.
+
+```bash
+/authorkit.outline                 # Full outline (all chapters at once)
+/authorkit.outline part 1          # Outline just Part 1
+/authorkit.outline chapters 1-8    # Outline a specific range
+/authorkit.outline extend          # Extend with the next section after drafting
+```
+
+Partial outlines include "Continuation Notes" that capture open threads, character positions, and thematic state — providing context when you return to extend the outline later.
 
 This also generates `research.md` (world-building notes) and `characters.md` (character profiles), and uses existing `research/` topic files recursively if present.
 
@@ -195,6 +214,22 @@ Or run each step individually for more control:
 /authorkit.chapter.plan 1     # Plan chapter 1 (scenes, beats, arc)
 /authorkit.chapter.draft 1    # Write the actual prose
 /authorkit.chapter.review 1   # Review against plan and constitution
+```
+
+For more collaborative writing, draft scene by scene:
+
+```bash
+/authorkit.chapter.draft 1 interactive   # Write one scene at a time with pauses for your input
+/authorkit.chapter.draft 1 scene 3       # Write just scene 3 (you handle the others)
+/authorkit.chapter.draft 1 continue      # Continue from where you (or the AI) left off
+```
+
+Or get targeted help on specific passages while you write:
+
+```bash
+/authorkit.chapter.help chapter 1 improve the opening paragraph
+/authorkit.chapter.help chapter 3 alternatives for the dialogue between X and Y
+/authorkit.chapter.help chapter 5 I'm stuck on the transition to the next scene
 ```
 
 After drafting a chapter, run `/authorkit.world.update` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
@@ -243,15 +278,20 @@ The key insight: **the workflow is sequential at its core, but every step has es
   │                    FOUNDATION PHASE                         │
   │                                                             │
   │   Constitution ──> Conceive ──> Clarify (opt) ──> Research  │
-  │                                        (opt, repeatable) ──>│
-  │                                          World Build (opt)  │
+  │                       │                  (opt, repeatable)  │
+  │                       │            Discuss (opt, repeatable) │
+  │                       │                 World Build (opt)   │
+  │                       └── Discuss ──────────────────────>───┘
   └────────────────────────┬────────────────────────────────────┘
                            │
                            v
   ┌─────────────────────────────────────────────────────────────┐
-  │                    PLANNING PHASE                           │
+  │              PLANNING PHASE (full or incremental)           │
   │                                                             │
-  │           Outline ──> Chapters (task breakdown)             │
+  │   Outline (full) ──> Chapters (task breakdown)              │
+  │         or                                                  │
+  │   Outline (part 1) ──> Chapters ──> Draft ──> Outline       │
+  │                                     (extend) ──> Chapters   │
   └────────────────────────┬────────────────────────────────────┘
                            │
                            v
@@ -260,12 +300,15 @@ The key insight: **the workflow is sequential at its core, but every step has es
   │                                                             │
   │   For each chapter:                                         │
   │                                                             │
-  │     ┌──────┐    ┌──────┐    ┌────────┐                      │
-  │     │ Plan │───>│Draft │───>│ Review │──> [X] Approved      │
-  │     └──────┘    └──────┘    └────────┘                      │
-  │        ^                        │                           │
-  │        └── [R] Needs revision ──┘                           │
+  │     ┌──────┐    ┌──────────────┐    ┌────────┐              │
+  │     │ Plan │───>│    Draft     │───>│ Review │──> [X]       │
+  │     └──────┘    │ (full, scene │    └────────┘              │
+  │        ^        │  by scene,   │        │                   │
+  │        │        │  or continue)│        │                   │
+  │        │        └──────────────┘        │                   │
+  │        └── [R] Needs revision ──────────┘                   │
   │                                                             │
+  │   During drafting:  Chapter Help (targeted passage help)    │
   │   After each chapter:  World Update ──> World Verify        │
   └────────────────────────┬────────────────────────────────────┘
                            │
@@ -285,9 +328,10 @@ The key insight: **the workflow is sequential at its core, but every step has es
   ╔═════════════════════════════════════════════════════════════╗
   ║             AVAILABLE AT ANY TIME (steps 5-12)              ║
   ║                                                             ║
+  ║   Discuss ─ Brainstorm ideas interactively                  ║
   ║   Pivot ─── Change direction across all artifacts           ║
   ║   Retcon ── Change an established fact everywhere           ║
-  ║   Research Ground details from web/news/wikipedia/MCP       ║
+  ║   Research  Ground details from web/news/wikipedia/MCP      ║
   ║   Park ──── Defer a decision for later                      ║
   ║   Snapshot ─ Bookmark state before a risky change           ║
   ║   What-If ── Explore alternatives on a branch               ║
@@ -318,8 +362,9 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | `/authorkit.conceive` | Define book concept from a natural language description | Book idea | `concept.md`, `book.toml`, `checklists/concept-quality.md` |
 | `/authorkit.clarify` | Resolve ambiguities in the book concept | Optional focus areas | Updated `concept.md` with clarifications |
 | `/authorkit.research` | Ground a topic using available sources (web/news/wikipedia/MCP) and store reusable notes | Free-form topic/request + optional `scope:`, `sources:`, `action:`, `folder:` overrides | `research.md`, `research/**/*.md` (flat or nested), optional `world/notes/research-*.md` or `world/notes/research/*.md` |
-| `/authorkit.outline` | Create the full book outline with chapter summaries and arcs | — | `outline.md`, `research.md`, `characters.md` |
-| `/authorkit.chapters` | Generate chapter-level task breakdown from the outline | — | `chapters.md` with status markers |
+| `/authorkit.discuss` | Brainstorm and discuss book ideas interactively — world, characters, arcs, themes | Topic to discuss | Optional `notes/discuss-*.md` |
+| `/authorkit.outline` | Create a full or partial book outline with chapter summaries and arcs. Supports incremental outlining | Optional scope (e.g., "part 1", "extend") | `outline.md`, `research.md`, `characters.md` |
+| `/authorkit.chapters` | Generate chapter-level task breakdown from the outline (works with partial outlines) | — | `chapters.md` with status markers |
 
 ### Chapter-Level Commands
 
@@ -327,7 +372,8 @@ The key insight: **the workflow is sequential at its core, but every step has es
 |---------|-------------|--------|---------|
 | `/authorkit.chapter` | **Automated** — run the full plan → draft → review cycle, looping until approved | Optional chapter number | `plan.md`, `draft.md`, `review.md`, status → `[X]` |
 | `/authorkit.chapter.plan [N]` | Plan a specific chapter in detail (scenes, beats, connections) | Chapter number | `chapters/NN/plan.md`, status → `[P]` |
-| `/authorkit.chapter.draft [N]` | Write the actual chapter prose | Chapter number | `chapters/NN/draft.md`, status → `[D]` |
+| `/authorkit.chapter.draft [N]` | Write chapter prose — full chapter, scene by scene, or continue a partial draft | Chapter number + optional mode | `chapters/NN/draft.md`, status → `[D]` |
+| `/authorkit.chapter.help [N]` | Get targeted writing help on a specific passage, scene, or paragraph | Chapter + passage description | Updated `draft.md` |
 | `/authorkit.chapter.review [N]` | Review a drafted chapter against plan, concept, and constitution | Chapter number | `chapters/NN/review.md`, status → `[X]` or `[R]` |
 | `/authorkit.chapter.reorder` | Reorder, split, merge, insert, or remove chapters | Operation description | Renumbered files, updated cross-references |
 
@@ -369,16 +415,19 @@ Understanding which commands feed into which helps you navigate the workflow eff
 
 ```
 constitution ──> conceive ──> clarify ──> research ──> world.build ──> outline ──> chapters
-                                (opt)      (opt)       (opt)
+                    │           (opt)      (opt)       (opt)            (full
+                    │                                                  or partial)
+                    └── discuss (opt, repeatable) ─────────────────────────┘
 ```
 
 - **Constitution** must exist before conceive (it sets the voice rules).
 - **Conceive** initializes `book/` and creates/updates the concept. Everything else builds on this.
+- **Discuss** is optional and repeatable. Use it to brainstorm world-building, character arcs, plot directions, or themes before committing to artifacts.
 - **Clarify** refines the concept. Run it before outlining if the concept has ambiguities.
 - **Research** is optional and repeatable. Run it before outline, during world-building, or during chapter work to ground details.
 - **World Build** is optional but recommended for genres with rich worlds. Can run before or after outline.
-- **Outline** requires concept.md. Produces outline.md, research.md, characters.md, and consumes existing `research/` topic files recursively when available.
-- **Chapters** requires outline.md. Produces the chapter task list.
+- **Outline** requires concept.md. Produces outline.md, research.md, characters.md. Can outline all chapters at once or incrementally (part by part). Consumes existing `research/` topic files recursively when available.
+- **Chapters** requires outline.md. Produces the chapter task list. Works with partial outlines — run again after extending.
 
 ### Chapter Iteration (repeat per chapter)
 
@@ -386,16 +435,18 @@ Use `/authorkit.chapter` to auto-detect the next step, or run each command indiv
 
 ```
 chapter.plan N ──> chapter.draft N ──> chapter.review N
-                                            │
-                           ┌────────────────┤
-                           v                v
-                     [R] Revise        [X] Approved
-                     re-plan/draft     ──> world.update N
-                     ──> re-review         ──> next chapter
+                   (full, scene by       │
+                    scene, continue)      │
+                        │           ┌─────┤
+                   chapter.help N   v     v
+                   (as needed)  [R] Rev  [X] Approved
+                                re-draft  ──> world.update N
+                                ──> review    ──> next chapter
 ```
 
 - **Plan** requires the outline and concept. Loads previous chapters for continuity.
-- **Draft** requires the plan. Follows the constitution as its style guide.
+- **Draft** requires the plan. Write the full chapter at once, or collaboratively: scene by scene, continue from where you left off, or target specific scenes. Follows the constitution as its style guide. Supports mixed authorship — you write some parts, the AI writes others.
+- **Help** provides targeted assistance on specific passages during drafting — alternatives, improvements, continuations, dialogue polish, etc. Use it as needed without disrupting the plan-draft-review flow.
 - **Review** grades the draft against plan, constitution, characters, and world/ files.
 - **Research** can be run before planning or revising a chapter to ground domain-specific details.
 - **PASS** → status becomes `[X]`. Run `world.update` to capture new world details, then move to the next chapter.
@@ -468,6 +519,8 @@ The core innovation of Author Kit is **chapter-level iteration**. Instead of wri
                                   v
                             Next chapter
 ```
+
+**Collaborative writing**: Instead of the AI drafting the full chapter, you can work together. Use `/authorkit.chapter.draft N interactive` to write scene by scene with pauses for your input, write parts yourself and use `/authorkit.chapter.draft N continue` to have the AI pick up where you left off, or use `/authorkit.chapter.help` for targeted assistance on specific passages. The AI matches your voice via the style anchor regardless of who wrote what.
 
 Progress is tracked in `chapters.md` with status markers:
 
@@ -721,6 +774,8 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 
 | You want to... | Use... |
 |----------------|--------|
+| Brainstorm ideas before committing | `/authorkit.discuss` |
+| Get help on a specific passage while writing | `/authorkit.chapter.help` |
 | Ground a topic with sources and keep reusable notes | `/authorkit.research` |
 | Change the book's direction | `/authorkit.pivot` |
 | Change a specific fact everywhere | `/authorkit.retcon` |

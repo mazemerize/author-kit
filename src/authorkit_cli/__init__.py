@@ -58,6 +58,7 @@ SHARED_GUARDRAILS_PATH = Path(".authorkit/prompts/_shared/generation-guardrails.
 GUARDRAIL_PROMPT_ALLOWLIST = {
     "authorkit.analyze.md",
     "authorkit.chapter.draft.md",
+    "authorkit.chapter.help.md",
     "authorkit.chapter.md",
     "authorkit.chapter.plan.md",
     "authorkit.chapter.review.md",
@@ -66,6 +67,7 @@ GUARDRAIL_PROMPT_ALLOWLIST = {
     "authorkit.clarify.md",
     "authorkit.conceive.md",
     "authorkit.constitution.md",
+    "authorkit.discuss.md",
     "authorkit.outline.md",
     "authorkit.pivot.md",
     "authorkit.reconcile.md",

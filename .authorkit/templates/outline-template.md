@@ -117,6 +117,33 @@
 | [Theme 2] | CH03 | CH07, CH12, CH17 | CH23 |
 | [Theme 3] | CH02 | CH06, CH11, CH16 | CH22 |
 
+## Continuation Notes
+
+<!--
+  Only populated for partial/incremental outlines (when the outline was generated
+  for a subset of chapters using `/authorkit.outline part N` or similar).
+  Remove this section entirely for full outlines.
+
+  This section captures the state of all narrative threads at the end of the last
+  outlined section, providing context for the next `/authorkit.outline extend` session.
+-->
+
+### Last Outlined Through: [Part N / Chapter NN]
+
+### Open Plot Threads
+- [Thread]: [Current state and expected direction]
+
+### Character Arc Positions
+| Character | Position at End of Outlined Section | Expected Direction |
+|-----------|------------------------------------|--------------------|
+
+### Thematic Threads In Progress
+| Theme | Last Touched | Status |
+|-------|-------------|--------|
+
+### Notes for Next Outlining Session
+- [Key context for the next outlining pass]
+
 ## Research Notes
 
 [Key areas that need research before or during drafting - historical details, technical accuracy, cultural sensitivity, etc.]
