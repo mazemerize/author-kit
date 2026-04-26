@@ -12,7 +12,17 @@ You are an AI writing assistant working within the Author Kit framework.
 ## Workflow
 
 Use `/authorkit.*` commands from `{{COMMAND_SOURCE}}` to run the structured workflow:
-constitution -> conceive -> discuss (opt, clarify or brainstorm) -> research (opt, repeatable) -> world.build (opt) -> outline -> chapters -> chapter plan/draft/review -> analyze/revise.
+
+**Core flow**: constitution -> conceive -> discuss (opt) -> research (opt, repeatable) -> world.build (opt) -> outline -> chapters -> chapter.plan -> chapter.draft -> chapter.review -> analyze / revise.
+
+**Mid-process tools** (use as needed during writing):
+- `amend` — propagate a direction or fact change across all artifacts (replaces former pivot/retcon)
+- `park` — defer a creative decision with a deadline; resolve later
+- `snapshot` — bookmark current state (git tag + narrative summary) before risky changes
+- `whatif` — try a direction on an experimental branch; merge or discard
+- `chapter.help` — get help with a specific passage without writing the whole chapter
+- `chapter.reorder` — move/split/merge/insert/remove chapters with auto-renumbering
+- `world.sync` — extract new world details from chapters, verify consistency, rebuild the index
 
 ## Notes
 

@@ -4,6 +4,12 @@ handoffs:
   - label: Draft This Chapter
     agent: authorkit.chapter.draft
     prompt: Draft chapter [N]
+  - label: Discuss Direction First
+    agent: authorkit.discuss
+    prompt: Talk through the chapter's direction, character motivation, or scene purpose before drafting
+  - label: Park a Blocker
+    agent: authorkit.park
+    prompt: Defer a decision that is blocking this chapter plan
   - label: Get Help Writing
     agent: authorkit.chapter.help
     prompt: Help with chapter [N]
@@ -35,6 +41,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: outline.md (this chapter's entry + overall structure)
    - **Required**: concept.md (voice, tone, themes, characters)
    - **Required**: chapters.md (chapter status, dependencies)
+   - **Optional**: `parked-decisions.md` — if it exists, scan for any OPEN decisions whose deadline is at or before this chapter number. If found, warn: "⚠️ Parked decision [PD-NNN] is due before or at this chapter: [summary]. Consider resolving it with `/authorkit.park resolve PD-NNN` before planning."
    - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (create or refresh before planning)
    - **Recommended**: characters.md (character profiles for this chapter)
    - **Optional**: research.md and relevant `research/` topic files discovered recursively (prefer scope `general`, `outline`, `chapter CHNN`; if many files exist, load only those matching this chapter's entities/topics)

@@ -99,8 +99,9 @@ The `chapters` field aggregates all evolution tags found in the file body:
 | `CONCEPT` | Established during pre-writing world-building | `CONCEPT` |
 | `CHxx` | First appeared or confirmed in chapter xx | `CH01`, `CH03` |
 | `CHxx-rev` | Updated when chapter xx was revised | `CH07-rev` |
-| `PIVOT-YYYY-MM-DD` | Changed during a direction pivot | `PIVOT-2026-02-13` |
-| `RETCON-YYYY-MM-DD` | Changed during a retroactive fact change | `RETCON-2026-02-13` |
+| `AMEND-YYYY-MM-DD` | Changed during a direction or fact amendment (`/authorkit.amend`) | `AMEND-2026-02-13` |
+| `PIVOT-YYYY-MM-DD` | Legacy: changed during a direction pivot (pre-amend consolidation) | `PIVOT-2026-02-13` |
+| `RETCON-YYYY-MM-DD` | Legacy: changed during a retroactive fact change (pre-amend consolidation) | `RETCON-2026-02-13` |
 
 ## Relationship Conventions
 

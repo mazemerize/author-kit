@@ -156,7 +156,7 @@ This command replaces both "pivot" (broad direction changes) and "retcon" (surgi
    - Check for new contradictions introduced by the changes
    - Report any issues found
 
-8. **Write change log** to `BOOK_DIR/pivots/YYYY-MM-DD-[short-description].md`:
+8. **Write change log** to `BOOK_DIR/amendments/YYYY-MM-DD-[short-description].md` (legacy installations may have a `pivots/` directory — keep using it if it already exists, otherwise create `amendments/`):
 
    ```markdown
    # Amendment: [SHORT DESCRIPTION]
@@ -207,6 +207,6 @@ This command replaces both "pivot" (broad direction changes) and "retcon" (surgi
 - **Preserve voice**: Every change to a chapter draft must be stylistically indistinguishable from surrounding prose.
 - **Snapshot first for large changes**: If 5+ artifacts are affected, recommend creating a snapshot before proceeding.
 - **Don't over-correct**: If a reference works equally well with the old and new states, leave it unchanged. Document it in the "Unchanged" section.
-- **Tag changes**: Use `(AMEND-YYYY-MM-DD)` tags in world/ files. Store logs in `pivots/`.
+- **Tag changes**: Use `(AMEND-YYYY-MM-DD)` tags in world/ files. Store logs in `amendments/` (or `pivots/` on legacy installations that already use that folder name).
 - **Flag, don't force**: For chapters with approved `[X]` status, flag them for user attention rather than silently resetting.
 - **Check your work**: The post-change consistency scan catches what the initial search missed.

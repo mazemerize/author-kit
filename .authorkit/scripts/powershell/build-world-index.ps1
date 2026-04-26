@@ -231,7 +231,7 @@ function Extract-HeuristicMetadata {
     # Extract chapter tags from body via regex
     $bodyText = $Lines -join "`n"
     $chapterTags = @()
-    $tagMatches = [regex]::Matches($bodyText, '\((CONCEPT|CH\d{2}|CH\d{2}-rev|RETCON-\d{4}-\d{2}-\d{2}|PIVOT-\d{4}-\d{2}-\d{2})\)')
+    $tagMatches = [regex]::Matches($bodyText, '\((CONCEPT|CH\d{2}|CH\d{2}-rev|AMEND-\d{4}-\d{2}-\d{2}|RETCON-\d{4}-\d{2}-\d{2}|PIVOT-\d{4}-\d{2}-\d{2})\)')
     foreach ($m in $tagMatches) {
         $tag = $m.Groups[1].Value
         if ($chapterTags -notcontains $tag) {
@@ -300,14 +300,14 @@ last_updated: $($Entity.LastUpdated)
 "@
 }
 
-# Sort chapter tags: CONCEPT first, then CHxx numerically, then CHxx-rev, then PIVOT/RETCON by date
+# Sort chapter tags: CONCEPT first, then CHxx numerically, then CHxx-rev, then AMEND/PIVOT/RETCON by date
 function Sort-ChapterTags {
     param([string[]]$Tags)
 
     $concept = $Tags | Where-Object { $_ -eq 'CONCEPT' }
     $chTags = $Tags | Where-Object { $_ -match '^CH\d{2}$' } | Sort-Object
     $chRevTags = $Tags | Where-Object { $_ -match '^CH\d{2}-rev$' } | Sort-Object
-    $otherTags = $Tags | Where-Object { $_ -match '^(PIVOT|RETCON)-' } | Sort-Object
+    $otherTags = $Tags | Where-Object { $_ -match '^(AMEND|PIVOT|RETCON)-' } | Sort-Object
 
     $result = @()
     if ($concept) { $result += $concept }
@@ -503,7 +503,7 @@ foreach ($e in $sortedEntities) {
         }
 
         foreach ($key in $keys) {
-            # Only include CONCEPT and CHxx/CHxx-rev in manifest (not PIVOT/RETCON date tags)
+            # Only include CONCEPT and CHxx/CHxx-rev in manifest (not AMEND/PIVOT/RETCON date tags)
             if ($key -match '^(CONCEPT|CH\d{2}|CH\d{2}-rev)$') {
                 if (-not $chapterMap.ContainsKey($key)) {
                     $chapterMap[$key] = @()

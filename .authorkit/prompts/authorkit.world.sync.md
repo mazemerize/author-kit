@@ -7,6 +7,9 @@ handoffs:
   - label: Build More World
     agent: authorkit.world.build
     prompt: Deepen world-building in a specific area
+  - label: Amend a Conflict
+    agent: authorkit.amend
+    prompt: A chapter contradicts an established world entry — propagate the correct version across all artifacts
   - label: Run Analysis
     agent: authorkit.analyze
     prompt: Analyze cross-chapter consistency including world-building
@@ -159,7 +162,7 @@ Run this after drafting or revising chapters, or anytime you want a consistency 
 - **Update incrementally.** Add to existing files rather than rewriting them.
 - **Preserve file layout.** Keep human-organized subfolder structures in place.
 - **Cross-reference generously.** When a detail connects entities, update both files.
-- **Respect (CONCEPT) entries.** If a chapter contradicts a `(CONCEPT)` entry, flag and update with the chapter tag.
+- **Respect (CONCEPT) entries.** If a chapter contradicts a `(CONCEPT)` entry, flag and update with the chapter tag. If the contradiction is substantive (a world rule, not just a minor detail), suggest `/authorkit.amend` to ensure the change is propagated consistently across all artifacts.
 - **Flag, don't fix.** Downstream impacts are reported, not auto-fixed.
 - **Verification is read-only.** Phase 2 flags issues but does not modify files (except those already modified in Phase 1).
 - **Frontmatter is optional for read-only files.** Files without YAML frontmatter are included in verification but won't appear in the index. Use "add-frontmatter" to add it.

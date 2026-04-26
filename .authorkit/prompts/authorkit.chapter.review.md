@@ -1,13 +1,19 @@
 ---
 description: Review a drafted chapter against the plan, concept, constitution, and quality criteria.
 handoffs:
+  - label: Discuss Issues First
+    agent: authorkit.discuss
+    prompt: Talk through the motivation or theme issues found in the review before replanning
   - label: Revise This Chapter
+    agent: authorkit.revise
+    prompt: Apply the review feedback to chapter [N]
+  - label: Re-plan This Chapter
     agent: authorkit.chapter.plan
     prompt: Re-plan chapter [N] based on review feedback
   - label: Sync World
     agent: authorkit.world.sync
     prompt: Sync world files for chapter [N]
-  - label: Draft Next Chapter
+  - label: Plan Next Chapter
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N+1]
 scripts:

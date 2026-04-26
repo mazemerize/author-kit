@@ -4,12 +4,24 @@ handoffs:
   - label: Apply to Concept
     agent: authorkit.conceive
     prompt: Update the concept with our discussion conclusions
+  - label: Amend Manuscript
+    agent: authorkit.amend
+    prompt: Propagate the direction or fact change we discussed across all artifacts
   - label: Build World From Discussion
     agent: authorkit.world.build
     prompt: Build world entries from our discussion
+  - label: Sync World Details
+    agent: authorkit.world.sync
+    prompt: Capture the world details we settled on into world/ files
   - label: Outline From Discussion
     agent: authorkit.outline
     prompt: Create outline incorporating our discussion
+  - label: Plan Next Chapter
+    agent: authorkit.chapter.plan
+    prompt: Plan the chapter using the direction we discussed
+  - label: Park Unresolved Decision
+    agent: authorkit.park
+    prompt: Defer the unresolved question we identified
   - label: Research A Topic
     agent: authorkit.research
     prompt: Research this topic we discussed
@@ -115,8 +127,9 @@ This command can be used at any point: before conceiving, between outline and dr
      ## Open Questions
      - [Question still unresolved]
 
-     ## Suggested Next Steps
-     - [Command to run and why]
+     ## Next Commands
+     - `[ready-to-run command with full argument]` — [why]
+     - `[ready-to-run command with full argument]` — [why]
      ```
 
    - After saving, confirm the path and suggest which command to run next based on what was discussed.
@@ -126,7 +139,19 @@ This command can be used at any point: before conceiving, between outline and dr
    When the conversation naturally wraps up (or the author signals they're done), summarize:
    - Key decisions made
    - Open questions remaining
-   - Suggested next command to apply the decisions (e.g., `/authorkit.world.build [topic]`, `/authorkit.outline`, `/authorkit.conceive [updated description]`)
+   - **Ready-to-run next commands** — give specific invocations the author can copy, not just command names. Choose based on what was actually discussed:
+
+   | If the discussion concluded with... | Suggest... |
+   |---|---|
+   | A change to direction, character, or plot in existing content | `/authorkit.amend [description of the change]` |
+   | New world details to capture (magic rules, geography, character facts) | `/authorkit.world.sync` or `/authorkit.world.build [focus area]` |
+   | Updates to the book concept or premise | `/authorkit.conceive [updated description]` |
+   | A direction for the outline | `/authorkit.outline [scope]` |
+   | A plan for an upcoming chapter | `/authorkit.chapter.plan [N]` |
+   | A decision still unresolved | `/authorkit.park [the question]` |
+   | A topic needing grounded research | `/authorkit.research [topic]` |
+
+   Provide the actual argument — e.g., `/authorkit.amend Change Marcus from a soldier to a spy — update concept, outline, world/characters/marcus.md, and all drafted chapters` — not just `/authorkit.amend`.
 
 ## Key Rules
 

@@ -55,6 +55,9 @@ PROTECTED_MANAGED_PATHS = {".authorkit/memory/constitution.md"}
 # Canonical path to the shared generation guardrail source asset.
 SHARED_GUARDRAILS_PATH = Path(".authorkit/prompts/_shared/generation-guardrails.md")
 # Prompts that receive the shared generation guardrail block when rendered.
+# Excluded by design: workflow tools that don't generate user-facing prose
+# (park, snapshot, whatif, chapter.reorder) — they orchestrate state, files,
+# and git, so the prose-generation guardrails don't apply.
 GUARDRAIL_PROMPT_ALLOWLIST = {
     "authorkit.amend.md",
     "authorkit.analyze.md",
@@ -283,7 +286,6 @@ def resolve_token_script(token: str, script_type: str) -> str:
     token_map = {
         "{{SCRIPT_CHECK_PREREQ}}": "check-prerequisites",
         "{{SCRIPT_SETUP_BOOK}}": "setup-book",
-        "{{SCRIPT_CREATE_BOOK}}": "create-new-book",
         "{{SCRIPT_SETUP_OUTLINE}}": "setup-outline",
         "{{SCRIPT_BUILD_WORLD_INDEX}}": "build-world-index",
     }
@@ -357,7 +359,6 @@ def render_prompt(raw: str, ai: str, script_type: str, prompt_name: str, guardra
         for token in [
             "{{SCRIPT_CHECK_PREREQ}}",
             "{{SCRIPT_SETUP_BOOK}}",
-            "{{SCRIPT_CREATE_BOOK}}",
             "{{SCRIPT_SETUP_OUTLINE}}",
             "{{SCRIPT_BUILD_WORLD_INDEX}}",
         ]:
@@ -381,7 +382,6 @@ def render_prompt(raw: str, ai: str, script_type: str, prompt_name: str, guardra
     for token in [
         "{{SCRIPT_CHECK_PREREQ}}",
         "{{SCRIPT_SETUP_BOOK}}",
-        "{{SCRIPT_CREATE_BOOK}}",
         "{{SCRIPT_SETUP_OUTLINE}}",
         "{{SCRIPT_BUILD_WORLD_INDEX}}",
     ]:
@@ -573,7 +573,7 @@ def write_manifest(project_path: Path, ais: list[str], script: str, managed: set
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "installed_at": datetime.now(timezone.utc).isoformat(),
-        "version": "0.1.0",
+        "version": get_cli_version(),
         "ai": ais[0] if ais else "copilot",
         "ais": ais,
         "script": script,

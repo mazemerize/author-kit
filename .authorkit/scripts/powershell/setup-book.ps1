@@ -121,6 +121,7 @@ epub_css = ".authorkit/templates/publishing/epub.css"
 provider = "openai"
 model = "gpt-4o-mini-tts"
 voice = "onyx"
+instructions = ".authorkit/templates/publishing/audio-instructions.txt"
 speaking_rate_wpm = 170
 
 [stats]

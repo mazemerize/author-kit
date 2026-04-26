@@ -13,6 +13,9 @@ handoffs:
   - label: Sync World
     agent: authorkit.world.sync
     prompt: Verify the world files for internal consistency
+  - label: Amend Existing Chapters
+    agent: authorkit.amend
+    prompt: New world rules conflict with already-drafted chapters — propagate the correct version
   - label: Research A Topic
     agent: authorkit.research
     prompt: Research a world-building topic before adding it to world files

@@ -10,6 +10,12 @@ handoffs:
   - label: Amend A Fact
     agent: authorkit.amend
     prompt: Change an established fact across the manuscript
+  - label: Park an Unresolvable Finding
+    agent: authorkit.park
+    prompt: Defer a finding that requires a creative decision before it can be fixed
+  - label: Discuss a Finding
+    agent: authorkit.discuss
+    prompt: Talk through a complex finding before deciding how to address it
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireChapters -IncludeChapters
 ---

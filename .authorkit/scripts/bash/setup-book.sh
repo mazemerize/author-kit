@@ -41,6 +41,12 @@ elif [[ ! -f "$BOOK_CONCEPT" ]]; then
   : > "$BOOK_CONCEPT"
 fi
 
+if [[ -f "$REPO_ROOT/.authorkit/templates/style-anchor-template.md" ]] && [[ ! -f "$STYLE_ANCHOR" ]]; then
+  cp "$REPO_ROOT/.authorkit/templates/style-anchor-template.md" "$STYLE_ANCHOR"
+elif [[ ! -f "$STYLE_ANCHOR" ]]; then
+  : > "$STYLE_ANCHOR"
+fi
+
 BOOK_TOML="$BOOK_DIR/book.toml"
 
 read_existing() {
@@ -101,6 +107,7 @@ epub_css = ".authorkit/templates/publishing/epub.css"
 provider = "openai"
 model = "gpt-4o-mini-tts"
 voice = "onyx"
+instructions = ".authorkit/templates/publishing/audio-instructions.txt"
 speaking_rate_wpm = 170
 
 [stats]
@@ -109,11 +116,12 @@ tts_cost_per_1m_chars = 0.0
 EOF
 
 if $JSON_MODE; then
-  printf '{"BOOK_DIR":"%s","CONCEPT_FILE":"%s","BOOK_TOML":"%s","HAS_GIT":%s}\n' \
-    "$BOOK_DIR" "$BOOK_CONCEPT" "$BOOK_TOML" "$HAS_GIT"
+  printf '{"BOOK_DIR":"%s","CONCEPT_FILE":"%s","STYLE_ANCHOR":"%s","BOOK_TOML":"%s","HAS_GIT":%s}\n' \
+    "$BOOK_DIR" "$BOOK_CONCEPT" "$STYLE_ANCHOR" "$BOOK_TOML" "$HAS_GIT"
 else
   echo "BOOK_DIR: $BOOK_DIR"
   echo "CONCEPT_FILE: $BOOK_CONCEPT"
+  echo "STYLE_ANCHOR: $STYLE_ANCHOR"
   echo "BOOK_TOML: $BOOK_TOML"
   echo "HAS_GIT: $HAS_GIT"
 fi

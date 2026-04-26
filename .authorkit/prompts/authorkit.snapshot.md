@@ -55,7 +55,7 @@ The command operates in three modes:
       - outline.md: Structure overview
       - world/ folder: Count of entity files per category
       - parked-decisions.md (if exists): Count of OPEN decisions
-      - pivots/ (if exists): Count of previous pivots
+      - amendments/ (or legacy pivots/) if exists: Count of previous amendments
 
    c. **Create snapshot file** at `BOOK_DIR/snapshots/YYYY-MM-DD-[slug].md`:
 

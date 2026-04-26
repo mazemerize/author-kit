@@ -469,7 +469,7 @@ These commands work alongside the main workflow. Here's when to reach for each o
 - **Park** decisions often get resolved via **Amend** when the author decides
 - **What-If** uses **Snapshot** automatically when creating a branch
 - **Reorder** may trigger **Amend** if the structural change affects the narrative direction
-- Amendment logs are stored in `pivots/` for a unified change history
+- Amendment logs are stored in `amendments/` for a unified change history
 
 #### How mid-process commands interact with core commands
 
@@ -675,7 +675,7 @@ When your vision for the book changes or a specific fact needs to change — use
 
 Amend performs an **impact analysis** across concept, outline, chapters.md, world/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made. For fact changes, it generates a **change manifest** showing every occurrence — direct references, indirect implications, and derivative details.
 
-Changes are logged in `pivots/YYYY-MM-DD-[description].md` with `(AMEND-YYYY-MM-DD)` tags for traceability.
+Changes are logged in `amendments/YYYY-MM-DD-[description].md` with `(AMEND-YYYY-MM-DD)` tags for traceability.
 
 ### Deferring decisions: Park
 
@@ -877,7 +877,8 @@ book/
 |-- chapters.md
 |-- book.toml
 |-- parked-decisions.md
-|-- pivots/
+|-- checklists/
+|-- amendments/
 |-- snapshots/
 |-- world/
 |   |-- _index.md

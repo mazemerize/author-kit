@@ -139,13 +139,21 @@ The command operates in three modes:
         **Decided**: [DATE]
         **Decision**: [What was decided]
         **Rationale**: [Why this option was chosen]
-        **Next Steps**: [Any actions needed — pivot, revise, update world, etc.]
+        **Next Steps**: [Any actions needed — amend, revise, world.sync, etc.]
         ```
 
-   d. **Assess downstream impact**:
-      - Does the resolution require changes to existing artifacts?
-      - If yes: recommend `/authorkit.amend` for broad changes or `/authorkit.revise` for targeted fixes
-      - If the resolution introduces new world-building elements: recommend `/authorkit.world.build` to establish them
+   d. **Assess downstream impact** and suggest the right next command based on what the resolution entails:
+
+      | Resolution type | Suggested next command |
+      |---|---|
+      | Changes existing direction, character, or plot across chapters | `/authorkit.amend [description]` |
+      | Targeted fix to one or two chapters | `/authorkit.revise [chapter(s)] [issue]` |
+      | Introduces new world-building elements (places, rules, factions) | `/authorkit.world.build [area]` |
+      | Updates a world detail already in world/ files | `/authorkit.world.sync` |
+      | Affects an upcoming unplanned chapter | `/authorkit.chapter.plan [N]` |
+      | Discussion still needed before acting | `/authorkit.discuss [topic]` |
+
+      Provide the specific invocation — e.g., `/authorkit.amend Change Marcus from a soldier to a spy` — not just the command name.
 
    e. Report: Decision resolved, any recommended follow-up actions.
 
@@ -163,6 +171,6 @@ The following commands check `parked-decisions.md` for deadline proximity:
 - **Be specific about deadlines.** "Eventually" is acceptable, but "Before CH12" is better. The earlier a deadline is known, the better.
 - **Track options.** Even vague options help future resolution. Capture what the author is considering.
 - **Warn proactively.** When deadlines approach, warn loudly — but don't force resolution.
-- **Resolution is action.** Resolving a parked decision often triggers downstream work (pivot, revise, world update). Always suggest next steps.
+- **Resolution is action.** Resolving a parked decision often triggers downstream work (amend, revise, world.sync). Always suggest next steps.
 - **Keep the file clean.** Resolved decisions stay in the file (for historical reference) but are clearly marked RESOLVED.
 

@@ -145,11 +145,11 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
    e. **Phase 5 — Update cross-references**:
       - **outline.md**: Update all chapter references
-      - **world/ files**: Update all `(CHxx)`, `(CHxx-rev)`, `(RETCON-date)` tags
+      - **world/ files**: Update all `(CHxx)`, `(CHxx-rev)`, `(AMEND-date)` tags
       - **Chapter plans**: Update references to other chapters (e.g., "continues from CH03")
       - **Chapter drafts**: Update any explicit chapter references in prose (rare but possible in non-fiction)
       - **parked-decisions.md** (if exists): Update deadline references (e.g., "Before CH12")
-      - **Pivot logs** (if exist): Note the renumbering but don't rewrite history
+      - **Amendment logs** in `amendments/` (or legacy `pivots/`) if they exist: Note the renumbering but don't rewrite history
 
    f. **Phase 6 — Update outline.md**:
       - Reorder chapter entries to match new structure

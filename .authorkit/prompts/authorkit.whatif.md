@@ -10,6 +10,12 @@ handoffs:
   - label: Discard What-If
     agent: authorkit.whatif
     prompt: Discard this what-if branch and return to the source branch
+  - label: Analyze After Merge
+    agent: authorkit.analyze
+    prompt: Verify consistency after merging the what-if experiment
+  - label: Sync World After Merge
+    agent: authorkit.world.sync
+    prompt: Rebuild world index and verify world files after merging experimental changes
 scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
@@ -165,7 +171,9 @@ The command operates in four modes:
       - Delete the what-if branch: `git branch -d whatif/[slug]`
       - Remove `whatif-active.md`
       - Update the snapshot file to note the experiment was accepted
-   e. Report: Merge complete, recommend running `/authorkit.analyze` to verify consistency.
+   e. Report: Merge complete. **Always recommend both**:
+      - `/authorkit.analyze` — verify narrative consistency across all chapters
+      - `/authorkit.world.sync` — rebuild world index and catch any world/ conflicts introduced by the merge
 
 6. **Discard Mode** — Abandon the experiment:
 

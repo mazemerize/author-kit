@@ -104,7 +104,7 @@ for sub in sub_dirs:
             lines = text.splitlines()
             name = next((re.sub(r"^#\\s+", "", l).strip() for l in lines if l.startswith("# ")), f.stem.replace("-", " ").title())
             prefix, typ = type_map.get(sub, ("misc-", "misc"))
-            ch = sorted(set(re.findall(r"\\((CONCEPT|CH\\d{2}|CH\\d{2}-rev|RETCON-\\d{4}-\\d{2}-\\d{2}|PIVOT-\\d{4}-\\d{2}-\\d{2})\\)", text)))
+            ch = sorted(set(re.findall(r"\\((CONCEPT|CH\\d{2}|CH\\d{2}-rev|AMEND-\\d{4}-\\d{2}-\\d{2}|RETCON-\\d{4}-\\d{2}-\\d{2}|PIVOT-\\d{4}-\\d{2}-\\d{2})\\)", text)))
             ent = {
                 "id": f"{prefix}{kebab(name)}",
                 "type": typ,
