@@ -11,6 +11,7 @@ handoffs:
     agent: authorkit.whatif
     prompt: Start an experimental branch from this snapshot
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -55,7 +56,7 @@ The command operates in three modes:
       - outline.md: Structure overview
       - world/ folder: Count of entity files per category
       - parked-decisions.md (if exists): Count of OPEN decisions
-      - amendments/ (or legacy pivots/) if exists: Count of previous amendments
+      - amendments/ if exists: Count of previous amendments
 
    c. **Create snapshot file** at `BOOK_DIR/snapshots/YYYY-MM-DD-[slug].md`:
 
@@ -145,7 +146,7 @@ The command operates in three modes:
       | Chapters approved | [N] | [N] | +[N] |
       | Total word count | [N] | [N] | +[N] |
       | world/ files | [N] | [N] | +[N] |
-      | Pivots since | - | [N] | [list] |
+      | Amendments since | - | [N] | [list] |
 
       ### Decision Outcome
 

@@ -1,6 +1,9 @@
 ---
 description: Build the book's world before writing - establish rules, geography, characters, history, and systems.
 handoffs:
+  - label: Clarify Concept First
+    agent: authorkit.clarify
+    prompt: Resolve concept ambiguities before world-building
   - label: Discuss World Ideas
     agent: authorkit.discuss
     prompt: Brainstorm world-building ideas before committing
@@ -18,8 +21,9 @@ handoffs:
     prompt: New world rules conflict with already-drafted chapters — propagate the correct version
   - label: Research A Topic
     agent: authorkit.research
-    prompt: Research a world-building topic before adding it to world files
+    prompt: Research [topic] before adding it to world files
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
@@ -43,9 +47,11 @@ This command can be run multiple times to iteratively deepen specific areas.
 
 2. **Load context**:
    - **Required**: concept.md (premise, genre, themes, characters, setting)
-   - **Optional**: `/memory/constitution.md` (voice, tone — informs world-building style)
+   - **Optional**: `.authorkit/memory/constitution.md` (voice, tone — informs world-building style)
    - **Optional**: Existing `world/` folder (if running iteratively to deepen)
    - **Optional**: `research.md` and relevant `research/` topic files discovered recursively (use these grounded findings as inputs when they match requested focus areas)
+
+   **Concept clarity check**: Scan `concept.md` for `[NEEDS CLARIFICATION]` markers or an unresolved `## Clarifications` section. If unresolved items touch the requested focus area (e.g., the user asked to build the magic system and the concept has an open clarification about magic), warn the user and recommend running `/authorkit.clarify` first. The user may explicitly choose to proceed regardless.
 
 3. **Assess genre and determine relevant categories**:
 
@@ -299,7 +305,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - [Note] (CONCEPT)
    ```
 
-8. **Build the world/ index**: Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to generate `world/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
+8. **Build the world/ index**: Run `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root to generate `world/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
 
 9. **Internal consistency validation**:
    - Check that character relationships are reciprocal (if A is B's enemy, B should know about A)

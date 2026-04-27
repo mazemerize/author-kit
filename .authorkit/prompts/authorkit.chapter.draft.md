@@ -17,6 +17,7 @@ handoffs:
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N+1]
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -54,27 +55,21 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 4. **Load all context** for writing:
    - **Required**: `chapters/NN/plan.md` (the scene/section breakdown, beats, arc)
    - **Required**: concept.md (voice, tone, overall themes)
-   - **Required**: `/memory/constitution.md` (writing principles - this is your style guide)
+   - **Required**: `.authorkit/memory/constitution.md` (writing principles - this is your style guide)
    - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (refresh before drafting)
    - **Recommended**: characters.md (character voices, speech patterns, physical descriptions)
    - **Recommended**: `world/` folder files for characters and locations appearing in this chapter (ensures setting/character detail consistency with established world). **If `world/_index.md` exists**: Read it. Use the Chapter Manifest to find entities from the previous chapter. Resolve character/location names from the chapter plan via the Alias Lookup. Load only the world/ files identified by these lookups, rather than all world/ files.
    - **Recommended**: Previous chapter draft `chapters/NN-1/draft.md` (for continuity of voice, scene transitions, and ongoing threads)
    - **Optional**: outline.md (overall structure context)
    - **Optional**: research.md and relevant `research/` topic files discovered recursively (scope `general`, `chapter CHNN`, or topic files directly tied to this chapter's domains)
+   - **Optional**: `parked-decisions.md` — if it exists, scan for any OPEN decisions whose deadline is at or before this chapter number. If found, warn: "⚠️ Parked decision [PD-NNN] is due before or at this chapter: [summary]. Consider resolving it with `/authorkit.park resolve PD-NNN` before drafting." Allow proceeding if the user explicitly opts in.
 
 5. **Build or refresh style anchor** at `STYLE_ANCHOR` before drafting:
    - Source style from constitution + the last two approved chapters (`[X]`) before this chapter number.
    - Fallbacks:
      - If one approved chapter exists: use constitution + that chapter.
      - If none exist: use constitution only.
-   - Write the style anchor using this fixed schema:
-     - `## Non-Negotiables (POV, Tense, Narrative Distance)`
-     - `## Cadence Profile (Sentence and Paragraph Rhythm)`
-     - `## Dialogue Profile`
-     - `## Diction and Register`
-     - `## Imagery Density and Taboo Patterns`
-     - `## Drift Red Flags`
-     - `## Provenance`
+   - Load `.authorkit/templates/style-anchor-template.md` for the canonical section order and headings, then **write the resolved style anchor to `BOOK_DIR/style-anchor.md`** following the template's structure exactly.
 
 6. **Pre-flight checks**:
    - Load constitution and internalize the voice/style rules

@@ -11,10 +11,14 @@ handoffs:
     agent: authorkit.outline
     prompt: Create an outline for this book concept.
   - label: Clarify Book Concept
-    agent: authorkit.discuss
+    agent: authorkit.clarify
     prompt: Clarify the book concept — resolve ambiguities
     send: true
+  - label: Update Constitution
+    agent: authorkit.constitution
+    prompt: Refine voice, tone, and style rules to match this concept
 scripts:
+  sh: scripts/bash/setup-book.sh --json
   ps: scripts/powershell/setup-book.ps1 -Json
 ---
 
@@ -28,13 +32,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-The text the user typed after `/authorkit.conceive` in the triggering message **is** the book description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `/authorkit.conceive` in the triggering message **is** the book description. Use the `## User Input` block above as the source. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that book description, do this:
 
 1. **Initialize single-book workspace**:
    - Run `{{SCRIPT_SETUP_BOOK}}` from repo root.
-   - Parse JSON output keys: `BOOK_DIR`, `CONCEPT_FILE`, `BOOK_TOML`, `HAS_GIT`.
+   - Parse JSON output keys: `BOOK_DIR`, `CONCEPT_FILE`, `STYLE_ANCHOR`, `BOOK_TOML`, `HAS_GIT`.
    - Do not create or rename git branches in this command.
 
 2. Load `templates/concept-template.md` to understand required sections.
@@ -72,54 +76,32 @@ Given that book description, do this:
 
 4. Write the concept to CONCEPT_FILE using the template structure, replacing placeholders with concrete details derived from the book description while preserving section order and headings.
 
-5. **Concept Quality Validation**: After writing the initial concept, validate it:
+5. **Concept Quality Validation**: After writing the initial concept, validate it inline against these criteria — do **not** create a separate checklist file:
 
-   a. **Create Concept Quality Checklist**: Generate a checklist file at `BOOK_DIR/checklists/concept-quality.md`:
+   **Content quality**
+   - Premise is compelling and clear in one sentence
+   - Genre and audience are well-defined
+   - Themes are distinct and relevant to the premise
+   - Characters/subjects have clear roles and motivations
+   - Voice and tone are specific and consistent with genre
 
-      ```markdown
-      # Concept Quality Checklist: [BOOK TITLE]
+   **Completeness**
+   - No `[NEEDS CLARIFICATION]` markers remain (or, if present, ≤ 3 and high-impact only)
+   - Success criteria are measurable
+   - Scope is realistic for the genre
+   - All mandatory sections completed
+   - Comparable titles are relevant and well-chosen
 
-      **Purpose**: Validate concept completeness and quality before outlining
-      **Created**: [DATE]
-      **Book**: [Link to concept.md]
+   **Readiness**
+   - Concept is specific enough to outline from
+   - No contradictions between sections
+   - Tone description could guide consistent writing
 
-      ## Content Quality
+   **Handling results**:
+   - If all criteria pass: proceed to reporting.
+   - If `[NEEDS CLARIFICATION]` markers remain (max 3): present each as a question with options, wait for user answers, then update the concept.
 
-      - [ ] Premise is compelling and clear in one sentence
-      - [ ] Genre and audience are well-defined
-      - [ ] Themes are distinct and relevant to the premise
-      - [ ] characters/subjects have clear roles and motivations
-      - [ ] Voice and tone are specific and consistent with genre
-
-      ## Completeness
-
-      - [ ] No [NEEDS CLARIFICATION] markers remain
-      - [ ] Success criteria are measurable
-      - [ ] Scope is realistic for the genre
-      - [ ] All mandatory sections completed
-      - [ ] Comparable titles are relevant and well-chosen
-
-      ## Readiness
-
-      - [ ] Concept is specific enough to outline from
-      - [ ] No contradictions between sections
-      - [ ] Tone description could guide consistent writing
-
-      ## Notes
-
-      - Items marked incomplete require concept updates before `/authorkit.discuss` (clarify mode) or `/authorkit.outline`
-      ```
-
-   b. **Run Validation Check**: Review the concept against each checklist item.
-
-   c. **Handle Validation Results**:
-
-      - **If all items pass**: Mark checklist complete and proceed to reporting.
-
-      - **If [NEEDS CLARIFICATION] markers remain** (max 3):
-        Present each as a question with options, wait for user answers, then update the concept.
-
-6. Report completion with concept path, checklist results, and readiness for the next phase (`/authorkit.discuss` to clarify ambiguities, or `/authorkit.outline`).
+6. Report completion with the concept path, which validation criteria passed/failed, and readiness for the next phase (`/authorkit.clarify` to resolve concept ambiguities, `/authorkit.discuss` to brainstorm openly, or `/authorkit.outline`).
 
 ## General Guidelines
 

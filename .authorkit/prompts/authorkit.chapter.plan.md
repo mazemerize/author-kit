@@ -4,6 +4,9 @@ handoffs:
   - label: Draft This Chapter
     agent: authorkit.chapter.draft
     prompt: Draft chapter [N]
+  - label: Clarify Concept First
+    agent: authorkit.clarify
+    prompt: Resolve concept ambiguities that touch this chapter before planning
   - label: Discuss Direction First
     agent: authorkit.discuss
     prompt: Talk through the chapter's direction, character motivation, or scene purpose before drafting
@@ -17,6 +20,7 @@ handoffs:
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N+1]
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -39,13 +43,13 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 3. **Load context** (read all available):
    - **Required**: outline.md (this chapter's entry + overall structure)
-   - **Required**: concept.md (voice, tone, themes, characters)
+   - **Required**: concept.md (voice, tone, themes, characters). Also scan for `[NEEDS CLARIFICATION]` markers and an unresolved `## Clarifications` section. If unresolved items touch this chapter's events, characters, or themes, warn the user and recommend `/authorkit.clarify` before planning. Allow proceeding if the user explicitly opts in.
    - **Required**: chapters.md (chapter status, dependencies)
    - **Optional**: `parked-decisions.md` — if it exists, scan for any OPEN decisions whose deadline is at or before this chapter number. If found, warn: "⚠️ Parked decision [PD-NNN] is due before or at this chapter: [summary]. Consider resolving it with `/authorkit.park resolve PD-NNN` before planning."
    - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (create or refresh before planning)
    - **Recommended**: characters.md (character profiles for this chapter)
    - **Optional**: research.md and relevant `research/` topic files discovered recursively (prefer scope `general`, `outline`, `chapter CHNN`; if many files exist, load only those matching this chapter's entities/topics)
-   - **Optional**: `/memory/constitution.md` (writing principles)
+   - **Optional**: `.authorkit/memory/constitution.md` (writing principles)
    - **Optional**: `world/` folder files relevant to this chapter's characters, locations, and systems (ensures world consistency). **If `world/_index.md` exists**: Read it. Use the Chapter Manifest to find entities from the previous chapter (carry-over context). Resolve entity names mentioned in the outline entry for this chapter via the Alias Lookup. Load only the world/ files identified by these lookups, rather than all world/ files.
    - **Optional**: Previous chapter drafts in `chapters/NN-1/draft.md` (for continuity)
    - **Optional**: Previous chapter plans in `chapters/NN-1/plan.md` (for context)
@@ -70,14 +74,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - Fallbacks:
      - If one approved chapter exists: use constitution + that chapter.
      - If none exist: use constitution only.
-   - Write the style anchor using this fixed schema:
-     - `## Non-Negotiables (POV, Tense, Narrative Distance)`
-     - `## Cadence Profile (Sentence and Paragraph Rhythm)`
-     - `## Dialogue Profile`
-     - `## Diction and Register`
-     - `## Imagery Density and Taboo Patterns`
-     - `## Drift Red Flags`
-     - `## Provenance`
+   - Load `.authorkit/templates/style-anchor-template.md` for the canonical section order and headings, then **write the resolved style anchor to `BOOK_DIR/style-anchor.md`** following the template's structure exactly.
 
 7. **Create chapter directory**: Ensure `BOOK_DIR/chapters/NN/` exists (create if needed).
 

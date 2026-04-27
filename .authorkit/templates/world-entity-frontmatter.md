@@ -1,6 +1,6 @@
 # World Entity Frontmatter Schema
 
-This document defines the YAML frontmatter schema for world/ entity files. Both the PowerShell index builder (`build-world-index.ps1`) and the AI assistant reference this schema.
+This document defines the YAML frontmatter schema for world/ entity files. Both index builders (`build-world-index.sh`, `build-world-index.ps1`) and the AI assistant reference this schema.
 
 ## Frontmatter Block
 
@@ -100,8 +100,6 @@ The `chapters` field aggregates all evolution tags found in the file body:
 | `CHxx` | First appeared or confirmed in chapter xx | `CH01`, `CH03` |
 | `CHxx-rev` | Updated when chapter xx was revised | `CH07-rev` |
 | `AMEND-YYYY-MM-DD` | Changed during a direction or fact amendment (`/authorkit.amend`) | `AMEND-2026-02-13` |
-| `PIVOT-YYYY-MM-DD` | Legacy: changed during a direction pivot (pre-amend consolidation) | `PIVOT-2026-02-13` |
-| `RETCON-YYYY-MM-DD` | Legacy: changed during a retroactive fact change (pre-amend consolidation) | `RETCON-2026-02-13` |
 
 ## Relationship Conventions
 
@@ -127,7 +125,7 @@ Relationships should ideally be reciprocal: if Iria has `member-of` → Iron Gui
 
 ## Backward Compatibility
 
-Files without frontmatter remain valid. The PowerShell index builder (`build-world-index.ps1`) handles them by:
+Files without frontmatter remain valid. The index builders (`build-world-index.sh`, `build-world-index.ps1`) handle them by:
 
 1. Deriving `id` from the file path (e.g., `characters/iria-calder.md` → `char-iria-calder`)
 2. Extracting `name` from the first H1 heading

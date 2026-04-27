@@ -8,8 +8,8 @@ handoffs:
   - label: Analyze For Consistency
     agent: authorkit.analyze
     prompt: Run a cross-chapter consistency analysis
-    send: true
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json
   ps: scripts/powershell/check-prerequisites.ps1 -Json
 ---
 
@@ -98,6 +98,4 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. Include part purpose and checkpoint criteria
 3. Note key dependencies between chapters
 4. Track cross-chapter elements (recurring motifs, evolving relationships, building arguments)
-
-Context for chapter generation: {ARGS}
 

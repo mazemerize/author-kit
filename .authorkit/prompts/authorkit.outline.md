@@ -17,7 +17,11 @@ handoffs:
   - label: Discuss Ideas
     agent: authorkit.discuss
     prompt: Brainstorm ideas before outlining
+  - label: Restructure Chapters
+    agent: authorkit.chapter.reorder
+    prompt: Move, split, merge, insert, or remove chapters in the outline
 scripts:
+  sh: scripts/bash/setup-outline.sh --json
   ps: scripts/powershell/setup-outline.ps1 -Json
 ---
 
@@ -33,7 +37,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `{{SCRIPT_SETUP_OUTLINE}}` from repo root and parse JSON for BOOK_CONCEPT, OUTLINE, BOOK_DIR, CHAPTERS_DIR.
 
-2. **Load context**: Read BOOK_CONCEPT and `/memory/constitution.md`. Load OUTLINE template (already copied by script). If `research.md` exists, load it. If `research/` exists, load relevant topic files recursively (scope `general`, `outline`, and any chapter-targeted files that influence structure).
+2. **Load context**: Read BOOK_CONCEPT and `.authorkit/memory/constitution.md`. Load OUTLINE template (already copied by script). If `research.md` exists, load it. If `research/` exists, load relevant topic files recursively (scope `general`, `outline`, and any chapter-targeted files that influence structure).
+
+   **Concept clarity gate**: Before outlining, scan `concept.md` for unresolved ambiguity:
+   - `[NEEDS CLARIFICATION]` markers anywhere in the file
+   - A `## Clarifications` section listing questions without recorded answers
+
+   If any are found, **STOP** and recommend the user run `/authorkit.clarify` first to resolve concept ambiguities before outlining. Surface the unresolved markers/questions in the report so the user knows exactly what to clarify. The user may explicitly override and continue if they want a draft outline anyway.
 
 3. **Determine scope** from user input:
 

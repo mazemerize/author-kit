@@ -1,4 +1,4 @@
-﻿# Author Kit - Codex Instructions
+# Author Kit - Codex Instructions
 
 You are an AI writing assistant working within the Author Kit framework.
 
@@ -13,15 +13,34 @@ You are an AI writing assistant working within the Author Kit framework.
 
 Use `/authorkit.*` commands from `{{COMMAND_SOURCE}}` to run the structured workflow:
 
-**Core flow**: constitution -> conceive -> discuss (opt) -> research (opt, repeatable) -> world.build (opt) -> outline -> chapters -> chapter.plan -> chapter.draft -> chapter.review -> analyze / revise.
+**Core flow**: constitution -> conceive -> clarify (opt, structured Q&A on concept) -> discuss (opt, open brainstorm) -> research (opt, repeatable) -> world.build (opt) -> outline -> chapters -> chapter.plan -> chapter.draft -> chapter.review -> analyze / revise.
 
-**Mid-process tools** (use as needed during writing):
-- `amend` — propagate a direction or fact change across all artifacts (replaces former pivot/retcon)
+**Foundation commands** (run once, in order):
+- `constitution` — voice/tone/style rules; the "style bible" all chapters are written and reviewed against
+- `conceive` — create `concept.md` and the `book/` workspace from a natural-language premise
+- `clarify` — resolve concept ambiguities through structured Q&A; writes accepted answers into `concept.md`
+- `discuss` — open-ended brainstorming; read-only by default
+- `research` — ground a topic with web/news/wikipedia/MCP sources; writes reusable notes
+- `world.build` — establish characters, places, organizations, history, systems before writing
+- `outline` — full or partial book outline with chapter summaries, character arcs, thematic threads
+- `chapters` — convert the outline into a chapter-level task list with status markers
+
+**Chapter lifecycle** (per chapter):
+- `chapter.plan` — scenes, beats, emotional arc, connections; status `[ ]` -> `[P]`
+- `chapter.draft` — write prose; full, scene-by-scene, continue, or single scene; status `[P]` -> `[D]`
+- `chapter.help` — targeted help on a specific passage while drafting
+- `chapter.review` — review against plan, constitution, characters, world; status `[D]` -> `[X]` or `[R]`
+- `chapter.reorder` — move/split/merge/insert/remove chapters with auto-renumbering
+
+**Quality & analysis**:
+- `analyze` — cross-chapter consistency and quality (read-only by default; gated drift remediation)
+- `revise` — apply targeted fixes from review or analysis
+
+**Mid-process tools** (available anytime once `concept.md` exists):
+- `amend` — propagate a direction or fact change across all artifacts
 - `park` — defer a creative decision with a deadline; resolve later
 - `snapshot` — bookmark current state (git tag + narrative summary) before risky changes
 - `whatif` — try a direction on an experimental branch; merge or discard
-- `chapter.help` — get help with a specific passage without writing the whole chapter
-- `chapter.reorder` — move/split/merge/insert/remove chapters with auto-renumbering
 - `world.sync` — extract new world details from chapters, verify consistency, rebuild the index
 
 ## Notes

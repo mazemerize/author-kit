@@ -11,7 +11,11 @@ handoffs:
     agent: authorkit.analyze
     prompt: Run a fresh cross-chapter analysis
     send: true
+  - label: Clarify Concept First
+    agent: authorkit.clarify
+    prompt: Resolve concept ambiguities before applying the revision
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -60,14 +64,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
       - Fallbacks:
         - If one approved chapter exists: use constitution + that chapter.
         - If none exist: use constitution only.
-      - Use this fixed schema:
-        - `## Non-Negotiables (POV, Tense, Narrative Distance)`
-        - `## Cadence Profile (Sentence and Paragraph Rhythm)`
-        - `## Dialogue Profile`
-        - `## Diction and Register`
-        - `## Imagery Density and Taboo Patterns`
-        - `## Drift Red Flags`
-        - `## Provenance`
+      - Load `.authorkit/templates/style-anchor-template.md` for the canonical section order and headings, then **write the resolved style anchor to `BOOK_DIR/style-anchor.md`** following the template's structure exactly.
 
    c. **Apply revisions to the draft**:
       - Make targeted edits to `chapters/NN/draft.md`

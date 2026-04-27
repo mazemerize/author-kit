@@ -1,9 +1,21 @@
 ---
-description: Create or update the book constitution - voice, tone, style guide, and writing principles.
+description: Create or update the book constitution — voice, tone, style guide, and writing principles. The style bible that all chapters are written and reviewed against.
 handoffs:
   - label: Conceive Book
     agent: authorkit.conceive
     prompt: Define the book concept. The book is about...
+  - label: Outline The Book
+    agent: authorkit.outline
+    prompt: Generate the outline using the established voice and style
+  - label: Build The World
+    agent: authorkit.world.build
+    prompt: Build the world's rules, places, and systems
+  - label: Analyze For Drift
+    agent: authorkit.analyze
+    prompt: Surface drift after a voice/style update to the constitution
+  - label: Revise Affected Chapters
+    agent: authorkit.revise
+    prompt: Bring drafted chapters back in line with the updated voice/style
 ---
 
 ## User Input
@@ -14,13 +26,19 @@ handoffs:
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Goal
+
+Establish the writing principles — voice, tone, audience, prose standards, and structural rules — that every chapter is drafted against and every review measures. The constitution is the single source of truth for "what does this book sound like?"
+
+Run this once before `/authorkit.conceive`. Re-run when the voice or rules need to evolve; the version bumps automatically.
+
 ## Outline
 
-You are updating the book constitution at `/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[BOOK_TITLE]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) ensure all writing guidelines are clear and actionable.
+You are updating the book constitution at `.authorkit/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[BOOK_TITLE]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) ensure all writing guidelines are clear and actionable.
 
 Follow this execution flow:
 
-1. Load the existing constitution template at `/memory/constitution.md`.
+1. Load the existing constitution template at `.authorkit/memory/constitution.md`.
    - Identify every placeholder token of the form `[ALL_CAPS_IDENTIFIER]`.
    **IMPORTANT**: The user might require fewer or more principles than the template provides. Adjust accordingly.
 
@@ -54,10 +72,13 @@ Follow this execution flow:
    - Dates in ISO format YYYY-MM-DD.
    - Each principle could be used as a review criterion.
 
-6. Write the completed constitution back to `/memory/constitution.md` (overwrite).
+6. Write the completed constitution back to `.authorkit/memory/constitution.md` (overwrite).
 
 7. Output a final summary to the user with:
    - New version and bump rationale.
    - Key principles established.
-   - Suggested next step: `/authorkit.conceive` to define the book concept.
+   - Suggested next step (pick based on context):
+     - First run (no `concept.md` yet): `/authorkit.conceive` to define the book concept.
+     - Re-run mid-book with material voice/style change: `/authorkit.analyze` to surface drift, then `/authorkit.revise` (or re-`chapter.review` affected chapters) to bring the manuscript back in line.
+     - Minor wording refinement only: no follow-up needed.
 

@@ -5,7 +5,6 @@
 $AUTHORKIT_BOOK_DIR = 'book'
 $AUTHORKIT_WORLD_DIR = 'world'
 $AUTHORKIT_CHAPTERS_DIR = 'chapters'
-$AUTHORKIT_CHECKLISTS_DIR = 'checklists'
 $AUTHORKIT_DIST_DIR = 'dist'
 
 function Get-RepoRoot {
@@ -46,15 +45,6 @@ function Test-HasGit {
     }
 }
 
-function Test-BookBranch {
-    param(
-        [string]$Branch,
-        [bool]$HasGit = $true
-    )
-    # Deprecated no-op retained for compatibility with older scripts.
-    return $true
-}
-
 function Get-BookDir {
     param([string]$RepoRoot)
     Join-Path $RepoRoot $AUTHORKIT_BOOK_DIR
@@ -79,9 +69,21 @@ function Get-BookPaths {
         CHARACTERS     = Join-Path $bookDir 'characters.md'
         WORLD_DIR      = Join-Path $bookDir $AUTHORKIT_WORLD_DIR
         CHAPTERS_DIR   = Join-Path $bookDir $AUTHORKIT_CHAPTERS_DIR
-        CHECKLISTS_DIR = Join-Path $bookDir $AUTHORKIT_CHECKLISTS_DIR
         DIST_DIR       = Join-Path $bookDir $AUTHORKIT_DIST_DIR
     }
+}
+
+function Get-BookPathsJson {
+    $paths = Get-BookPaths
+    [PSCustomObject]@{
+        REPO_ROOT    = $paths.REPO_ROOT
+        BOOK_DIR     = $paths.BOOK_DIR
+        BOOK_CONCEPT = $paths.BOOK_CONCEPT
+        STYLE_ANCHOR = $paths.STYLE_ANCHOR
+        OUTLINE      = $paths.OUTLINE
+        CHAPTERS     = $paths.CHAPTERS
+        HAS_GIT      = $paths.HAS_GIT
+    } | ConvertTo-Json -Compress
 }
 
 function Test-FileExists {

@@ -14,6 +14,7 @@ handoffs:
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N] with updated research context
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
@@ -43,7 +44,7 @@ By default, this command is **suggest-only** and does not modify `world/` files.
 
 ## Outline
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}} -Json -PathsOnly` from repo root and parse `BOOK_DIR` and `BOOK_CONCEPT`. All paths must be absolute.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root (the `scripts:` frontmatter selects the right shell-flavor flags) and parse `BOOK_DIR` and `BOOK_CONCEPT`. All paths must be absolute.
 
 2. **Parse user intent and optional directives**:
    - Infer topic, scope, source preferences, and sync intent from free-form text first.

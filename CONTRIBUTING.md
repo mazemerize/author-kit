@@ -35,7 +35,7 @@ Do not re-introduce duplicated prompt sources across agent folders in this repo.
 - Preserve backward-compatible CLI behavior unless the change explicitly updates docs and migration expectations.
 - Avoid destructive behavior in installer updates; managed files should be tracked through `.authorkit/install-manifest.json`.
 - Author Kit is a single-book-per-repo model; use `book/` as the canonical workspace path.
-- Use lowercase directory names under `book/...` (`world/`, `chapters/`, `checklists/`, `dist/` and `world/<entity-subdirs>/`).
+- Use lowercase directory names under `book/...` (`world/`, `chapters/`, `dist/` and `world/<entity-subdirs>/`).
 
 ## Running Local Checks
 

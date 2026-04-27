@@ -5,20 +5,22 @@ param(
     [switch]$Json,
     [string]$Title,
     [string]$Author,
+    [string]$Subtitle,
     [string]$Language,
     [switch]$Help
 )
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: ./setup-book.ps1 [-Json] [-Title <title>] [-Author <author>] [-Language <language>]"
+    Write-Host "Usage: ./setup-book.ps1 [-Json] [-Title <title>] [-Author <author>] [-Subtitle <subtitle>] [-Language <language>]"
     Write-Host ""
     Write-Host "Options:"
-    Write-Host "  -Json             Output in JSON format"
-    Write-Host "  -Title <title>    Set or override title in book.toml"
-    Write-Host "  -Author <author>  Set or override author in book.toml"
-    Write-Host "  -Language <lang>  Set or override language (default: en-US)"
-    Write-Host "  -Help             Show this help message"
+    Write-Host "  -Json                 Output in JSON format"
+    Write-Host "  -Title <title>        Set or override title in book.toml"
+    Write-Host "  -Author <author>      Set or override author in book.toml"
+    Write-Host "  -Subtitle <subtitle>  Set or override subtitle in book.toml"
+    Write-Host "  -Language <lang>      Set or override language (default: en-US)"
+    Write-Host "  -Help                 Show this help message"
     exit 0
 }
 
@@ -88,20 +90,24 @@ if ((Test-Path $styleTemplate) -and (-not (Test-Path $styleAnchorFile -PathType 
 
 $existingTitle = Read-ExistingTomlValue -Path $bookTomlPath -Key 'title'
 $existingAuthor = Read-ExistingTomlValue -Path $bookTomlPath -Key 'author'
+$existingSubtitle = Read-ExistingTomlValue -Path $bookTomlPath -Key 'subtitle'
 $existingLanguage = Read-ExistingTomlValue -Path $bookTomlPath -Key 'language'
 
 $defaultTitle = if ($existingTitle) { $existingTitle } else { 'Untitled Book' }
 $defaultAuthor = if ($existingAuthor) { $existingAuthor } else { 'Unknown Author' }
+$defaultSubtitle = if ($existingSubtitle) { $existingSubtitle } else { '' }
 $defaultLanguage = if ($existingLanguage) { $existingLanguage } else { 'en-US' }
 
 if ($Json) {
     $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { $defaultTitle } else { $Title.Trim() }
     $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { $defaultAuthor } else { $Author.Trim() }
+    $bookSubtitle = if ($null -eq $Subtitle -or [string]::IsNullOrWhiteSpace($Subtitle)) { $defaultSubtitle } else { $Subtitle.Trim() }
     $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { $defaultLanguage } else { $Language.Trim() }
 } else {
     Write-Output "Initialize book metadata (book.toml):"
     $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { Read-MetadataValue -Label 'Title' -DefaultValue $defaultTitle } else { $Title.Trim() }
     $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { Read-MetadataValue -Label 'Author' -DefaultValue $defaultAuthor } else { $Author.Trim() }
+    $bookSubtitle = if ($null -eq $Subtitle -or [string]::IsNullOrWhiteSpace($Subtitle)) { Read-MetadataValue -Label 'Subtitle' -DefaultValue $defaultSubtitle } else { $Subtitle.Trim() }
     $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { Read-MetadataValue -Label 'Language' -DefaultValue $defaultLanguage } else { $Language.Trim() }
 }
 
@@ -110,7 +116,7 @@ $bookToml = @"
 title = "$bookTitle"
 author = "$bookAuthor"
 language = "$bookLanguage"
-subtitle = ""
+subtitle = "$bookSubtitle"
 
 [build]
 default_formats = ["docx"]
@@ -120,7 +126,7 @@ epub_css = ".authorkit/templates/publishing/epub.css"
 [audio]
 provider = "openai"
 model = "gpt-4o-mini-tts"
-voice = "onyx"
+voice = "marin"
 instructions = ".authorkit/templates/publishing/audio-instructions.txt"
 speaking_rate_wpm = 170
 

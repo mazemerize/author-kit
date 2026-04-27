@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
 JSON_MODE=false
@@ -64,7 +64,7 @@ type_map = {
 }
 
 def kebab(s: str) -> str:
-    s = re.sub(r"^(the|a|an)\\s+", "", s.strip().lower())
+    s = re.sub(r"^(the|a|an)\s+", "", s.strip().lower())
     s = re.sub(r"[^a-z0-9]+", "-", s)
     return re.sub(r"-+", "-", s).strip("-")
 
@@ -77,18 +77,18 @@ for sub in sub_dirs:
     for f in sorted(d.rglob("*.md")):
         text = f.read_text(encoding="utf-8")
         rel = f.relative_to(world_dir).as_posix()
-        m = re.match(r"---\\n(.*?)\\n---\\n", text, flags=re.S)
+        m = re.match(r"---\n(.*?)\n---\n", text, flags=re.S)
         if m:
             fm = m.group(1)
             def extract(key, default=""):
-                mm = re.search(rf"^{key}:\\s*(.+)$", fm, re.M)
+                mm = re.search(rf"^{key}:\s*(.+)$", fm, re.M)
                 return mm.group(1).strip() if mm else default
             name = extract("name") or f.stem.replace("-", " ").title()
             aliases = []
-            am = re.search(r"^aliases:\\s*\\[([^\\]]*)\\]", fm, re.M)
+            am = re.search(r"^aliases:\s*\[([^\]]*)\]", fm, re.M)
             if am and am.group(1).strip(): aliases = [x.strip() for x in am.group(1).split(",")]
             ch = []
-            cm = re.search(r"^chapters:\\s*\\[([^\\]]*)\\]", fm, re.M)
+            cm = re.search(r"^chapters:\s*\[([^\]]*)\]", fm, re.M)
             if cm and cm.group(1).strip(): ch = [x.strip() for x in cm.group(1).split(",")]
             entities.append({
                 "id": extract("id") or f"{type_map.get(sub, ('misc-','misc'))[0]}{kebab(name)}",
@@ -102,16 +102,16 @@ for sub in sub_dirs:
             })
         else:
             lines = text.splitlines()
-            name = next((re.sub(r"^#\\s+", "", l).strip() for l in lines if l.startswith("# ")), f.stem.replace("-", " ").title())
+            name = next((re.sub(r"^#\s+", "", l).strip() for l in lines if l.startswith("# ")), f.stem.replace("-", " ").title())
             prefix, typ = type_map.get(sub, ("misc-", "misc"))
-            ch = sorted(set(re.findall(r"\\((CONCEPT|CH\\d{2}|CH\\d{2}-rev|AMEND-\\d{4}-\\d{2}-\\d{2}|RETCON-\\d{4}-\\d{2}-\\d{2}|PIVOT-\\d{4}-\\d{2}-\\d{2})\\)", text)))
+            ch = sorted(set(re.findall(r"\((CONCEPT|CH\d{2}|CH\d{2}-rev|AMEND-\d{4}-\d{2}-\d{2})\)", text)))
             ent = {
                 "id": f"{prefix}{kebab(name)}",
                 "type": typ,
                 "name": name,
                 "aliases": [],
                 "chapters": ch,
-                "first": next((x for x in ch if re.match(r"^CH\\d{2}$", x)), "CONCEPT"),
+                "first": next((x for x in ch if re.match(r"^CH\d{2}$", x)), "CONCEPT"),
                 "rel": rel,
                 "has_frontmatter": False,
             }
@@ -119,8 +119,9 @@ for sub in sub_dirs:
             files_wo.append((f, ent))
 
 if add_frontmatter:
+    added = len(files_wo)
     for f, ent in files_wo:
-        block = "\\n".join([
+        block = "\n".join([
             "---",
             f"id: {ent['id']}",
             f"type: {ent['type']}",
@@ -137,6 +138,8 @@ if add_frontmatter:
         f.write_text(block + f.read_text(encoding="utf-8"), encoding="utf-8")
         ent["has_frontmatter"] = True
     files_wo = []
+    if added:
+        print(f"[authorkit] Added frontmatter to {added} file(s)", file=sys.stderr)
 
 if not entities:
     if json_mode:
@@ -144,6 +147,9 @@ if not entities:
     sys.exit(0)
 
 entities.sort(key=lambda x: (x["type"], x["name"]))
+type_counts = {}
+for e in entities:
+    type_counts[e["type"]] = type_counts.get(e["type"], 0) + 1
 registry = ["| ID | Type | Name | Aliases | File | Chapters | First Appearance | Flags |", "|----|------|------|---------|------|----------|-----------------|-------|"]
 alias_rows = ["| Alias | Entity ID | Type | Ambiguous |", "|-------|-----------|------|-----------|"]
 alias_map = {}
@@ -159,9 +165,9 @@ for e in entities:
         alias_map.setdefault(key, {"display": a, "entities": []})["entities"].append((e["id"], e["type"]))
 
     for ch in e["chapters"]:
-        if re.match(r"^(CONCEPT|CH\\d{2}|CH\\d{2}-rev)$", ch):
+        if re.match(r"^(CONCEPT|CH\d{2}|CH\d{2}-rev)$", ch):
             chapter_map.setdefault(ch, set()).add(e["id"])
-        m = re.match(r"^(CH\\d{2})-rev$", ch)
+        m = re.match(r"^(CH\d{2})-rev$", ch)
         if m:
             chapter_map.setdefault(m.group(1), set()).add(e["id"])
 
@@ -176,13 +182,22 @@ for key in sorted(alias_map, key=lambda k: alias_map[k]["display"].lower()):
 chapter_keys = []
 if "CONCEPT" in chapter_map:
     chapter_keys.append("CONCEPT")
-chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\\d{2}$", k)]))
-chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\\d{2}-rev$", k)]))
+chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\d{2}$", k)]))
+chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\d{2}-rev$", k)]))
 manifest = []
 for k in chapter_keys:
     manifest.extend([f"### {k}", ", ".join(sorted(chapter_map[k])), ""])
 
-content = "\\n".join([
+stats_lines = [
+    f"- **Total entities**: {len(entities)}",
+    f"- **Total aliases**: {alias_count}",
+    f"- **Chapters tracked**: {len(chapter_keys)}",
+    f"- **Files with frontmatter**: {sum(1 for e in entities if e['has_frontmatter'])}/{len(entities)}",
+]
+for typ in sorted(type_counts):
+    stats_lines.append(f"- **{typ.title()} entries**: {type_counts[typ]}")
+
+content = "\n".join([
     "---",
     f"generated: {datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}",
     f"entity_count: {len(entities)}",
@@ -204,10 +219,7 @@ content = "\\n".join([
     *manifest,
     "## Statistics",
     "",
-    f"- **Total entities**: {len(entities)}",
-    f"- **Total aliases**: {alias_count}",
-    f"- **Chapters tracked**: {len(chapter_keys)}",
-    f"- **Files with frontmatter**: {sum(1 for e in entities if e['has_frontmatter'])}/{len(entities)}",
+    *stats_lines,
 ])
 index_file.write_text(content, encoding="utf-8")
 

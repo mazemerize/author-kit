@@ -1,12 +1,12 @@
 ---
-description: Sync the world/ folder with drafted chapters — extract new details, verify consistency, and rebuild the entity index. Replaces world.update + world.verify + world.index.
+description: Sync the world/ folder with drafted chapters — extract new details, verify consistency, and rebuild the entity index.
 handoffs:
   - label: Plan Next Chapter
     agent: authorkit.chapter.plan
-    prompt: Plan the next chapter with updated world context
+    prompt: Plan chapter [N+1] with updated world context
   - label: Build More World
     agent: authorkit.world.build
-    prompt: Deepen world-building in a specific area
+    prompt: Deepen world-building in [focus area]
   - label: Amend a Conflict
     agent: authorkit.amend
     prompt: A chapter contradicts an established world entry — propagate the correct version across all artifacts
@@ -14,6 +14,7 @@ handoffs:
     agent: authorkit.analyze
     prompt: Analyze cross-chapter consistency including world-building
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -23,11 +24,11 @@ scripts:
 {{USER_INPUT_TOKEN}}
 ```
 
-You **MUST** consider the user input before proceeding (if not empty). The user input should contain chapter number(s) to sync (e.g., "3", "CH05", "1-5", "all") or a scope for verification (e.g., "verify only", "characters/").
+You **MUST** consider the user input before proceeding (if not empty). The user input should contain chapter number(s) to sync (e.g., "3", "CH05", "1-5", "all") or a scope for verification (e.g., "verify", "characters/").
 
 ## Goal
 
-Keep the `world/` folder in sync with the manuscript. This single command handles three jobs that used to be separate:
+Keep the `world/` folder in sync with the manuscript. This single command handles three jobs:
 
 1. **Extract** new world-building details from drafted chapters into world/ files
 2. **Verify** world/ files for internal consistency and manuscript alignment
@@ -39,14 +40,14 @@ Run this after drafting or revising chapters, or anytime you want a consistency 
 
 ### Phase 1: Extract World Details from Chapters
 
-*Skip this phase if user input is "verify only" or specifies a world/ path (e.g., "characters/").*
+*Skip this phase if user input is "verify" or specifies a world/ path (e.g., "characters/").*
 
 1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR and AVAILABLE_DOCS. All paths must be absolute.
 
 2. **Parse chapter input**:
    - Accept formats: "3", "03", "CH03", "chapter 3", "1-5" (range), "all"
    - Normalize to list of two-digit chapter numbers
-   - If no chapter specified and no "verify only" flag: default to all chapters with `[D]` or `[X]` status that haven't been synced yet (check world/_index.md Chapter Manifest if available)
+   - If no chapter specified and no "verify" flag: default to all chapters with `[D]` or `[X]` status that haven't been synced yet (check world/_index.md Chapter Manifest if available)
 
 3. **Determine mode** for each chapter:
    - If `world/_index.md` exists, check Entity Registry for `CHxx` tags for this chapter
@@ -85,7 +86,7 @@ Run this after drafting or revising chapters, or anytime you want a consistency 
 7. **Scope determination**:
    - If user specified a world/ path (e.g., "characters/"): verify only that category
    - If chapters were synced in Phase 1: verify entities touched during sync + their connected entities
-   - If "verify only" or "all": verify all world/ files
+   - If "verify" or "all": verify all world/ files
 
 8. **Load world/ files** within scope. If `world/_index.md` exists, use it for targeted loading.
 
@@ -105,16 +106,20 @@ Run this after drafting or revising chapters, or anytime you want a consistency 
 
    g. **Staleness Detection**: Entities referenced in recent chapters but never updated in world/. Entities with only `(CONCEPT)` tags that have since been mentioned in chapters.
 
-10. **Assign severity**: CRITICAL / HIGH / MEDIUM / LOW (same criteria as the former world.verify).
+10. **Assign severity**: CRITICAL (breaks the manuscript), HIGH (significant inconsistency requiring revision), MEDIUM (notable issue worth addressing), LOW (minor or cosmetic).
 
 ### Phase 3: Rebuild Index
 
-11. **Rebuild `world/_index.md`**: Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from repo root. This regenerates:
+11. **Rebuild `world/_index.md`**: Run `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root. This regenerates:
     - Entity Registry (all entities with IDs, names, paths, chapter tags)
     - Alias Lookup (name variants → entity, flagging ambiguous aliases)
     - Chapter Manifest (which entities appear in which chapter)
 
-12. **Add-frontmatter mode**: If user input includes "add-frontmatter", also scan world/ files that lack YAML frontmatter and add it based on file content and naming conventions.
+12. **Add-frontmatter mode**: If user input includes "add-frontmatter", run the build-world-index script with the frontmatter flag from repo root (this is the canonical implementation — do not regenerate frontmatter manually):
+    - PowerShell: `.authorkit/scripts/powershell/build-world-index.ps1 -AddFrontmatter`
+    - Bash: `.authorkit/scripts/bash/build-world-index.sh --add-frontmatter`
+
+    The script derives `id` from the file path, extracts `name` from the H1, scans the body for chapter tags, and writes the frontmatter block in place. It then rebuilds `world/_index.md` in the same pass, so step 11 can be skipped when this mode runs.
 
 ### Phase 4: Report
 
@@ -124,7 +129,7 @@ Run this after drafting or revising chapters, or anytime you want a consistency 
    ## World Sync Report
 
    **Date**: [DATE]
-   **Chapters synced**: [list or "verify only"]
+   **Chapters synced**: [list or "verify"]
 
    ### Extraction Summary (if applicable)
    - World files created: [N] (list paths)

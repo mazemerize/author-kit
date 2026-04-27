@@ -17,6 +17,7 @@ handoffs:
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N+1]
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -46,7 +47,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: `chapters/NN/draft.md` (the chapter to review)
    - **Required**: `chapters/NN/plan.md` (what was planned)
    - **Required**: concept.md (book concept, themes, voice)
-   - **Required**: `/memory/constitution.md` (writing principles)
+   - **Required**: `.authorkit/memory/constitution.md` (writing principles)
    - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md`
    - **Recommended**: characters.md (character consistency checks)
    - **Recommended**: outline.md (chapter's role in overall structure)

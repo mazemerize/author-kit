@@ -4,13 +4,20 @@ handoffs:
   - label: Continue Drafting
     agent: authorkit.chapter.draft
     prompt: Draft chapter [N]
+  - label: Continue From Where Draft Ends
+    agent: authorkit.chapter.draft
+    prompt: Continue chapter [N] from where the draft ends
+  - label: Write Specific Scene
+    agent: authorkit.chapter.draft
+    prompt: Draft chapter [N] scene [M]
   - label: Review This Chapter
     agent: authorkit.chapter.review
     prompt: Review chapter [N]
   - label: Discuss Ideas
     agent: authorkit.discuss
-    prompt: Discuss ideas for this chapter
+    prompt: Discuss ideas for chapter [N]
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -27,6 +34,8 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 Provide targeted, collaborative writing assistance on a specific passage, scene, paragraph, or writing problem within a chapter. The author is actively writing — either they've written content and want help improving it, or they're stuck and need a hand. This is a **scalpel**, not a bulldozer: help with the specific thing requested, don't rewrite the whole chapter.
 
 This command supports **mixed authorship** — the draft may contain parts the author wrote and parts the AI wrote. Treat all existing content as canonical regardless of who wrote it.
+
+**Scope boundary**: `chapter.help` is for *passage-level* refinement (alternatives, polish, sensory detail, dialogue, trim, voice check, brief continuation). For writing whole scenes or continuing from where the draft ends, hand off to `chapter.draft` (which has dedicated `scene N`, `continue`, and `from scene N` modes).
 
 ## Outline
 
@@ -48,16 +57,16 @@ This command supports **mixed authorship** — the draft may contain parts the a
    **Help mode** (auto-detected from keywords in user input):
    - **"alternatives" / "options"**: Generate 2-3 alternative versions
    - **"improve" / "strengthen" / "better"**: Analyze and suggest specific improvements
-   - **"stuck" / "continue" / "what comes next"**: Suggest continuation (2-3 paragraphs)
-   - **"write scene N" / "write the [scene description]"**: Write a specific scene/section from the plan
+   - **"stuck" / "continue" / "what comes next"**: Suggest a brief continuation (2-3 paragraphs) to unblock the author. For writing the next full scene, hand off to `/authorkit.chapter.draft [N] continue` instead.
    - **"dialogue"**: Focus on making dialogue more natural and character-distinctive
    - **"describe" / "show" / "sensory"**: Enhance sensory detail, convert telling to showing
    - **"trim" / "tighten" / "cut"**: Suggest cuts and compressions
    - **"check" / "voice" / "style"**: Check passage against constitution and style-anchor for drift
+   - **"write scene N" / "write the [scene]"**: NOT handled here — redirect to `/authorkit.chapter.draft [N] scene N` (scene-level writing belongs to `chapter.draft`)
    - **Default** (no mode keyword): Read the passage, assess what kind of help would be most useful, and suggest it before proceeding
 
 3. **Load context**:
-   - **Required**: `/memory/constitution.md` (writing principles — the style guide)
+   - **Required**: `.authorkit/memory/constitution.md` (writing principles — the style guide)
    - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (prose continuity)
    - **Required**: `chapters/NN/draft.md` (the current draft — may be partial or complete)
    - **Recommended**: `chapters/NN/plan.md` (scene breakdown, beats, purpose)
@@ -112,17 +121,17 @@ This command supports **mixed authorship** — the draft may contain parts the a
 
    Read the draft up to where it ends (or where the author indicates they're stuck). Then:
    - Summarize what the plan expects to happen next (if a plan exists)
-   - Write 2-3 paragraphs of suggested continuation
+   - Write 2-3 paragraphs of suggested continuation to unblock the author
    - Match the voice and style of what's already on the page
-   - Offer: "Does this direction feel right? I can adjust the tone, try a different approach, or continue further."
+   - Offer: "Does this direction feel right? I can adjust the tone or try a different approach. To continue writing the full next scene, run `/authorkit.chapter.draft [N] continue`."
 
    ### "write scene N" / "write the [scene]"
 
-   Write the requested scene/section from the plan:
-   - Follow the plan's beats for that scene
-   - Match the voice and style of existing content in the draft (whether author- or AI-written)
-   - Respect the constitution and style-anchor
-   - Present the scene and ask if the author wants to adjust before inserting into the draft
+   This is **out of scope for `chapter.help`** — scene-level writing belongs to `chapter.draft`. Reply:
+
+   > Writing a full scene is `chapter.draft`'s job. Run `/authorkit.chapter.draft [N] scene [M]` to write a specific scene, or `/authorkit.chapter.draft [N] continue` to pick up where the draft ends. I can still help with passage-level refinement once the scene exists.
+
+   Do not write the scene here.
 
    ### "dialogue"
 
@@ -185,6 +194,6 @@ This command supports **mixed authorship** — the draft may contain parts the a
 - **Minimal footprint.** Only change what was asked about. Do not "while I'm at it" fix other parts of the draft.
 - **Respect the author's voice.** The author may have a style that differs from the constitution. When helping with author-written passages, match *their* voice, not an idealized version.
 - **The draft is canonical.** If the draft contradicts the plan, the draft wins. Note the deviation but follow the draft.
-- **Constitution + style-anchor for AI-written passages.** When writing new content (stuck/continue, write scene), follow the constitution and style-anchor to maintain consistency.
+- **Constitution + style-anchor for AI-written passages.** When writing new content (the brief stuck/continue continuation), follow the constitution and style-anchor to maintain consistency.
 - **No meta-commentary in edits.** When applying changes to draft.md, write only prose. No [NOTE], [TODO], or [AUTHOR] markers.
 - **Repeat as needed.** This command is designed for multiple rounds of help within a single chapter. The author should be able to ask for help on 5 different passages in one session.

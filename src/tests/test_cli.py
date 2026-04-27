@@ -389,7 +389,7 @@ def test_build_manuscript_markdown_quotes_yaml_metadata_values():
         epub_css="",
         audio_provider="openai",
         audio_model="gpt-4o-mini-tts",
-        audio_voice="onyx",
+        audio_voice="marin",
         audio_instructions="",
         speaking_rate_wpm=170,
         reading_wpm=200,
@@ -598,7 +598,7 @@ def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypa
             epub_css="",
             audio_provider="openai",
             audio_model="gpt-4o-mini-tts",
-            audio_voice="onyx",
+            audio_voice="marin",
             audio_instructions="",
             speaking_rate_wpm=170,
             reading_wpm=200,
@@ -726,6 +726,43 @@ def test_init_injects_shared_generation_guardrails_and_keeps_shared_asset_unrend
         assert not Path(".codex/prompts/_shared/generation-guardrails.md").exists()
 
 
+def test_init_renders_clarify_prompt_for_all_ai_flavors():
+    """Verify authorkit.clarify is rendered for claude, copilot, and codex with guardrails injected."""
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "claude",
+                "--ai",
+                "copilot",
+                "--ai",
+                "codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        rendered_paths = [
+            Path(".claude/commands/authorkit.clarify.md"),
+            Path(".github/prompts/authorkit.clarify.prompt.md"),
+            Path(".codex/prompts/authorkit.clarify.md"),
+        ]
+        for path in rendered_paths:
+            assert path.exists(), f"Expected rendered clarify prompt at {path}"
+            body = path.read_text(encoding="utf-8")
+            assert "## Shared Generation Guardrails" in body, f"Guardrails missing in {path}"
+            assert "### Name Originality Protocol" in body, f"Name protocol missing in {path}"
+            assert "Clarifications" in body, f"Clarifications section reference missing in {path}"
+
+
 def test_chapter_prompts_enforce_style_anchor_workflow():
     """Verify chapter lifecycle prompts include style-anchor loading and refresh instructions."""
     with runner.isolated_filesystem():
@@ -752,7 +789,7 @@ def test_chapter_prompts_enforce_style_anchor_workflow():
         for text in (plan_prompt, draft_prompt):
             assert "STYLE_ANCHOR" in text
             assert "last two approved chapters" in text
-            assert "## Non-Negotiables (POV, Tense, Narrative Distance)" in text
+            assert "templates/style-anchor-template.md" in text
 
 
 def test_docs_prompts_templates_and_instructions_avoid_seeded_stock_examples():
@@ -858,17 +895,171 @@ def test_readme_documents_adaptive_research_layout():
 
 
 def test_path_scripts_expose_style_anchor_path():
-    """Verify shared path scripts include STYLE_ANCHOR path metadata."""
+    """Verify shared path scripts include STYLE_ANCHOR path metadata across bash and powershell."""
     repo_root = Path(__file__).resolve().parents[2]
     ps_common = (repo_root / ".authorkit" / "scripts" / "powershell" / "common.ps1").read_text(encoding="utf-8")
     sh_common = (repo_root / ".authorkit" / "scripts" / "bash" / "common.sh").read_text(encoding="utf-8")
     prereq_ps = (repo_root / ".authorkit" / "scripts" / "powershell" / "check-prerequisites.ps1").read_text(
         encoding="utf-8"
     )
+    prereq_sh = (repo_root / ".authorkit" / "scripts" / "bash" / "check-prerequisites.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert "STYLE_ANCHOR" in ps_common
     assert "STYLE_ANCHOR" in sh_common
     assert "STYLE_ANCHOR" in prereq_ps
+    assert "STYLE_ANCHOR" in prereq_sh
+
+
+def test_bash_scripts_have_no_utf8_bom():
+    """Verify bash scripts start with the shebang and not a UTF-8 BOM (would break exec on Linux/macOS)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    bash_dir = repo_root / ".authorkit" / "scripts" / "bash"
+    for script in bash_dir.glob("*.sh"):
+        head = script.read_bytes()[:3]
+        assert head != b"\xef\xbb\xbf", f"{script} starts with UTF-8 BOM — strip it (breaks shebang on Linux/macOS)"
+
+
+def test_instruction_templates_have_no_utf8_bom():
+    """Verify instruction templates do not start with a UTF-8 BOM (asset hygiene; consumers can read either, but BOMs are inconsistent with the rest of the repo)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    instructions_dir = repo_root / ".authorkit" / "instructions"
+    for template in instructions_dir.glob("*.md.tmpl"):
+        head = template.read_bytes()[:3]
+        assert head != b"\xef\xbb\xbf", f"{template} starts with UTF-8 BOM — re-save as plain UTF-8"
+
+
+def test_rendered_prompts_do_not_contain_unsubstituted_args_token():
+    """Verify rendered prompts contain no literal {ARGS} placeholder (the renderer only substitutes {{USER_INPUT_TOKEN}}/$ARGUMENTS/{SCRIPT}/{{SCRIPT_*}})."""
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "claude,copilot,codex",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        rendered_dirs = [
+            Path(".claude/commands"),
+            Path(".github/prompts"),
+            Path(".codex/prompts"),
+        ]
+        for rendered_dir in rendered_dirs:
+            for prompt in rendered_dir.glob("*.md"):
+                text = prompt.read_text(encoding="utf-8")
+                assert "{ARGS}" not in text, (
+                    f"{prompt} contains an unsubstituted '{{ARGS}}' token — "
+                    "use {{USER_INPUT_TOKEN}} or remove the literal"
+                )
+
+
+def test_concept_template_uses_bracket_placeholder():
+    """Verify concept-template.md does not leak Claude-only $ARGUMENTS placeholder into copied book/concept.md."""
+    repo_root = Path(__file__).resolve().parents[2]
+    template = (repo_root / ".authorkit" / "templates" / "concept-template.md").read_text(encoding="utf-8")
+    assert "$ARGUMENTS" not in template, (
+        "concept-template.md is copied verbatim by setup-book scripts; "
+        "use [USER_DESCRIPTION] (or another bracket placeholder), not $ARGUMENTS"
+    )
+
+
+def test_prompt_scripts_blocks_declare_both_shells():
+    """Verify every prompt with a scripts: block declares both sh: and ps: variants.
+
+    `authorkit.constitution.md` is intentionally exempt: it edits
+    `.authorkit/memory/constitution.md` directly and has no setup script to dispatch.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    prompts_dir = repo_root / ".authorkit" / "prompts"
+    exempt = {"authorkit.constitution.md"}
+    for prompt in prompts_dir.glob("authorkit.*.md"):
+        text = prompt.read_text(encoding="utf-8")
+        front_match = re.match(r"^---\n(.*?)\n---", text, flags=re.S)
+        if not front_match:
+            continue
+        frontmatter = front_match.group(1)
+        if "scripts:" not in frontmatter:
+            assert prompt.name in exempt, (
+                f"{prompt.name}: missing scripts: block. "
+                f"Add one or extend the exempt set with rationale."
+            )
+            continue
+        assert re.search(r"^\s+sh:\s+scripts/bash/", frontmatter, re.M), (
+            f"{prompt.name}: scripts: block is missing sh: variant for Linux/macOS"
+        )
+        assert re.search(r"^\s+ps:\s+scripts/powershell/", frontmatter, re.M), (
+            f"{prompt.name}: scripts: block is missing ps: variant for Windows"
+        )
+
+
+def test_build_world_index_scripts_parse_yaml_frontmatter():
+    """Smoke test: bash build-world-index.sh must parse YAML frontmatter (regression for double-escape bug)."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("bash") or not shutil.which("python3"):
+        return  # skip on systems without bash/python3 (covered by PowerShell sibling on Windows-only hosts)
+
+    repo_root = Path(__file__).resolve().parents[2]
+    bash_script = repo_root / ".authorkit" / "scripts" / "bash" / "build-world-index.sh"
+    common_sh = repo_root / ".authorkit" / "scripts" / "bash" / "common.sh"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        # Stage a minimal repo
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        scripts_dst = tmp_path / ".authorkit" / "scripts" / "bash"
+        scripts_dst.mkdir(parents=True)
+        shutil.copy(common_sh, scripts_dst / "common.sh")
+        shutil.copy(bash_script, scripts_dst / "build-world-index.sh")
+
+        char_dir = tmp_path / "book" / "world" / "characters"
+        char_dir.mkdir(parents=True)
+        (char_dir / "iria.md").write_text(
+            "---\n"
+            "id: char-iria-calder\n"
+            "type: character\n"
+            "name: Iria Calder\n"
+            "aliases: [Iria, the astronomer]\n"
+            "chapters: [CONCEPT, CH01]\n"
+            "first_appearance: CH01\n"
+            "relationships: []\n"
+            "tags: []\n"
+            "last_updated: 2026-04-26\n"
+            "---\n\n# Iria Calder\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            ["bash", str(scripts_dst / "build-world-index.sh"), "--json"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        payload = json.loads(result.stdout.strip())
+        assert payload["ENTITY_COUNT"] == 1
+        assert payload["ALIAS_COUNT"] == 3  # name + 2 aliases
+        assert payload["FILES_WITHOUT_FRONTMATTER"] == 0
+
+        index_text = (tmp_path / "book" / "world" / "_index.md").read_text(encoding="utf-8")
+        assert "[NO FRONTMATTER]" not in index_text, (
+            "Index flagged a file with frontmatter as missing — regex likely double-escaped (see build-world-index.sh heredoc)"
+        )
+        assert "char-iria-calder" in index_text
+        assert "the astronomer" in index_text
 
 
 def test_docs_prompts_templates_use_single_book_workspace_paths():

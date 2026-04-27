@@ -19,7 +19,6 @@ from pathlib import Path
 BOOK_DIR_NAME = "book"
 WORLD_DIR_NAME = "world"
 CHAPTERS_DIR_NAME = "chapters"
-CHECKLISTS_DIR_NAME = "checklists"
 DIST_DIR_NAME = "dist"
 
 @dataclass(slots=True)
@@ -115,7 +114,7 @@ def parse_book_config(book_dir: Path) -> BookConfig:
         epub_css=str(build_section.get("epub_css") or "").strip(),
         audio_provider=str(audio_section.get("provider") or "openai").strip().lower(),
         audio_model=str(audio_section.get("model") or "gpt-4o-mini-tts").strip(),
-        audio_voice=str(audio_section.get("voice") or "onyx").strip(),
+        audio_voice=str(audio_section.get("voice") or "marin").strip(),
         audio_instructions=str(audio_section.get("instructions") or "").strip(),
         speaking_rate_wpm=int(audio_section.get("speaking_rate_wpm") or 170),
         reading_wpm=int(stats_section.get("reading_wpm") or 200),
@@ -133,7 +132,10 @@ def discover_chapter_drafts(book_dir: Path, from_chapter: int | None = None, to_
     for entry in chapters_root.iterdir():
         if not entry.is_dir():
             continue
-        match = re.match(r"^(\d+)", entry.name)
+        # Only directories whose names are pure numeric (e.g. "01", "02") are real
+        # chapter folders. This excludes backups like "01-old/" or "chapters/archived/"
+        # which would otherwise silently be included in book build/stats output.
+        match = re.match(r"^(\d+)$", entry.name)
         if not match:
             continue
         chapter_num = int(match.group(1))

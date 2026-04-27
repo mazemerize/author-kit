@@ -3,7 +3,7 @@
 **Date**: [DATE] | **Concept**: [link]
 **Input**: Book concept from `/book/concept.md`
 
-**Note**: This template is filled in by the `/authorkit.outline` command. See `.authorkit/templates/commands/` for the execution workflow.
+**Note**: This template is filled in by the `/authorkit.outline` command.
 
 ## Summary
 

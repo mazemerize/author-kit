@@ -17,6 +17,7 @@ handoffs:
     agent: authorkit.world.sync
     prompt: Rebuild world index and verify world files after merging experimental changes
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 

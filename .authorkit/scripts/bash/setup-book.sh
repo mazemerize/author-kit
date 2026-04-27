@@ -4,20 +4,22 @@ set -e
 JSON_MODE=false
 TITLE=""
 AUTHOR=""
+SUBTITLE=""
 LANGUAGE=""
 
 show_help() {
   cat <<'EOF'
-Usage: ./setup-book.sh [--json] [--title TITLE] [--author AUTHOR] [--language LANG]
+Usage: ./setup-book.sh [--json] [--title TITLE] [--author AUTHOR] [--subtitle SUBTITLE] [--language LANG]
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --json|-Json) JSON_MODE=true; shift ;;
-    --title|-Title) TITLE="$2"; shift 2 ;;
-    --author|-Author) AUTHOR="$2"; shift 2 ;;
-    --language|-Language) LANGUAGE="$2"; shift 2 ;;
+    --json) JSON_MODE=true; shift ;;
+    --title) TITLE="$2"; shift 2 ;;
+    --author) AUTHOR="$2"; shift 2 ;;
+    --subtitle) SUBTITLE="$2"; shift 2 ;;
+    --language) LANGUAGE="$2"; shift 2 ;;
     --help|-h) show_help; exit 0 ;;
     *)
       echo "ERROR: Unknown option '$1'" >&2
@@ -58,6 +60,7 @@ read_existing() {
 
 default_title="$(read_existing title)"
 default_author="$(read_existing author)"
+default_subtitle="$(read_existing subtitle)"
 default_language="$(read_existing language)"
 
 [[ -z "$default_title" ]] && default_title="Untitled Book"
@@ -67,6 +70,7 @@ default_language="$(read_existing language)"
 if $JSON_MODE; then
   BOOK_TITLE="${TITLE:-$default_title}"
   BOOK_AUTHOR="${AUTHOR:-$default_author}"
+  BOOK_SUBTITLE="${SUBTITLE:-$default_subtitle}"
   BOOK_LANGUAGE="${LANGUAGE:-$default_language}"
 else
   if [[ -n "$TITLE" ]]; then
@@ -83,6 +87,13 @@ else
     BOOK_AUTHOR="${input_author:-$default_author}"
   fi
 
+  if [[ -n "$SUBTITLE" ]]; then
+    BOOK_SUBTITLE="$SUBTITLE"
+  else
+    read -r -p "Subtitle [$default_subtitle]: " input_subtitle
+    BOOK_SUBTITLE="${input_subtitle:-$default_subtitle}"
+  fi
+
   if [[ -n "$LANGUAGE" ]]; then
     BOOK_LANGUAGE="$LANGUAGE"
   else
@@ -96,7 +107,7 @@ cat > "$BOOK_TOML" <<EOF
 title = "$BOOK_TITLE"
 author = "$BOOK_AUTHOR"
 language = "$BOOK_LANGUAGE"
-subtitle = ""
+subtitle = "$BOOK_SUBTITLE"
 
 [build]
 default_formats = ["docx"]
@@ -106,7 +117,7 @@ epub_css = ".authorkit/templates/publishing/epub.css"
 [audio]
 provider = "openai"
 model = "gpt-4o-mini-tts"
-voice = "onyx"
+voice = "marin"
 instructions = ".authorkit/templates/publishing/audio-instructions.txt"
 speaking_rate_wpm = 170
 

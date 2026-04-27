@@ -1,9 +1,12 @@
 ---
-description: Change an established fact or direction across all book artifacts — handles both broad pivots and surgical fact changes with impact analysis.
+description: Change an established fact or direction across all book artifacts — handles both broad direction changes and surgical fact changes with impact analysis.
 handoffs:
   - label: Revise Affected Chapters
     agent: authorkit.revise
     prompt: Address the changes identified in the amendment
+  - label: Re-Review Affected Chapters
+    agent: authorkit.chapter.review
+    prompt: Re-review chapters affected by the amendment
   - label: Re-Outline
     agent: authorkit.outline
     prompt: Regenerate the outline to reflect the change
@@ -16,7 +19,11 @@ handoffs:
   - label: Snapshot Before Change
     agent: authorkit.snapshot
     prompt: Create a snapshot before applying the change
+  - label: Clarify Concept First
+    agent: authorkit.clarify
+    prompt: Resolve ambiguities in the concept before propagating this change
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -32,7 +39,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 When the author wants to change something about their book — whether it's a broad direction change (new ending, cut a subplot, merge characters) or a specific fact change (character's backstory, a place's name, a world rule) — find every reference across all artifacts, show the impact, and apply the change consistently.
 
-This command replaces both "pivot" (broad direction changes) and "retcon" (surgical fact changes). The author doesn't need to decide which type of change they're making — describe the change, and this command handles it.
+The author doesn't need to decide which type of change they're making in advance. Describe the change in natural language; this command auto-classifies it as a fact change, a direction change, or both, and propagates accordingly.
 
 ## Outline
 
@@ -135,7 +142,7 @@ This command replaces both "pivot" (broad direction changes) and "retcon" (surgi
 
 6. **Execute the change** in dependency order (upstream first, downstream last):
 
-   a. **world/ files**: Update entries. Tag changes with `(AMEND-[DATE])`. After modifying, update YAML frontmatter: add `AMEND-YYYY-MM-DD` to `chapters` field, update changed `aliases` or `relationships`, update `last_updated`. Rebuild index via `build-world-index.ps1 -Json`.
+   a. **world/ files**: Update entries. Tag changes with `(AMEND-YYYY-MM-DD)`. After modifying, update YAML frontmatter: add `AMEND-YYYY-MM-DD` to `chapters` field, update changed `aliases` or `relationships`, update `last_updated`. Rebuild the index by running `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root.
 
    b. **concept.md / outline.md / characters.md / chapters.md**: Update references directly.
 
@@ -156,7 +163,7 @@ This command replaces both "pivot" (broad direction changes) and "retcon" (surgi
    - Check for new contradictions introduced by the changes
    - Report any issues found
 
-8. **Write change log** to `BOOK_DIR/amendments/YYYY-MM-DD-[short-description].md` (legacy installations may have a `pivots/` directory — keep using it if it already exists, otherwise create `amendments/`):
+8. **Write change log** to `BOOK_DIR/amendments/YYYY-MM-DD-[short-description].md`:
 
    ```markdown
    # Amendment: [SHORT DESCRIPTION]
@@ -207,6 +214,6 @@ This command replaces both "pivot" (broad direction changes) and "retcon" (surgi
 - **Preserve voice**: Every change to a chapter draft must be stylistically indistinguishable from surrounding prose.
 - **Snapshot first for large changes**: If 5+ artifacts are affected, recommend creating a snapshot before proceeding.
 - **Don't over-correct**: If a reference works equally well with the old and new states, leave it unchanged. Document it in the "Unchanged" section.
-- **Tag changes**: Use `(AMEND-YYYY-MM-DD)` tags in world/ files. Store logs in `amendments/` (or `pivots/` on legacy installations that already use that folder name).
+- **Tag changes**: Use `(AMEND-YYYY-MM-DD)` tags in world/ files. Store logs in `amendments/`.
 - **Flag, don't force**: For chapters with approved `[X]` status, flag them for user attention rather than silently resetting.
 - **Check your work**: The post-change consistency scan catches what the initial search missed.

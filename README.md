@@ -19,7 +19,7 @@ An open-source toolkit that brings structured, template-driven principles to boo
 - [Book Export, Audiobook and Statistics](#book-export-audiobook-and-statistics)
 - [Project Structure](#project-structure)
 - [Environment Variables](#environment-variables)
-- [Prerequisites](#prerequisites)
+- [Troubleshooting Book CLI](#troubleshooting-book-cli)
 
 ---
 
@@ -133,37 +133,14 @@ This creates a `concept.md` with the premise, genre, themes, characters, voice, 
 
 ### 4. Clarify the concept (optional)
 
-Identify and resolve any ambiguities in the concept before outlining. Use the discuss command in clarify mode — it walks through structured questions and records answers directly into concept.md.
+Identify and resolve any ambiguities in the concept before outlining. `/authorkit.clarify` walks through structured questions and records accepted answers directly into `concept.md` — distinct from the open-ended `/authorkit.discuss`, which is read-only.
 
 ```bash
-/authorkit.discuss clarify
-/authorkit.discuss clarify the magic system's rules and limitations
+/authorkit.clarify
+/authorkit.clarify the magic system's rules and limitations
 ```
 
-### 5. Research grounding (optional, repeatable)
-
-Run targeted research before outlining, during world-building, or while drafting chapters.
-
-```bash
-/authorkit.research Research Victorian observatory architecture for the outline
-/authorkit.research For chapter 7, research forensic botany in damp basements
-/authorkit.research Research maritime signaling systems in 1890 and sync durable findings to world notes (action:sync-world)
-```
-
-This writes a top-level `research.md` summary plus topic files in `research/` (flat by default for simple topics, nested when grouping is useful).
-With `sync-world` enabled (for example via `action:sync-world`), grounded findings are also synced into `world/notes/` while preserving any existing note path.
-
-### 6. Build the world (optional)
-
-Establish the rules, geography, characters, history, and systems of your book's world before writing. Especially valuable for fantasy, sci-fi, and historical fiction, but works for any genre.
-
-```bash
-/authorkit.world.build magic system, political structure
-```
-
-You can run this multiple times to iteratively deepen specific areas. See [World Maintenance](#world-maintenance) for the full workflow.
-
-### 6b. Discuss ideas (optional, repeatable)
+### 5. Discuss ideas (optional, repeatable)
 
 Brainstorm world-building, character arcs, plot directions, or themes interactively before committing to an outline.
 
@@ -173,9 +150,32 @@ Brainstorm world-building, character arcs, plot directions, or themes interactiv
 /authorkit.discuss I'm not sure about the villain's motivation
 ```
 
-This is a conversation — no files are created unless you say "save" or "note this". When you're ready, follow the suggested handoff to apply decisions via `/authorkit.world.build`, `/authorkit.outline`, etc.
+This is a conversation — no files are created unless you say "save" or "note this". For structured concept Q&A that writes accepted answers directly into `concept.md`, use `/authorkit.clarify` instead (see step 4). When you're ready, follow the suggested handoff to apply decisions via `/authorkit.world.build`, `/authorkit.outline`, etc.
 
-### 7. Create the outline
+### 6. Research grounding (optional, repeatable)
+
+Run targeted research before outlining, during world-building, or while drafting chapters.
+
+```bash
+/authorkit.research Research Victorian observatory architecture for the outline
+/authorkit.research For chapter 7, research forensic botany in damp basements
+/authorkit.research Research maritime signaling systems in 1890 and sync durable findings to world notes (action: sync-world)
+```
+
+This writes a top-level `research.md` summary plus topic files in `research/` (flat by default for simple topics, nested when grouping is useful).
+With `sync-world` enabled (for example via `action: sync-world`), grounded findings are also synced into `world/notes/` while preserving any existing note path.
+
+### 7. Build the world (optional)
+
+Establish the rules, geography, characters, history, and systems of your book's world before writing. Especially valuable for fantasy, sci-fi, and historical fiction, but works for any genre.
+
+```bash
+/authorkit.world.build magic system, political structure
+```
+
+You can run this multiple times to iteratively deepen specific areas. See [World Maintenance](#world-maintenance) for the full workflow.
+
+### 8. Create the outline
 
 Generate the book structure: chapter summaries, character arcs, thematic thread maps, and narrative arc. You can outline everything at once, or incrementally — part by part.
 
@@ -190,7 +190,7 @@ Partial outlines include "Continuation Notes" that capture open threads, charact
 
 This also generates `research.md` (world-building notes) and `characters.md` (character profiles), and uses existing `research/` topic files recursively if present.
 
-### 8. Break into chapters
+### 9. Break into chapters
 
 Convert the outline into a chapter-level task list with status tracking.
 
@@ -198,7 +198,7 @@ Convert the outline into a chapter-level task list with status tracking.
 /authorkit.chapters
 ```
 
-### 9. Write chapter by chapter
+### 10. Write chapter by chapter
 
 Each chapter goes through a plan → draft → review cycle:
 
@@ -226,7 +226,7 @@ Or get targeted help on specific passages while you write:
 
 After drafting a chapter, run `/authorkit.world.sync` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
 
-### 10. Analyze the full manuscript
+### 11. Analyze the full manuscript
 
 After drafting several chapters (or all of them), run a cross-chapter analysis:
 
@@ -238,7 +238,7 @@ This checks for continuity errors, plot holes, pacing problems, unresolved threa
 
 You can also run `/authorkit.world.sync verify` at any point to check the `world/` folder for internal consistency and alignment with the manuscript.
 
-### 11. Revise as needed
+### 12. Revise as needed
 
 Apply targeted fixes based on analysis findings:
 
@@ -246,9 +246,9 @@ Apply targeted fixes based on analysis findings:
 /authorkit.revise Fix the timeline contradiction between chapters 3 and 7
 ```
 
-### 12. Export your manuscript
+### 13. Export your manuscript
 
-Author Kit provides publishing commands directly in the installer CLI:
+Export is **not** a slash command — it runs through the installer CLI directly:
 
 ```bash
 authorkit book build --format docx --format epub
@@ -256,7 +256,7 @@ authorkit book audio --merge
 authorkit book stats --output json
 ```
 
-Read me in [Book Export](#book-export-audiobook-and-statistics) below.
+Read more in [Book Export](#book-export-audiobook-and-statistics) below.
 
 ---
 
@@ -271,8 +271,11 @@ The key insight: **the workflow is sequential at its core, but every step has es
   │                                                             │
   │   Constitution ──> Conceive ──────────────────────────────  │
   │                       │                                     │
+  │                       ├──> Clarify (opt, structured Q&A)    │
+  │                       │    (resolves concept ambiguities)   │
+  │                       │                                     │
   │                       ├──> Discuss (opt, repeatable)        │
-  │                       │    (clarify concept or brainstorm)  │
+  │                       │    (open-ended brainstorming)       │
   │                       │                                     │
   │                       ├──> Research (opt, repeatable)       │
   │                       │                                     │
@@ -319,15 +322,16 @@ The key insight: **the workflow is sequential at its core, but every step has es
   └─────────────────────────────────────────────────────────────┘
 
   ╔═════════════════════════════════════════════════════════════╗
-  ║             AVAILABLE AT ANY TIME (steps 5-12)              ║
+  ║      AVAILABLE AT ANY TIME (once concept.md exists)         ║
   ║                                                             ║
-  ║   Discuss ── Brainstorm ideas interactively                 ║
-  ║   Amend ──── Change direction or facts across artifacts     ║
-  ║   Research ─ Ground details from web/news/wikipedia/MCP     ║
-  ║   Park ───── Defer a decision for later                     ║
-  ║   Snapshot ─ Bookmark state before a risky change           ║
-  ║   What-If ── Explore alternatives on a branch               ║
-  ║   Reorder ── Move, split, merge, or insert chapters         ║
+  ║   Discuss ────── Brainstorm ideas interactively             ║
+  ║   Amend ──────── Change direction or facts across artifacts ║
+  ║   Research ───── Ground details from web/news/wikipedia/MCP ║
+  ║   Park ───────── Defer a decision for later                 ║
+  ║   Snapshot ───── Bookmark state before a risky change       ║
+  ║   What-If ────── Explore alternatives on a branch           ║
+  ║   Reorder ────── Move, split, merge, or insert chapters     ║
+  ║   Chapter Help ─ Targeted help on a passage while drafting  ║
   ╚═════════════════════════════════════════════════════════════╝
 ```
 
@@ -353,7 +357,8 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | `/authorkit.constitution` | Create or update writing principles (voice, tone, style guide) | Style description | `constitution.md` |
 | `/authorkit.conceive` | Define book concept from a natural language description | Book idea | `concept.md`, `book.toml` |
 | `/authorkit.research` | Ground a topic using available sources (web/news/wikipedia/MCP) and store reusable notes | Free-form topic/request + optional `scope:`, `sources:`, `action:`, `folder:` overrides | `research.md`, `research/**/*.md` (flat or nested), optional `world/notes/research-*.md` or `world/notes/research/*.md` |
-| `/authorkit.discuss` | Brainstorm ideas interactively, or clarify the concept with structured Q&A | Topic to discuss, or "clarify" | Optional `notes/discuss-*.md`, or updated `concept.md` in clarify mode |
+| `/authorkit.clarify` | Resolve concept ambiguities through structured Q&A — writes accepted answers into `concept.md` | Optional area to focus on | Updated `concept.md` (Clarifications section + applied edits) |
+| `/authorkit.discuss` | Brainstorm ideas interactively (read-only by default) | Topic to discuss | Optional `notes/discuss-*.md` (only if you ask to save) |
 | `/authorkit.outline` | Create a full or partial book outline with chapter summaries and arcs. Supports incremental outlining | Optional scope (e.g., "part 1", "extend") | `outline.md`, `research.md`, `characters.md` |
 | `/authorkit.chapters` | Generate chapter-level task breakdown from the outline (works with partial outlines) | — | `chapters.md` with status markers |
 
@@ -399,16 +404,17 @@ Understanding which commands feed into which helps you navigate the workflow eff
 ### Foundation Phase (run once, in order)
 
 ```
-constitution ──> conceive ──> discuss ──> research ──> world.build ──> outline ──> chapters
-                    │          (clarify,   (opt)       (opt)            (full
-                    │           brainstorm)                            or partial)
-                    └── discuss (opt, repeatable) ─────────────────────────┘
+constitution ──> conceive ──> clarify ──> discuss ──> research ──> world.build ──> outline ──> chapters
+                    │         (opt,       (opt,       (opt)         (opt)            (full
+                    │          structured  open-ended                                or partial)
+                    │          Q&A)        brainstorm)
+                    └── discuss (opt, repeatable) ──────────────────────────────────────┘
 ```
 
 - **Constitution** must exist before conceive (it sets the voice rules).
 - **Conceive** initializes `book/` and creates/updates the concept. Everything else builds on this.
-- **Discuss** is optional and repeatable. Use it to brainstorm world-building, character arcs, plot directions, or themes before committing to artifacts.
-- **Discuss** (clarify mode) refines the concept. Use it before outlining if the concept has ambiguities. Regular discuss mode is for open-ended brainstorming.
+- **Clarify** runs structured Q&A against the concept and writes accepted answers into `concept.md`. Use it before outlining if the concept has ambiguities.
+- **Discuss** is optional and repeatable. Use it for open-ended brainstorming on world-building, character arcs, plot directions, or themes — read-only by default.
 - **Research** is optional and repeatable. Run it before outline, during world-building, or during chapter work to ground details.
 - **World Build** is optional but recommended for genres with rich worlds. Can run before or after outline.
 - **Outline** requires concept.md. Produces outline.md, research.md, characters.md. Can outline all chapters at once or incrementally (part by part). Consumes existing `research/` topic files recursively when available.
@@ -490,7 +496,7 @@ The core innovation of Author Kit is **chapter-level iteration**. Instead of wri
                     │                         │
                     v                         │
   ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-  │  Plan    │──│  Draft   │──│  Review  │───-┘ (if needs revision)
+  │  Plan    │──│  Draft   │──│  Review  │────┘ (if needs revision)
   │ chapter  │  │ chapter  │  │ chapter  │
   └──────────┘  └──────────┘  └──────────┘
                                   │
@@ -584,12 +590,12 @@ All entries from initial world-building are tagged `(CONCEPT)` to distinguish th
 ```bash
 /authorkit.research Research late-19th-century maritime law for this setting
 /authorkit.research For chapter 4, research telegraph relay timing with web and wikipedia sources
-/authorkit.research Research Victorian shipboard medical protocols and sync durable facts to world notes (action:sync-world)
+/authorkit.research Research Victorian shipboard medical protocols and sync durable facts to world notes (action: sync-world)
 ```
 
 Default mode is suggest-only (`research.md` + topic files under `research/`).
 Placement is adaptive: simple one-off topics stay flat, while grouped series can be placed in logical subfolders.
-Use `sync-world` (for example `action:sync-world`) to write durable findings into `world/notes/` and rebuild `world/_index.md`.
+Use `sync-world` (for example `action: sync-world`) to write durable findings into `world/notes/` and rebuild `world/_index.md`.
 When both flat and nested note layouts are possible, Author Kit updates existing note paths in place and avoids forced migration.
 
 **3. Sync after drafting** (after each chapter):
@@ -598,7 +604,7 @@ When both flat and nested note layouts are possible, Author Kit updates existing
 /authorkit.world.sync 3         # Extract details from chapter 3
 /authorkit.world.sync 1-5       # Scan a range of chapters
 /authorkit.world.sync all       # Scan all drafted chapters
-/authorkit.world.sync verify    # Verify-only mode (read-only diagnostic)
+/authorkit.world.sync verify    # Verify mode (read-only diagnostic)
 ```
 
 World sync handles everything in one command: extracts new details from chapters (tagged with source chapter, e.g., `(CH03)`), verifies internal consistency (reciprocal references, system coherence, timeline, chapter tag integrity), and rebuilds the `world/_index.md` entity index.
@@ -618,7 +624,7 @@ world/ files track how details evolve across the manuscript:
 
 ### Entity index
 
-As a book's world grows, finding the right information becomes increasingly expensive — every world/-touching command would need to scan all files. Author Kit solves this with a **PowerShell-generated central index** at `world/_index.md`, which costs zero LLM tokens to maintain.
+As a book's world grows, finding the right information becomes increasingly expensive — every world/-touching command would need to scan all files. Author Kit solves this with a **script-generated central index** at `world/_index.md` (built by `build-world-index.sh` on Linux/macOS or `build-world-index.ps1` on Windows), which costs zero LLM tokens to maintain.
 
 world/ entity files can include **YAML frontmatter** with structured metadata (recommended but optional — files without frontmatter are still readable by all commands):
 
@@ -724,6 +730,7 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 
 | You want to... | Use... |
 |----------------|--------|
+| Resolve ambiguities in your concept (structured Q&A) | `/authorkit.clarify` |
 | Brainstorm ideas before committing | `/authorkit.discuss` |
 | Get help on a specific passage while writing | `/authorkit.chapter.help` |
 | Ground a topic with sources and keep reusable notes | `/authorkit.research` |
@@ -748,7 +755,7 @@ authorkit book stats --output json  # Compute statistics about the current book
 Defaults and behavior:
 - Source manuscript: `book/chapters/*/draft.md`
 - Output directory: `book/dist/` (audio in `dist/audio/`)
-- `authorkit init` seeds repo `.gitignore` with `dist/` so generated artifacts are not committed
+- `authorkit init` seeds repo `.gitignore` with generated artifacts and local secrets (`dist/`, `.env`, `.claude/settings.local.json`, and the local `.codex/` auth/cache/session files) so they are never committed
 - Metadata source: `book/book.toml` (created by `setup-book` scripts)
 - Python dependencies for book audio/stats (`openai`, `python-dotenv`, `mutagen`) are installed with `authorkit-cli`
 - Built-in style assets:
@@ -773,7 +780,7 @@ epub_css = ".authorkit/templates/publishing/epub.css"
 [audio]
 provider = "openai"
 model = "gpt-4o-mini-tts"
-voice = "onyx"
+voice = "marin"
 instructions = ".authorkit/templates/publishing/audio-instructions.txt"
 speaking_rate_wpm = 170
 
@@ -793,12 +800,12 @@ tts_cost_per_1m_chars = 0.0
 - Current provider: OpenAI (`[audio].provider = "openai"`)
   - [Get started](https://developers.openai.com/api/docs) to create an openAI account, enable audio models, and get a key
 - Required auth: `OPENAI_API_KEY` in environment or local `.env`
-- Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `onyx`
+- Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `marin`
   - You can explore optional voices using [openai.fm](https://github.com/openai/openai-fm)
 - Model selection order: `--model` CLI flag, then `[audio].model`, then default `gpt-4o-mini-tts`
   - Read more about [OpenAI audio models](https://developers.openai.com/api/docs/guides/text-to-speech)
 - Generated chapter files and merged audiobook output include ID3 metadata tags (title/album/artist/language and chapter tracking)
-- OpenAI recommends `marin` or `cedar` voices for best quality; `onyx` remains the default
+- OpenAI recommends `marin` or `cedar` voices for best quality. `marin` is the shipped default; switch to `cedar` (or any other supported voice) by setting `[audio].voice` in `book.toml` or passing `--voice`
 
 Audio narration instructions:
 - A template file controls narrator style sent to the TTS model via the `instructions` parameter
@@ -818,7 +825,8 @@ Audio narration instructions:
 |-- memory/
 |   `-- constitution.md
 |-- prompts/                         # Canonical source for all authorkit prompts
-|   `-- authorkit.*.md
+|   |-- authorkit.*.md
+|   `-- _shared/                     # Cross-prompt guardrails included by multiple commands
 |-- instructions/                    # Canonical instruction templates
 |   |-- claude.md.tmpl
 |   |-- copilot.md.tmpl
@@ -827,29 +835,28 @@ Audio narration instructions:
 |   |-- bash/                        # Linux/macOS shell automation
 |   |   |-- common.sh
 |   |   |-- setup-book.sh
-|   |   |-- create-new-book.sh          # Deprecated shim to setup-book.sh
 |   |   |-- setup-outline.sh
 |   |   |-- check-prerequisites.sh
 |   |   `-- build-world-index.sh
 |   `-- powershell/                  # Windows/PowerShell automation
 |       |-- common.ps1
 |       |-- setup-book.ps1
-|       |-- create-new-book.ps1         # Deprecated shim to setup-book.ps1
 |       |-- setup-outline.ps1
 |       |-- check-prerequisites.ps1
 |       `-- build-world-index.ps1
 |-- templates/
 |   |-- concept-template.md
 |   |-- outline-template.md
-|   |-- research-index-template.md
-|   |-- research-topic-template.md
 |   |-- chapters-template.md
 |   |-- chapter-plan-template.md
-|   |-- agent-file-template.md
-|   |-- publishing/
-|   |   |-- reference.docx
-|   |   `-- epub.css
-|   `-- world-entity-frontmatter.md
+|   |-- research-index-template.md
+|   |-- research-topic-template.md
+|   |-- world-entity-frontmatter.md
+|   |-- style-anchor-template.md
+|   `-- publishing/
+|       |-- reference.docx
+|       |-- epub.css
+|       `-- audio-instructions.txt
 `-- install-manifest.json            # Written by `authorkit init`
 
 Generated by `authorkit init` (based on `--ai`):
@@ -877,9 +884,10 @@ book/
 |-- chapters.md
 |-- book.toml
 |-- parked-decisions.md
-|-- checklists/
 |-- amendments/
 |-- snapshots/
+|-- notes/
+|   `-- discuss-YYYY-MM-DD-HH-MM.md
 |-- world/
 |   |-- _index.md
 |   |-- characters/
@@ -949,7 +957,7 @@ book/
 - Selection precedence:
   1. CLI flags: `--voice`, `--model`
   2. `book/book.toml` (`[audio].voice`, `[audio].model`)
-  3. Defaults: `voice = "onyx"`, `model = "gpt-4o-mini-tts"`
+  3. Defaults: `voice = "marin"`, `model = "gpt-4o-mini-tts"`
 
 ### Existing audio files are not overwritten
 
@@ -966,7 +974,7 @@ book/
 
 - Verify the selected voice/model and try regenerating with `--force`.
 - Customize the narration instructions template at `.authorkit/templates/publishing/audio-instructions.txt` or provide your own via `[audio].instructions` in `book.toml`.
-- OpenAI recommends `marin` or `cedar` voices for best quality.
+- OpenAI recommends `marin` (the shipped default) or `cedar` for best quality.
 
 ---
 

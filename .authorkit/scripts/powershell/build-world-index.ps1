@@ -43,7 +43,7 @@ EXAMPLES:
 
 OUTPUT (JSON):
   BOOK_DIR, INDEX_FILE, ENTITY_COUNT, ALIAS_COUNT, CHAPTER_COUNT,
-  FILES_WITHOUT_FRONTMATTER, ENTITIES
+  FILES_WITHOUT_FRONTMATTER
 
 "@
     exit 0
@@ -231,7 +231,7 @@ function Extract-HeuristicMetadata {
     # Extract chapter tags from body via regex
     $bodyText = $Lines -join "`n"
     $chapterTags = @()
-    $tagMatches = [regex]::Matches($bodyText, '\((CONCEPT|CH\d{2}|CH\d{2}-rev|AMEND-\d{4}-\d{2}-\d{2}|RETCON-\d{4}-\d{2}-\d{2}|PIVOT-\d{4}-\d{2}-\d{2})\)')
+    $tagMatches = [regex]::Matches($bodyText, '\((CONCEPT|CH\d{2}|CH\d{2}-rev|AMEND-\d{4}-\d{2}-\d{2})\)')
     foreach ($m in $tagMatches) {
         $tag = $m.Groups[1].Value
         if ($chapterTags -notcontains $tag) {
@@ -300,14 +300,14 @@ last_updated: $($Entity.LastUpdated)
 "@
 }
 
-# Sort chapter tags: CONCEPT first, then CHxx numerically, then CHxx-rev, then AMEND/PIVOT/RETCON by date
+# Sort chapter tags: CONCEPT first, then CHxx numerically, then CHxx-rev, then AMEND by date
 function Sort-ChapterTags {
     param([string[]]$Tags)
 
     $concept = $Tags | Where-Object { $_ -eq 'CONCEPT' }
     $chTags = $Tags | Where-Object { $_ -match '^CH\d{2}$' } | Sort-Object
     $chRevTags = $Tags | Where-Object { $_ -match '^CH\d{2}-rev$' } | Sort-Object
-    $otherTags = $Tags | Where-Object { $_ -match '^(AMEND|PIVOT|RETCON)-' } | Sort-Object
+    $otherTags = $Tags | Where-Object { $_ -match '^AMEND-' } | Sort-Object
 
     $result = @()
     if ($concept) { $result += $concept }
@@ -503,7 +503,7 @@ foreach ($e in $sortedEntities) {
         }
 
         foreach ($key in $keys) {
-            # Only include CONCEPT and CHxx/CHxx-rev in manifest (not AMEND/PIVOT/RETCON date tags)
+            # Only include CONCEPT and CHxx/CHxx-rev in manifest (not AMEND date tags)
             if ($key -match '^(CONCEPT|CH\d{2}|CH\d{2}-rev)$') {
                 if (-not $chapterMap.ContainsKey($key)) {
                     $chapterMap[$key] = @()
@@ -539,6 +539,23 @@ foreach ($key in $sortedChapterKeys) {
 $timestamp = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
 $noFmCount = ($entities | Where-Object { -not $_.HasFrontmatter }).Count
 
+# Dynamic per-type stats (matches bash behavior — new types appear automatically)
+$typeCounts = @{}
+foreach ($e in $entities) {
+    if (-not $typeCounts.ContainsKey($e.Type)) { $typeCounts[$e.Type] = 0 }
+    $typeCounts[$e.Type]++
+}
+
+$statsLines = @()
+$statsLines += "- **Total entities**: $($entities.Count)"
+$statsLines += "- **Total aliases**: $totalAliasRows"
+$statsLines += "- **Chapters tracked**: $($sortedChapterKeys.Count)"
+$statsLines += "- **Files with frontmatter**: $(($entities | Where-Object { $_.HasFrontmatter }).Count)/$($entities.Count)"
+foreach ($typ in ($typeCounts.Keys | Sort-Object)) {
+    $label = (Get-Culture).TextInfo.ToTitleCase($typ)
+    $statsLines += "- **$label entries**: $($typeCounts[$typ])"
+}
+
 $indexContent = @"
 ---
 generated: $timestamp
@@ -562,16 +579,7 @@ $($manifestLines -join "`n")
 
 ## Statistics
 
-- **Total entities**: $($entities.Count)
-- **Characters**: $(($entities | Where-Object { $_.Type -eq 'character' }).Count)
-- **Places**: $(($entities | Where-Object { $_.Type -eq 'place' }).Count)
-- **Organizations**: $(($entities | Where-Object { $_.Type -eq 'organization' }).Count)
-- **Events**: $(($entities | Where-Object { $_.Type -eq 'event' }).Count)
-- **Systems**: $(($entities | Where-Object { $_.Type -eq 'system' }).Count)
-- **Notes**: $(($entities | Where-Object { $_.Type -eq 'note' }).Count)
-- **Total aliases**: $totalAliasRows
-- **Chapters tracked**: $($sortedChapterKeys.Count)
-- **Files with frontmatter**: $(($entities | Where-Object { $_.HasFrontmatter }).Count)/$($entities.Count)
+$($statsLines -join "`n")
 "@
 
 $indexFile = Join-Path $worldDir '_index.md'

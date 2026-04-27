@@ -11,6 +11,7 @@ handoffs:
     agent: authorkit.analyze
     prompt: Analyze consistency after chapter restructuring
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -149,7 +150,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
       - **Chapter plans**: Update references to other chapters (e.g., "continues from CH03")
       - **Chapter drafts**: Update any explicit chapter references in prose (rare but possible in non-fiction)
       - **parked-decisions.md** (if exists): Update deadline references (e.g., "Before CH12")
-      - **Amendment logs** in `amendments/` (or legacy `pivots/`) if they exist: Note the renumbering but don't rewrite history
+      - **Amendment logs** in `amendments/` if they exist: Note the renumbering but don't rewrite history
 
    f. **Phase 6 — Update outline.md**:
       - Reorder chapter entries to match new structure
@@ -157,7 +158,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
    g. **Phase 7 — Update world/ frontmatter and rebuild index**:
       - For every world/ file whose `(CHxx)` tags were renumbered: update the YAML frontmatter `chapters` field to reflect the new chapter numbers. Update `last_updated`.
-      - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `world/_index.md`.
+      - Rebuild `world/_index.md` by running `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root.
 
 7. **Post-reorder validation**:
    - Verify all chapter directories exist at their new locations

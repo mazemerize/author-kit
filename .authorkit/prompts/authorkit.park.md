@@ -6,8 +6,9 @@ handoffs:
     prompt: Resolve the parked decision about...
   - label: Amend Based on Decision
     agent: authorkit.amend
-    prompt: Apply the resolved decision as an amendment
+    prompt: Apply parked decision [PD-NNN] as an amendment
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 

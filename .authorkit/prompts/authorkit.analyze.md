@@ -1,5 +1,5 @@
 ---
-description: Perform a read-only cross-chapter consistency and quality analysis across the entire book, including upstream document drift detection.
+description: Perform a cross-chapter consistency and quality analysis (read-only by default). Drift remediation is gated behind explicit user approval and only edits upstream planning documents — never drafts.
 handoffs:
   - label: Sync World
     agent: authorkit.world.sync
@@ -15,8 +15,18 @@ handoffs:
     prompt: Defer a finding that requires a creative decision before it can be fixed
   - label: Discuss a Finding
     agent: authorkit.discuss
-    prompt: Talk through a complex finding before deciding how to address it
+    prompt: Talk through finding [ID] before deciding how to address it
+  - label: Clarify Concept Drift
+    agent: authorkit.clarify
+    prompt: Resolve concept ambiguities surfaced by the drift findings
+  - label: Restructure Chapters
+    agent: authorkit.chapter.reorder
+    prompt: Move, split, merge, insert, or remove chapters based on analysis findings
+  - label: Update Constitution
+    agent: authorkit.constitution
+    prompt: Update voice/tone/style rules to reflect drift findings
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --require-chapters --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireChapters -IncludeChapters
 ---
 
@@ -34,9 +44,11 @@ Identify inconsistencies, continuity errors, pacing problems, and unresolved thr
 
 ## Operating Constraints
 
-**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any edits).
+**Read-only by default**: Analysis itself never modifies files — output a structured report.
 
-**Constitution Authority**: The book constitution (`/memory/constitution.md`) is the authoritative style guide. Constitution violations are automatically CRITICAL.
+**Drift remediation is gated**: After presenting drift findings (step 3), you MAY offer to update upstream planning documents (concept, outline, chapters.md, world/). Never modify drafts under any circumstance. Wait for explicit user approval before any write. If the user declines or skips, this command remains fully read-only.
+
+**Constitution Authority**: The book constitution (`.authorkit/memory/constitution.md`) is the authoritative style guide. Constitution violations are automatically CRITICAL.
 **Style Continuity Anchor**: `book/style-anchor.md` is the continuity baseline across model switches. Style-anchor drift is at least MEDIUM severity.
 
 ## Execution Steps
@@ -74,6 +86,9 @@ Abort with an error message if required files are missing.
 
 **From style anchor (if exists):**
 - `book/style-anchor.md` cadence, diction/register, imagery density, dialogue profile, and drift flags
+
+**From parked-decisions.md (if exists):**
+- All OPEN parked decisions with their deadlines (e.g., "before CH12") and summaries — used in step 4.H to surface overdue items as findings.
 
 ### 3. Upstream Drift Detection (Reconciliation)
 
@@ -159,7 +174,14 @@ Focus on high-signal findings. Limit to 50 findings total (excluding drift findi
 - Mysteries raised but never resolved
 - Character relationships that stall
 
-#### H. World-Building Consistency
+#### H. Overdue Parked Decisions
+
+If `parked-decisions.md` exists, surface any OPEN decision whose deadline has been reached or passed (e.g., a decision due "before CH12" when CH12 is already drafted).
+- Severity: **HIGH** by default (a parked decision past its deadline is now blocking downstream consistency).
+- Citation: PD identifier, deadline, summary, and the chapter(s) that should have triggered resolution.
+- Recommendation: resolve with `/authorkit.park resolve PD-NNN` (or `/authorkit.amend` if the resolution requires propagating across drafts).
+
+#### I. World-Building Consistency
 
 If a `world/` folder exists in BOOK_DIR, perform these checks by cross-referencing world/ files against all drafted chapters:
 
@@ -177,7 +199,7 @@ Each finding should cite the specific world/ file and the chapter(s) where the c
 ### 5. Severity Assignment
 
 - **CRITICAL**: Constitution violation, major plot hole, timeline contradiction, character inconsistency that breaks immersion, world rule violation that breaks established system logic, major geography/timeline contradiction
-- **HIGH**: Unresolved subplot, significant pacing issue, theme dropped, important foreshadowing unfulfilled, character detail contradiction across chapters, significant setting drift
+- **HIGH**: Unresolved subplot, significant pacing issue, theme dropped, important foreshadowing unfulfilled, character detail contradiction across chapters, significant setting drift, parked decision past its deadline
 - **MEDIUM**: Minor continuity error, slight voice drift, pacing could be improved, minor character inconsistency, minor world detail inconsistency, cultural detail mismatch
 - **LOW**: Style nitpick, optional improvement, very minor detail mismatch
 
@@ -251,6 +273,6 @@ Output a Markdown report (no file writes):
 - If drift was found but skipped: recommend running `/authorkit.analyze` again after fixing
 - If CRITICAL issues exist: Recommend resolving before drafting more chapters
 - Provide specific `/authorkit.revise` suggestions for top issues
-- If world-building issues dominate: Recommend `/authorkit.world.sync verify only` for deeper world-specific analysis
+- If world-building issues dominate: Recommend `/authorkit.world.sync verify` for deeper world-specific analysis
 - If mostly clean: Suggest continuing with next chapter or moving to final polish
 

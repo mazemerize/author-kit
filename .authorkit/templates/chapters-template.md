@@ -1,7 +1,3 @@
----
-description: "Chapter breakdown template for book implementation"
----
-
 # Chapters: [BOOK TITLE]
 
 **Input**: Outline and concept from `/book/`

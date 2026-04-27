@@ -44,7 +44,7 @@ TAGLINE = "Write books with structured AI assistance."
 # Supported AI targets and CLI requirements.
 AGENT_CONFIG = {
     "claude": {"name": "Claude Code", "folder": ".claude", "requires_cli": True, "tool": "claude"},
-    "copilot": {"name": "GitHub Copilot", "folder": ".github", "requires_cli": False, "tool": None, "optional_cli_tool": "copilot"},
+    "copilot": {"name": "GitHub Copilot", "folder": ".github", "requires_cli": False, "tool": None},
     "codex": {"name": "Codex CLI", "folder": ".codex", "requires_cli": True, "tool": "codex"},
 }
 
@@ -66,6 +66,7 @@ GUARDRAIL_PROMPT_ALLOWLIST = {
     "authorkit.chapter.plan.md",
     "authorkit.chapter.review.md",
     "authorkit.chapters.md",
+    "authorkit.clarify.md",
     "authorkit.conceive.md",
     "authorkit.constitution.md",
     "authorkit.discuss.md",
