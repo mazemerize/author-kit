@@ -32,18 +32,21 @@ from .book_stats import collect_stats, render_stats_markdown
 
 
 def _safe_parse_book_config(book_dir: Path) -> BookConfig:
-    """Translate ``BookConfigError`` into an actionable Typer error.
+    """Translate ``BookConfigError`` into an actionable CLI error.
 
-    Keeps callers focused on the happy path while ensuring users see a
-    friendly message + remediation hint instead of a raw traceback when their
-    ``book.toml`` is malformed or has wrong types.
+    Prints via ``console.print`` rather than raising ``typer.BadParameter``
+    so the long config path isn't folded mid-token by Rich's panel wrapper —
+    folding splits ``book.toml`` across lines on narrow terminals and breaks
+    substring checks in tests/users' eyes.
     """
     try:
         return parse_book_config(book_dir)
     except BookConfigError as exc:
-        raise typer.BadParameter(
-            f"{exc} Fix the file or run `authorkit init --here --force` to regenerate it."
-        ) from exc
+        console.print(f"[red]Error:[/red] {exc}")
+        console.print(
+            "[dim]Fix the file or run `authorkit init --here --force` to regenerate it.[/dim]"
+        )
+        raise typer.Exit(code=2) from exc
 
 # Shared Rich console for book subcommand output.
 console = Console()
