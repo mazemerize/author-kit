@@ -41,15 +41,19 @@ source "$SCRIPT_DIR/common.sh"
 
 # Resolve a usable Python interpreter for the in-place TOML edit helper. Walk
 # both `python3` and `python` and verify each candidate actually executes
-# Python — `command -v` alone isn't enough on Windows, where it finds the
+# Python by checking the produced stdout — `command -v` alone (and even
+# `-c "import sys"` which exits 0) isn't enough on Windows, where the
 # Microsoft Store alias stub (`%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe`)
-# that emits a UTF-16 "Python was not found" message and exits non-zero
-# instead of running.
+# emits a UTF-16 "Python was not found" message and exits non-zero only when
+# given stdin. A unique sentinel string round-trip is the reliable signal.
 PYTHON_BIN=""
 for candidate in python3 python; do
-  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
-    PYTHON_BIN="$candidate"
-    break
+  if command -v "$candidate" >/dev/null 2>&1; then
+    out=$("$candidate" -c "print('AUTHORKIT_PY_OK')" 2>/dev/null) || out=""
+    if [[ "$out" == "AUTHORKIT_PY_OK" ]]; then
+      PYTHON_BIN="$candidate"
+      break
+    fi
   fi
 done
 

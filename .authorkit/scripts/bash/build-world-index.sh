@@ -41,15 +41,20 @@ if [[ ! -d "$WORLD_DIR" ]]; then
 fi
 
 # Resolve a usable Python interpreter. Walk both `python3` and `python` and
-# verify each candidate actually executes Python — `command -v` alone isn't
-# enough on Windows, where it finds the Microsoft Store alias stub
-# (`%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe`) that emits a UTF-16
-# "Python was not found" message and exits non-zero instead of running.
+# verify each candidate actually executes Python by checking the produced
+# stdout — `command -v` alone (and even `-c "import sys"` which exits 0)
+# isn't enough on Windows, where the Microsoft Store alias stub
+# (`%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe`) emits a UTF-16
+# "Python was not found" message and exits non-zero only when given stdin.
+# A unique sentinel string round-trip is the reliable signal.
 PYTHON_BIN=""
 for candidate in python3 python; do
-  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
-    PYTHON_BIN="$candidate"
-    break
+  if command -v "$candidate" >/dev/null 2>&1; then
+    out=$("$candidate" -c "print('AUTHORKIT_PY_OK')" 2>/dev/null) || out=""
+    if [[ "$out" == "AUTHORKIT_PY_OK" ]]; then
+      PYTHON_BIN="$candidate"
+      break
+    fi
   fi
 done
 
