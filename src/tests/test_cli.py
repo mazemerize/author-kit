@@ -8,6 +8,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 import authorkit_cli as cli
 import authorkit_cli.book_core as book_core
 import authorkit_cli.book_commands as book_commands
@@ -17,6 +19,42 @@ from typer.testing import CliRunner
 
 
 runner = CliRunner()
+
+
+def _bash_with_working_python_available() -> bool:
+    """True when `bash` is on PATH AND can launch a working Python via the
+    same fallback chain the bash scripts use (`python3` then `python`).
+
+    We round-trip a sentinel string so that the Microsoft Store alias stub
+    on Windows runners — which silently shadows `python3` and emits UTF-16
+    garbage when piped a heredoc — is not mistaken for a real interpreter.
+    Used to skip bash regression tests cleanly on hosts where the bash +
+    Python combination isn't actually viable.
+    """
+    import shutil
+    import subprocess
+
+    if not shutil.which("bash"):
+        return False
+    try:
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "for c in python3 python; do "
+                "  if command -v \"$c\" >/dev/null 2>&1; then "
+                "    out=$(\"$c\" -c \"print('AUTHORKIT_PY_OK')\" 2>/dev/null) || out=''; "
+                "    if [ \"$out\" = 'AUTHORKIT_PY_OK' ]; then exit 0; fi; "
+                "  fi; "
+                "done; exit 1",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return False
 
 
 def test_init_installs_multiple_ai_flavors_side_by_side():
@@ -1009,8 +1047,8 @@ def test_build_world_index_scripts_parse_yaml_frontmatter():
     import subprocess
     import tempfile
 
-    if not shutil.which("bash") or not shutil.which("python3"):
-        return  # skip on systems without bash/python3 (covered by PowerShell sibling on Windows-only hosts)
+    if not _bash_with_working_python_available():
+        return  # skip when bash + working Python aren't both reachable (e.g. Windows runner where python3 is the Microsoft Store stub)
 
     repo_root = Path(__file__).resolve().parents[2]
     bash_script = repo_root / ".authorkit" / "scripts" / "bash" / "build-world-index.sh"
@@ -1070,8 +1108,8 @@ def test_build_world_index_add_frontmatter_yaml_safe_for_colon_in_name():
     import subprocess
     import tempfile
 
-    if not shutil.which("bash") or not shutil.which("python3"):
-        return
+    if not _bash_with_working_python_available():
+        return  # skip when bash + working Python aren't both reachable
 
     repo_root = Path(__file__).resolve().parents[2]
     bash_script = repo_root / ".authorkit" / "scripts" / "bash" / "build-world-index.sh"
@@ -1213,9 +1251,8 @@ def test_build_world_index_bash_and_powershell_produce_matching_json():
     import subprocess
     import tempfile
 
-    bash_available = shutil.which("bash") and (shutil.which("python3") or shutil.which("python"))
     pwsh_available = shutil.which("pwsh") or shutil.which("powershell")
-    if not bash_available or not pwsh_available:
+    if not _bash_with_working_python_available() or not pwsh_available:
         return  # both runtimes required; skip when only one is available
 
     repo_root = Path(__file__).resolve().parents[2]
@@ -1542,7 +1579,8 @@ def test_status_command_handles_partial_workspace(tmp_path, monkeypatch):
     assert "outline.md: missing" in result.output
     assert "No chapters tracked yet" in result.output
     # Nothing to drift against, so no drift lines should appear.
-    assert "[drift]" not in result.output
+    assert "[unwritten]" not in result.output
+    assert "[untracked]" not in result.output
 
 
 def test_status_overdue_parked_decisions_are_counted(tmp_path, monkeypatch):
@@ -1747,3 +1785,96 @@ def test_setup_book_powershell_preserves_existing_book_toml_customizations():
     # The full-template write is only inside the fresh-install branch.
     fresh_marker = "-not (Test-Path $bookTomlPath -PathType Leaf)"
     assert fresh_marker in ps_script
+
+
+def test_discover_chapter_drafts_rejects_inverted_range(tmp_path):
+    """`--from-chapter > --to-chapter` is almost always a typo. Surfacing it as
+    a `ValueError` lets the CLI translate it into a clean `BadParameter` instead
+    of the generic "no draft chapters found" message.
+    """
+    from authorkit_cli.book_core import discover_chapter_drafts
+
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+
+    with pytest.raises(ValueError, match="must be <="):
+        discover_chapter_drafts(book_dir, from_chapter=10, to_chapter=5)
+
+
+def test_book_stats_rejects_inverted_chapter_range(tmp_path, monkeypatch):
+    """End-to-end: `authorkit book stats --from-chapter 10 --to-chapter 5` must
+    fail with an actionable error mentioning the flag names, not the generic
+    "no draft chapters found" path.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    (book_dir / "chapters" / "01").mkdir(parents=True)
+    (book_dir / "chapters" / "01" / "draft.md").write_text(
+        "# Chapter 1\n\nBody.\n", encoding="utf-8"
+    )
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["book", "stats", "--from-chapter", "10", "--to-chapter", "5"])
+
+    assert result.exit_code != 0
+    assert "--from-chapter" in result.output
+    assert "--to-chapter" in result.output
+
+
+def test_book_audio_quiet_flag_suppresses_summary(tmp_path, monkeypatch):
+    """`book audio --quiet` should not print the chapter-summary lines that
+    the verbose path emits. CI consumers running batch audio rely on this.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    (book_dir / "chapters" / "01").mkdir(parents=True)
+    (book_dir / "chapters" / "01" / "draft.md").write_text(
+        "# Chapter 1\n\nBody.\n", encoding="utf-8"
+    )
+
+    def fake_generate_audiobook(**kwargs):
+        return {
+            "generated": 1,
+            "skipped": 0,
+            "chapter_files": [],
+            "merged_file": None,
+        }
+
+    monkeypatch.setattr(book_commands, "generate_audiobook", fake_generate_audiobook)
+    monkeypatch.chdir(repo_root)
+
+    quiet_result = runner.invoke(cli.app, ["book", "audio", "--quiet"])
+    loud_result = runner.invoke(cli.app, ["book", "audio"])
+
+    assert quiet_result.exit_code == 0, quiet_result.output
+    assert loud_result.exit_code == 0, loud_result.output
+    assert "Generated:" not in quiet_result.output
+    assert "Generated:" in loud_result.output
+
+
+def test_status_legend_is_printed_when_chapters_tracked(tmp_path, monkeypatch):
+    """The status dashboard must teach the marker semantics on the same screen
+    as the counts — first-time users won't otherwise know that `[X]` ties back
+    to the "approved" label printed above it.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    book_dir.mkdir()
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (book_dir / "chapters.md").write_text(
+        "- [X] CH01 Title - summary\n- [ ] CH02 Title - summary\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["status"])
+
+    assert result.exit_code == 0, result.output
+    # Rich may soft-wrap the legend on narrow CI terminals; collapse whitespace
+    # before asserting so the test is robust to wrap position.
+    flattened = " ".join(result.output.split())
+    assert "legend:" in flattened
+    assert "[X] approved" in flattened

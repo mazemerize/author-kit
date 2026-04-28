@@ -200,7 +200,23 @@ def parse_book_config(book_dir: Path) -> BookConfig:
 
 
 def discover_chapter_drafts(book_dir: Path, from_chapter: int | None = None, to_chapter: int | None = None) -> list[ChapterDraft]:
-    """Load chapter draft files in numeric order."""
+    """Load chapter draft files in numeric order.
+
+    Raises:
+        ValueError: If both ``from_chapter`` and ``to_chapter`` are set and the
+            range is inverted (``from_chapter > to_chapter``). Without this
+            check, an inverted range silently produces an empty list and the
+            CLI surfaces a generic "no drafts found" error that hides the
+            user's typo.
+    """
+    if (
+        from_chapter is not None
+        and to_chapter is not None
+        and from_chapter > to_chapter
+    ):
+        raise ValueError(
+            f"--from-chapter ({from_chapter}) must be <= --to-chapter ({to_chapter})."
+        )
     chapters_root = book_dir / CHAPTERS_DIR_NAME
     if not chapters_root.exists():
         return []

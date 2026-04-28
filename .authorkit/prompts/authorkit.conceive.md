@@ -13,7 +13,6 @@ handoffs:
   - label: Clarify Book Concept
     agent: authorkit.clarify
     prompt: Clarify the book concept — resolve ambiguities
-    send: true
   - label: Update Constitution
     agent: authorkit.constitution
     prompt: Refine voice, tone, and style rules to match this concept

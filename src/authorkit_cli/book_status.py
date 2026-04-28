@@ -243,14 +243,20 @@ def format_status_lines(report: StatusReport) -> list[str]:
         lines.append(f"  - total: {report.chapter_total}")
         if breakdown_parts:
             lines.append(f"  - status: {', '.join(breakdown_parts)}")
+            lines.append("  - legend: [ ] pending -> [P] planned -> [D] drafted -> [R] review -> [X] approved")
 
+    # Two distinct drift directions, surfaced with distinct labels so writers
+    # can tell pending work from a tracking gap at a glance:
+    #   [unwritten] = chapters.md says it exists, but no draft.md yet — work to do
+    #   [untracked] = draft.md exists, but chapters.md doesn't list it — likely a
+    #                  missed chapters.md edit (or a chapter just inserted)
     if report.drift_chapters:
         lines.append(
-            f"  - [drift] in chapters.md but no draft.md: {', '.join(f'CH{n:02d}' for n in report.drift_chapters)}"
+            f"  - [unwritten] in chapters.md but no draft.md: {', '.join(f'CH{n:02d}' for n in report.drift_chapters)}"
         )
     if report.drift_dirs:
         lines.append(
-            f"  - [drift] draft.md present but missing from chapters.md: {', '.join(f'CH{n:02d}' for n in report.drift_dirs)}"
+            f"  - [untracked] draft.md present but missing from chapters.md: {', '.join(f'CH{n:02d}' for n in report.drift_dirs)}"
         )
     lines.append("")
 

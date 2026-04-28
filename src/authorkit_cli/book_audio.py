@@ -78,7 +78,9 @@ def resolve_audio_instructions(book_dir: Path, config: BookConfig) -> str:
             continue
         seen.add(resolved)
         if resolved.exists():
-            return resolved.read_text(encoding="utf-8").strip()
+            # utf-8-sig tolerates the BOM that Notepad on Windows adds when
+            # users edit a custom audio-instructions.txt file.
+            return resolved.read_text(encoding="utf-8-sig").strip()
 
     # Inline fallback when no template file is found anywhere.
     return "You are the narrator for an audiobook. Speak clearly with steady pacing and natural expression."

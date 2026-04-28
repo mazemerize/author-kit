@@ -836,8 +836,11 @@ def status() -> None:
         raise typer.Exit(code=1) from exc
 
     report = collect_status(book_dir, repo_root)
+    # markup=False so Rich does not consume the literal `[X]`, `[P]`,
+    # `[unwritten]`, etc. brackets as style tags. The status formatter emits
+    # plain text on purpose; markup interpretation would silently strip them.
     for line in format_status_lines(report):
-        console.print(line)
+        console.print(line, markup=False, highlight=False)
 
 
 def main() -> None:

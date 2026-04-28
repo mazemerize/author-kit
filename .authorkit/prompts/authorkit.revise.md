@@ -10,7 +10,6 @@ handoffs:
   - label: Run Analysis Again
     agent: authorkit.analyze
     prompt: Run a fresh cross-chapter analysis
-    send: true
   - label: Clarify Concept First
     agent: authorkit.clarify
     prompt: Resolve concept ambiguities before applying the revision

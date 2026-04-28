@@ -4,7 +4,6 @@ handoffs:
   - label: Plan First Chapter
     agent: authorkit.chapter.plan
     prompt: Plan chapter 1
-    send: true
   - label: Analyze For Consistency
     agent: authorkit.analyze
     prompt: Run a cross-chapter consistency analysis

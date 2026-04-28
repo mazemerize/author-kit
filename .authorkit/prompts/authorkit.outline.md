@@ -4,7 +4,6 @@ handoffs:
   - label: Create Chapter Breakdown
     agent: authorkit.chapters
     prompt: Break the outline into chapter tasks
-    send: true
   - label: Extend Outline
     agent: authorkit.outline
     prompt: Extend the outline with the next section
@@ -139,6 +138,8 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Character Arc Positions**: Where each major character stands at the end of the outlined section and where they're heading
    - **Thematic Threads In Progress**: Which themes have been introduced/developed but not resolved
    - **Notes for Next Outlining Session**: Anything the next `/authorkit.outline extend` should know — upcoming tone shifts, planned reveals, structural considerations
+
+   **Lifecycle on extend**: when `/authorkit.outline extend` runs, **replace** the entire Continuation Notes section with a fresh snapshot reflecting state at the new last-outlined-through chapter. Do not merge with the previous notes and do not archive the old block — the chapter entries themselves are the historical record.
 
    For **full mode**: Remove the Continuation Notes section from the template entirely (or leave it empty with a note that the outline is complete).
 

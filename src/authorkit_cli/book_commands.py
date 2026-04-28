@@ -54,6 +54,25 @@ console = Console()
 book_app = typer.Typer(help="Book publishing tools")
 
 
+def _discover_drafts_with_range_check(
+    book_dir: Path,
+    *,
+    from_chapter: int | None,
+    to_chapter: int | None,
+) -> list:
+    """Run ``discover_chapter_drafts`` and convert range errors to CLI errors.
+
+    The underlying ``ValueError`` for an inverted ``--from-chapter`` /
+    ``--to-chapter`` range would otherwise surface as an unhandled traceback;
+    Typer treats ``BadParameter`` as a user-facing error with exit code 2 and
+    a clean message.
+    """
+    try:
+        return discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+
 def _resolve_context() -> tuple[Path, Path]:
     """Locate the repository root and the canonical book directory.
 
@@ -110,7 +129,7 @@ def build(
     config = _safe_parse_book_config(book_dir)
     formats = _resolve_formats(format, config.default_formats)
 
-    drafts = discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
+    drafts = _discover_drafts_with_range_check(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter(f"No draft chapters found in {book_dir / CHAPTERS_DIR_NAME}")
 
@@ -163,6 +182,7 @@ def audio(
     merge: bool = typer.Option(False, "--merge", help="Also create merged audiobook"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing chapter audio without prompts"),
     yes: bool = typer.Option(False, "--yes", help="Non-interactive confirmation for overwrite prompts"),
+    quiet: bool = typer.Option(False, "--quiet", help="Reduce output"),
     from_chapter: int | None = typer.Option(None, "--from-chapter", help="Minimum chapter number"),
     to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
@@ -177,7 +197,7 @@ def audio(
     if model:
         config.audio_model = model
 
-    drafts = discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
+    drafts = _discover_drafts_with_range_check(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter("No matching draft chapters found for audio generation.")
 
@@ -194,11 +214,12 @@ def audio(
         book_dir=book_dir,
     )
 
-    console.print(f"Audio directory: {audio_dir}")
-    console.print(f"Generated: {result['generated']}")
-    console.print(f"Skipped: {result['skipped']}")
-    if result["merged_file"]:
-        console.print(f"Merged file: {result['merged_file']}")
+    if not quiet:
+        console.print(f"Audio directory: {audio_dir}")
+        console.print(f"Generated: {result['generated']}")
+        console.print(f"Skipped: {result['skipped']}")
+        if result["merged_file"]:
+            console.print(f"Merged file: {result['merged_file']}")
 
 
 @book_app.command("stats")
@@ -215,7 +236,7 @@ def stats(
     if wpm is not None:
         config.reading_wpm = wpm
 
-    drafts = discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
+    drafts = _discover_drafts_with_range_check(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter("No draft chapters found for stats.")
 

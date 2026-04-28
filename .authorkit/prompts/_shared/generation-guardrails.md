@@ -13,6 +13,12 @@
 - When multiple values are plausible, pick a context-bounded varied value to avoid repetitive defaults; variability is allowed only after rationale is established.
 - Avoid repeating arbitrary fallback numbers across unrelated facts.
 
+### Alias Lookup Disambiguation
+
+- When resolving a name through `world/_index.md`'s Alias Lookup, check the `Ambiguous` column.
+- If the matching row is flagged `Ambiguous=YES`, do **not** pick automatically. Surface the candidate entity IDs to the user with their types and chapter tags, ask which entity is meant, and use the user's choice.
+- If only one entity matches and the column is empty, proceed with that entity.
+
 ### Style Continuity Protocol
 
 - Constitution is the primary style authority.

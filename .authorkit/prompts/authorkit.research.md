@@ -62,6 +62,13 @@ By default, this command is **suggest-only** and does not modify `world/` files.
    - Other scopes map directly: `clarify`, `world`, `outline`, `general`.
 
 4. **Resolve topic file path**:
+
+   **Precedence (highest wins)**:
+   1. Existing topic file (matched by frontmatter `id` anywhere under `BOOK_DIR/research/`) — always update in place; no relocation.
+   2. Explicit `folder:` directive — write to `BOOK_DIR/research/<folder>/<id>-<slug>.md`.
+   3. `scope:`-based folder map (when nested placement is warranted; see below).
+   4. Adaptive flat-first placement at `BOOK_DIR/research/<id>-<slug>.md`.
+
    - Ensure `BOOK_DIR/research/` exists.
    - First, search recursively under `BOOK_DIR/research/` for an existing topic file with matching frontmatter `id`. If found, update that file in place.
    - Otherwise, if `folder:` is provided, write to `BOOK_DIR/research/<folder>/<id>-<slug>.md`.
