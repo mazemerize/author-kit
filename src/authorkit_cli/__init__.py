@@ -782,17 +782,12 @@ def init(
         else:
             console.print(f"Set CODEX_HOME: export CODEX_HOME={codex_home}")
 
-    instructions_file = {
-        "claude": "CLAUDE.md",
-        "copilot": ".github/copilot-instructions.md",
-        "codex": ".codex/AGENTS.md",
-    }[selected_ais[0]]
     console.print()
     console.print("[bold green]Next steps:[/bold green]")
     console.print(f"  1. Open your AI agent (e.g. {AGENT_CONFIG[selected_ais[0]]['name']}) in this directory.")
     console.print("  2. Run [bold]/authorkit.constitution[/bold] to set your voice/tone/style rules.")
     console.print('  3. Run [bold]/authorkit.conceive "your book idea here"[/bold] to create the workspace.')
-    console.print(f"  4. See [bold]{instructions_file}[/bold] or the project README for the full workflow.")
+    console.print("  4. See the project README for the full workflow.")
 
 
 @app.command()
