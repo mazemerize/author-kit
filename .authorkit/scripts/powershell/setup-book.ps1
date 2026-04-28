@@ -26,6 +26,14 @@ if ($Help) {
 
 . "$PSScriptRoot/common.ps1"
 
+# PSBoundParameters is the canonical way in PowerShell to detect "was this
+# parameter explicitly passed?" — distinct from "is its value non-empty?".
+# A user passing `-Subtitle ""` is a legitimate intent to clear, not a no-op.
+$titleSet = $PSBoundParameters.ContainsKey('Title')
+$authorSet = $PSBoundParameters.ContainsKey('Author')
+$subtitleSet = $PSBoundParameters.ContainsKey('Subtitle')
+$languageSet = $PSBoundParameters.ContainsKey('Language')
+
 function Read-ExistingTomlValue {
     param(
         [string]$Path,
@@ -60,6 +68,24 @@ function Write-Utf8NoBom {
     )
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
     [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
+function Set-BookStringField {
+    # Replace `key = "..."` for a top-level [book] string key, in place. Leaves
+    # the rest of the file (other sections, comments, custom keys) untouched.
+    param(
+        [string]$Path,
+        [string]$Key,
+        [string]$Value
+    )
+    if (-not (Test-Path $Path -PathType Leaf)) { return }
+    $content = Get-Content -Path $Path -Raw -Encoding UTF8
+    $pattern = "(?m)^$([regex]::Escape($Key))\s*=\s*""[^""]*""\s*$"
+    if ($content -notmatch $pattern) { return }
+    $escaped = $Value -replace '\\', '\\' -replace '"', '\"'
+    $replacement = "$Key = `"$escaped`""
+    $newContent = [regex]::Replace($content, $pattern, $replacement, 1)
+    Write-Utf8NoBom -Path $Path -Content $newContent
 }
 
 $paths = Get-BookPaths
@@ -98,20 +124,24 @@ $defaultAuthor = if ($existingAuthor) { $existingAuthor } else { 'Unknown Author
 $defaultSubtitle = if ($existingSubtitle) { $existingSubtitle } else { '' }
 $defaultLanguage = if ($existingLanguage) { $existingLanguage } else { 'en-US' }
 
-if ($Json) {
-    $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { $defaultTitle } else { $Title.Trim() }
-    $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { $defaultAuthor } else { $Author.Trim() }
-    $bookSubtitle = if ($null -eq $Subtitle -or [string]::IsNullOrWhiteSpace($Subtitle)) { $defaultSubtitle } else { $Subtitle.Trim() }
-    $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { $defaultLanguage } else { $Language.Trim() }
-} else {
-    Write-Output "Initialize book metadata (book.toml):"
-    $bookTitle = if ([string]::IsNullOrWhiteSpace($Title)) { Read-MetadataValue -Label 'Title' -DefaultValue $defaultTitle } else { $Title.Trim() }
-    $bookAuthor = if ([string]::IsNullOrWhiteSpace($Author)) { Read-MetadataValue -Label 'Author' -DefaultValue $defaultAuthor } else { $Author.Trim() }
-    $bookSubtitle = if ($null -eq $Subtitle -or [string]::IsNullOrWhiteSpace($Subtitle)) { Read-MetadataValue -Label 'Subtitle' -DefaultValue $defaultSubtitle } else { $Subtitle.Trim() }
-    $bookLanguage = if ([string]::IsNullOrWhiteSpace($Language)) { Read-MetadataValue -Label 'Language' -DefaultValue $defaultLanguage } else { $Language.Trim() }
-}
+if (-not (Test-Path $bookTomlPath -PathType Leaf)) {
+    # Fresh install: write the full template. `tts_cost_per_1m_chars` ships
+    # commented out so users opt in (see README "Book Export"). All other
+    # fields have safe defaults that book_core.parse_book_config tolerates.
+    if ($Json) {
+        $bookTitle = if ($titleSet) { $Title.Trim() } else { $defaultTitle }
+        $bookAuthor = if ($authorSet) { $Author.Trim() } else { $defaultAuthor }
+        $bookSubtitle = if ($subtitleSet) { $Subtitle.Trim() } else { $defaultSubtitle }
+        $bookLanguage = if ($languageSet) { $Language.Trim() } else { $defaultLanguage }
+    } else {
+        Write-Output "Initialize book metadata (book.toml):"
+        $bookTitle = if ($titleSet) { $Title.Trim() } else { Read-MetadataValue -Label 'Title' -DefaultValue $defaultTitle }
+        $bookAuthor = if ($authorSet) { $Author.Trim() } else { Read-MetadataValue -Label 'Author' -DefaultValue $defaultAuthor }
+        $bookSubtitle = if ($subtitleSet) { $Subtitle.Trim() } else { Read-MetadataValue -Label 'Subtitle' -DefaultValue $defaultSubtitle }
+        $bookLanguage = if ($languageSet) { $Language.Trim() } else { Read-MetadataValue -Label 'Language' -DefaultValue $defaultLanguage }
+    }
 
-$bookToml = @"
+    $bookToml = @"
 [book]
 title = "$bookTitle"
 author = "$bookAuthor"
@@ -132,10 +162,56 @@ speaking_rate_wpm = 170
 
 [stats]
 reading_wpm = 200
-tts_cost_per_1m_chars = 0.0
+# tts_cost_per_1m_chars = 0.000015   # uncomment and set to enable cost estimates in `authorkit book stats`
 "@
 
-Write-Utf8NoBom -Path $bookTomlPath -Content $bookToml
+    Write-Utf8NoBom -Path $bookTomlPath -Content $bookToml
+} else {
+    # File exists — preserve all user customizations. Only update the four
+    # [book] string fields, and only when the corresponding parameter was
+    # explicitly bound (JSON mode) or the user typed a new value at the
+    # prompt (interactive mode).
+    if ($Json) {
+        if ($titleSet) { Set-BookStringField -Path $bookTomlPath -Key 'title' -Value $Title.Trim() }
+        if ($authorSet) { Set-BookStringField -Path $bookTomlPath -Key 'author' -Value $Author.Trim() }
+        if ($subtitleSet) { Set-BookStringField -Path $bookTomlPath -Key 'subtitle' -Value $Subtitle.Trim() }
+        if ($languageSet) { Set-BookStringField -Path $bookTomlPath -Key 'language' -Value $Language.Trim() }
+    } else {
+        Write-Output "Update book metadata (book.toml):"
+        if ($titleSet) {
+            Set-BookStringField -Path $bookTomlPath -Key 'title' -Value $Title.Trim()
+        } else {
+            $entered = Read-Host "Title [$defaultTitle]"
+            if (-not [string]::IsNullOrWhiteSpace($entered) -and $entered.Trim() -ne $defaultTitle) {
+                Set-BookStringField -Path $bookTomlPath -Key 'title' -Value $entered.Trim()
+            }
+        }
+        if ($authorSet) {
+            Set-BookStringField -Path $bookTomlPath -Key 'author' -Value $Author.Trim()
+        } else {
+            $entered = Read-Host "Author [$defaultAuthor]"
+            if (-not [string]::IsNullOrWhiteSpace($entered) -and $entered.Trim() -ne $defaultAuthor) {
+                Set-BookStringField -Path $bookTomlPath -Key 'author' -Value $entered.Trim()
+            }
+        }
+        if ($subtitleSet) {
+            Set-BookStringField -Path $bookTomlPath -Key 'subtitle' -Value $Subtitle.Trim()
+        } else {
+            $entered = Read-Host "Subtitle [$defaultSubtitle]"
+            if (-not [string]::IsNullOrWhiteSpace($entered) -and $entered.Trim() -ne $defaultSubtitle) {
+                Set-BookStringField -Path $bookTomlPath -Key 'subtitle' -Value $entered.Trim()
+            }
+        }
+        if ($languageSet) {
+            Set-BookStringField -Path $bookTomlPath -Key 'language' -Value $Language.Trim()
+        } else {
+            $entered = Read-Host "Language [$defaultLanguage]"
+            if (-not [string]::IsNullOrWhiteSpace($entered) -and $entered.Trim() -ne $defaultLanguage) {
+                Set-BookStringField -Path $bookTomlPath -Key 'language' -Value $entered.Trim()
+            }
+        }
+    }
+}
 
 if ($Json) {
     $obj = [PSCustomObject]@{

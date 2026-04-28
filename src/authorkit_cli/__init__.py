@@ -835,7 +835,7 @@ def status() -> None:
         console.print("[dim]Run /authorkit.conceive to create the book/ workspace.[/dim]")
         raise typer.Exit(code=1) from exc
 
-    report = collect_status(book_dir)
+    report = collect_status(book_dir, repo_root)
     for line in format_status_lines(report):
         console.print(line)
 

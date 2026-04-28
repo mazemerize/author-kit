@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 JSON_MODE=false
 for arg in "$@"; do

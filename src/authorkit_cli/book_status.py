@@ -22,6 +22,11 @@ from .book_core import (
     parse_chapter_statuses,
 )
 
+# Path to the constitution file relative to the repository root. Status checks
+# resolve it against `repo_root`, not `cwd`, so the dashboard reports accurately
+# regardless of where the user runs `authorkit status` from.
+CONSTITUTION_RELATIVE_PATH = Path(".authorkit") / "memory" / "constitution.md"
+
 
 @dataclass(slots=True)
 class StatusReport:
@@ -55,11 +60,17 @@ def _exists(path: Path) -> bool:
         return False
 
 
-def _count_open_parked(parked_path: Path) -> tuple[int, int, str | None]:
+def _count_open_parked(
+    parked_path: Path, max_drafted_chapter: int | None
+) -> tuple[int, int, str | None]:
     """Read parked-decisions.md and return (open_count, overdue_count, nearest_deadline_text).
 
-    Overdue heuristic: a deadline like "Before CH12" is overdue if any chapter
-    >= 12 has draft.md present. Status is `OPEN` if not `RESOLVED`.
+    Overdue heuristic: a deadline like "Before CH12" is overdue when any
+    chapter >= 12 has been drafted (i.e. ``max_drafted_chapter >= 12``). When
+    no chapters are drafted yet, no decision can be overdue.
+
+    `nearest_deadline` keeps the deadline of the *first* OPEN block we hit so
+    the dashboard can echo a human-readable hint even when nothing is overdue.
     """
     if not _exists(parked_path):
         return 0, 0, None
@@ -69,19 +80,33 @@ def _count_open_parked(parked_path: Path) -> tuple[int, int, str | None]:
     overdue_count = 0
     nearest_deadline: str | None = None
 
-    # Each PD-NNN block is delimited by horizontal rules; the marker lines we
-    # care about are "**Status**: OPEN" / "**Deadline**: ...".
+    # Each PD-NNN block runs from its `## PD-NNN:` heading up to the next
+    # `## PD-NNN:` (or end of file). We only care about blocks whose Status
+    # marker line is `OPEN`.
     block_pattern = re.compile(r"##\s+PD-\d+:.*?(?=\n##\s+PD-\d+:|\Z)", re.DOTALL)
+    deadline_chapter_pattern = re.compile(r"Before\s+CH(\d+)", re.IGNORECASE)
+
     for block in block_pattern.findall(text):
         status_match = re.search(r"\*\*Status\*\*:\s*(\w+)", block)
         if not status_match or status_match.group(1).upper() != "OPEN":
             continue
         open_count += 1
         deadline_match = re.search(r"\*\*Deadline\*\*:\s*([^\n]+)", block)
-        if deadline_match:
-            deadline_text = deadline_match.group(1).strip()
-            if nearest_deadline is None:
-                nearest_deadline = deadline_text
+        if not deadline_match:
+            continue
+        deadline_text = deadline_match.group(1).strip()
+        if nearest_deadline is None:
+            nearest_deadline = deadline_text
+        # Only "Before CHxx" deadlines are machine-checkable. "Before final
+        # draft" and "No deadline" never count as overdue from this view.
+        chapter_match = deadline_chapter_pattern.search(deadline_text)
+        if chapter_match and max_drafted_chapter is not None:
+            try:
+                deadline_chapter = int(chapter_match.group(1))
+            except ValueError:
+                continue
+            if max_drafted_chapter >= deadline_chapter:
+                overdue_count += 1
 
     return open_count, overdue_count, nearest_deadline
 
@@ -114,13 +139,18 @@ def _count_world_index_stats(world_index_path: Path) -> tuple[int | None, int | 
     )
 
 
-def collect_status(book_dir: Path) -> StatusReport:
+def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
     """Gather the data needed to render `authorkit status`.
 
     Tolerant of partial state: a fresh `book/` with only `concept.md` returns
     a sparsely populated report. Missing files never raise.
+
+    `repo_root` is required so we can resolve repo-scoped artifacts
+    (constitution at `.authorkit/memory/constitution.md`) regardless of the
+    user's current working directory — running `authorkit status` from inside
+    `book/` must report the same constitution presence as running it from the
+    repo root.
     """
-    chapters_md_path = book_dir / "chapters.md"
     parked_path = book_dir / "parked-decisions.md"
     world_dir = book_dir / "world"
     world_index = world_dir / "_index.md"
@@ -129,6 +159,7 @@ def collect_status(book_dir: Path) -> StatusReport:
 
     drafts = discover_chapter_drafts(book_dir)
     drafted_dirs = [draft.chapter_number for draft in drafts]
+    max_drafted = max(drafted_dirs) if drafted_dirs else None
 
     statuses = parse_chapter_statuses(book_dir)
     chapters_md_entries = sorted(statuses.keys())
@@ -143,7 +174,7 @@ def collect_status(book_dir: Path) -> StatusReport:
     drift_chapters = sorted(set(chapters_md_entries) - set(drafted_dirs))
     drift_dirs = sorted(set(drafted_dirs) - set(chapters_md_entries))
 
-    open_parked, overdue_parked, nearest_parked = _count_open_parked(parked_path)
+    open_parked, overdue_parked, nearest_parked = _count_open_parked(parked_path, max_drafted)
     world_entities, world_aliases, world_index_modified = _count_world_index_stats(world_index)
 
     snapshot_count = (
@@ -161,7 +192,7 @@ def collect_status(book_dir: Path) -> StatusReport:
         book_dir=book_dir,
         has_concept=_exists(book_dir / "concept.md"),
         has_outline=_exists(book_dir / "outline.md"),
-        has_constitution=_exists(Path(".authorkit/memory/constitution.md").resolve()),
+        has_constitution=_exists(repo_root / CONSTITUTION_RELATIVE_PATH),
         chapter_status_counts=counts,
         chapter_total=chapter_total,
         drafted_dirs=drafted_dirs,

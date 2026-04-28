@@ -12,15 +12,12 @@ An open-source toolkit that brings structured, template-driven principles to boo
 - [Get Started](#get-started)
 - [The Full Workflow](#the-full-workflow)
 - [Available Commands](#available-commands)
-- [Command Interactions](#command-interactions)
-- [Chapter-Level Iteration](#chapter-level-iteration)
 - [World Maintenance](#world-maintenance)
 - [Mid-Process Changes](#mid-process-changes)
 - [Book Export, Audiobook and Statistics](#book-export-audiobook-and-statistics)
 - [Project Structure](#project-structure)
 - [Environment Variables](#environment-variables)
 - [Troubleshooting Book CLI](#troubleshooting-book-cli)
-- [Background Reading](#background-reading)
 
 ---
 
@@ -41,7 +38,15 @@ Traditional AI-assisted writing often means dumping an idea and hoping for a goo
 
 This works for **any genre**: literary fiction, thrillers, non-fiction guides, memoirs, technical books, and everything in between.
 
-For deeper background reading on the philosophy behind Author Kit, see [Background Reading](#background-reading) near the bottom.
+### Read and Learn More about Author Kit 💡
+
+Before getting started, read more about Author Kit, its benefits and drawbacks, and how it operates.
+
+**Read our articles on Medium**:
+- [Why AI Writes the Same Book Every Time](https://medium.com/@mdemarne/why-ai-writes-the-same-book-every-time-0b02323f618a)
+- [The World Your AI Forgot to Build](https://medium.com/@mdemarne/the-world-your-ai-forgot-to-build-c7fda0fe71c7)
+- [Catching What Drifts in Your Human-Led, AI-Assisted Manuscript](https://medium.com/@mdemarne/catching-what-drifts-in-your-human-led-ai-assisted-manuscript-4d4fb7334a24)
+- [Writing with AI: What Works, What Doesn't, and What's Left](https://medium.com/@mdemarne/writing-with-ai-what-works-what-doesnt-and-what-s-left-72d53d95a6da)
 
 ---
 
@@ -193,6 +198,16 @@ Convert the outline into a chapter-level task list with status tracking.
 /authorkit.chapters
 ```
 
+Progress is tracked in `chapters.md` with status markers:
+
+| Marker | Status | Meaning |
+|--------|--------|---------|
+| `[ ]` | Pending | Chapter not yet started |
+| `[P]` | Planned | Chapter plan exists (`chapters/NN/plan.md`) |
+| `[D]` | Drafted | First draft written (`chapters/NN/draft.md`) |
+| `[R]` | Reviewed | Review completed, needs revision |
+| `[X]` | Approved | Chapter passed review, ready for final manuscript |
+
 ### 10. Write chapter by chapter
 
 Each chapter goes through a plan → draft → review cycle:
@@ -203,23 +218,30 @@ Each chapter goes through a plan → draft → review cycle:
 /authorkit.chapter.review 1   # Review against plan and constitution
 ```
 
-For more collaborative writing, draft scene by scene:
+For collaborative writing, draft scene by scene:
 
 ```bash
 /authorkit.chapter.draft 1 interactive   # Write one scene at a time with pauses for your input
 /authorkit.chapter.draft 1 scene 3       # Write just scene 3 (you handle the others)
 /authorkit.chapter.draft 1 continue      # Continue from where you (or the AI) left off
+/authorkit.chapter.draft 1 from scene 3  # Write from scene 3 through the end of the chapter
 ```
 
-Or get targeted help on specific passages while you write:
+Get targeted help on a specific passage while you write:
 
 ```bash
 /authorkit.chapter.help chapter 1 improve the opening paragraph
-/authorkit.chapter.help chapter 3 alternatives for the dialogue between X and Y
 /authorkit.chapter.help chapter 5 I'm stuck on the transition to the next scene
 ```
 
-After drafting a chapter, run `/authorkit.world.sync` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)).
+Reorder, split, merge, insert, or remove chapters at any time — Author Kit handles the renumbering and cross-references:
+
+```bash
+/authorkit.chapter.reorder Move CH05 to after CH02
+/authorkit.chapter.reorder Split CH04 into two chapters at the scene break
+```
+
+After drafting a chapter, run `/authorkit.world.sync` to extract new world details into the `world/` folder (see [World Maintenance](#world-maintenance)). For cross-model prose continuity, chapter workflows also maintain `book/style-anchor.md`, derived from the constitution plus the last two approved chapters.
 
 ### 11. Analyze the full manuscript
 
@@ -342,9 +364,9 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `python`, `pandoc`, `ffmpeg`) |
 | `authorkit version` | Print CLI and Python versions | — | Version report |
 | `authorkit status` | Project health dashboard for the current book | — | Chapter breakdown by status, parked-decision counts, world entity totals, drift warnings |
-| `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force`, `--yes`, `--quiet`, `--output-dir` | `dist/manuscript.md` + rendered docs |
-| `authorkit book audio` | Generate chapter audio and optional merged audiobook | `--voice`, `--model`, `--merge` | `dist/audio/*.mp3` (+ optional merged file) |
-| `authorkit book stats` | Compute chapter/global manuscript metrics | `--output`, `--wpm` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
+| `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force`, `--yes`, `--quiet`, `--output-dir`, `--from-chapter`, `--to-chapter` | `dist/manuscript.md` + rendered docs |
+| `authorkit book audio` | Generate chapter audio and optional merged audiobook | `--provider`, `--voice`, `--model`, `--merge`, `--output-dir`, `--from-chapter`, `--to-chapter`, `--force`, `--yes` | `dist/audio/*.mp3` (+ optional merged file) |
+| `authorkit book stats` | Compute chapter/global manuscript metrics | `--output`, `--wpm`, `--audio-dir`, `--from-chapter`, `--to-chapter` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
 
 ### Core Workflow
 
@@ -390,160 +412,6 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | `/authorkit.park` | Defer a creative decision for later resolution without blocking | Question or "list" or "resolve" | `parked-decisions.md` |
 | `/authorkit.snapshot` | Bookmark the current book state with narrative context | Description or "list" or "compare" | `snapshots/` file, git tag |
 | `/authorkit.whatif` | Explore an alternative direction on an experimental branch | Hypothesis or "compare" or "merge" or "discard" | `whatif/*` git branch |
-
----
-
-## Command Interactions
-
-Understanding which commands feed into which helps you navigate the workflow efficiently. Here's how each command relates to the others.
-
-### Foundation Phase (run once, in order)
-
-```
-constitution ──> conceive ──> clarify ──> discuss ──> research ──> world.build ──> outline ──> chapters
-                    │         (opt,       (opt,       (opt)         (opt)            (full
-                    │          structured  open-ended                                or partial)
-                    │          Q&A)        brainstorm)
-                    └── discuss (opt, repeatable) ──────────────────────────────────────┘
-```
-
-- **Constitution** must exist before conceive (it sets the voice rules).
-- **Conceive** initializes `book/` and creates/updates the concept. Everything else builds on this.
-- **Clarify** runs structured Q&A against the concept and writes accepted answers into `concept.md`. Use it before outlining if the concept has ambiguities.
-- **Discuss** is optional and repeatable. Use it for open-ended brainstorming on world-building, character arcs, plot directions, or themes — read-only by default.
-- **Research** is optional and repeatable. Run it before outline, during world-building, or during chapter work to ground details.
-- **World Build** is optional but recommended for genres with rich worlds. Can run before or after outline.
-- **Outline** requires concept.md. Produces outline.md, research.md, characters.md. Can outline all chapters at once or incrementally (part by part). Consumes existing `research/` topic files recursively when available.
-- **Chapters** requires outline.md. Produces the chapter task list. Works with partial outlines — run again after extending.
-
-### Chapter Iteration (repeat per chapter)
-
-```
-chapter.plan N ──> chapter.draft N ──> chapter.review N
-                   (full, scene by       │
-                    scene, continue)      │
-                        │           ┌─────┤
-                   chapter.help N   v     v
-                   (as needed)  [R] Rev  [X] Approved
-                                re-draft  ──> world.sync N
-                                ──> review    ──> next chapter
-```
-
-- **Plan** requires the outline and concept. Loads previous chapters for continuity.
-- **Draft** requires the plan. Write the full chapter at once, or collaboratively: scene by scene, continue from where you left off, or target specific scenes. Follows the constitution as its style guide. Supports mixed authorship — you write some parts, the AI writes others.
-- **Help** provides targeted assistance on specific passages during drafting — alternatives, improvements, continuations, dialogue polish, etc. Use it as needed without disrupting the plan-draft-review flow.
-- **Review** grades the draft against plan, constitution, characters, and world/ files.
-- **Research** can be run before planning or revising a chapter to ground domain-specific details.
-- **PASS** → status becomes `[X]`. Run `world.sync` to capture new world details, then move to the next chapter.
-- **NEEDS REVISION** → status becomes `[R]`. Re-plan with feedback, re-draft, re-review.
-
-### Quality Phase (run after several chapters)
-
-```
-analyze ──> revise ──> chapter.review ──> analyze (repeat)
-   │
-   └──> world.sync (verify) ──> world.build (fix) ──> world.sync
-```
-
-- **Analyze** identifies issues across all drafted chapters and includes upstream drift reconciliation (checking outline, concept, chapters.md, and world/ for drift).
-- **Revise** applies fixes. It may recommend re-reviewing affected chapters.
-- **World Sync** (verify mode) checks world/ consistency.
-- Run analyze → revise → analyze until critical issues reach zero.
-
-### Mid-Process Commands (available anytime once `concept.md` exists)
-
-These commands work alongside the main workflow. Here's when to reach for each one:
-
-| Situation | Command | What It Does |
-|-----------|---------|-------------|
-| "I need grounded facts before I outline or draft this" | **Research** | Collects source-backed findings into `research.md` and `research/` topic files (flat or nested), with optional sync to `world/notes/` |
-| "I want to change the ending" | **Amend** | Scans all artifacts, shows impact, propagates changes top-down |
-| "Character X should have been a spy, not a soldier" | **Amend** | Finds every reference (direct, indirect, derivative), updates consistently |
-| "I'm not sure if Marcus should die — I'll decide later" | **Park** | Records the decision with deadline, warns when deadline approaches |
-| "I'm about to make a big change and want to be safe" | **Snapshot** | Creates a git tag + narrative bookmark of current state |
-| "What if I tried first-person POV for the flashbacks?" | **What-If** | Creates an experimental branch, lets you try it, compare, merge or discard |
-| "Chapters 5-7 should come before chapter 3" | **Reorder** | Moves files, renumbers everything, updates all cross-references |
-
-#### How mid-process commands interact with each other
-
-- **Snapshot** is often used *before* an **Amend** or **What-If** (as a safety net)
-- **Amend** handles both direction changes and fact changes in a single command
-- **Park** decisions often get resolved via **Amend** when the author decides
-- **What-If** uses **Snapshot** automatically when creating a branch
-- **Reorder** may trigger **Amend** if the structural change affects the narrative direction
-- Amendment logs are stored in `amendments/` for a unified change history
-
-#### How mid-process commands interact with core commands
-
-- After an **Amend**: run `analyze` to verify consistency, `world.sync` to check world, re-`review` affected chapters
-- **Park** checks deadlines when you run `chapter.plan` or `chapter.draft` — warns if you're approaching a parked decision's deadline
-- **Park** decisions appear as findings in `analyze` reports if their deadlines have passed
-- After **What-If** merge: run `analyze` to verify the merged content is consistent
-- After **Reorder**: run `analyze` and `world.sync` to confirm renumbering didn't break references
-
----
-
-## Chapter-Level Iteration
-
-The core innovation of Author Kit is **chapter-level iteration**. Instead of writing the whole book and then revising, each chapter goes through its own cycle:
-
-```
-                    ┌─────────────────────────┐
-                    │                         │
-                    v                         │
-  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-  │  Plan    │──│  Draft   │──│  Review  │────┘ (if needs revision)
-  │ chapter  │  │ chapter  │  │ chapter  │
-  └──────────┘  └──────────┘  └──────────┘
-                                  │
-                                  │ (if passes)
-                                  v
-                            Next chapter
-```
-
-**Collaborative writing**: Instead of the AI drafting the full chapter, you can work together. Use `/authorkit.chapter.draft N interactive` to write scene by scene with pauses for your input, write parts yourself and use `/authorkit.chapter.draft N continue` to have the AI pick up where you left off, or use `/authorkit.chapter.help` for targeted assistance on specific passages. The AI matches your voice via the style anchor regardless of who wrote what.
-
-Progress is tracked in `chapters.md` with status markers:
-
-| Marker | Status | Meaning |
-|--------|--------|---------|
-| `[ ]` | Pending | Chapter not yet started |
-| `[P]` | Planned | Chapter plan exists (`chapters/NN/plan.md`) |
-| `[D]` | Drafted | First draft written (`chapters/NN/draft.md`) |
-| `[R]` | Reviewed | Review completed, needs revision |
-| `[X]` | Approved | Chapter passed review, ready for final manuscript |
-
-For cross-model prose continuity, chapter workflows also maintain `book/style-anchor.md`, derived from the constitution plus the last two approved chapters when available.
-
-Example `chapters.md`:
-
-```markdown
-## Part 1: The Observatory
-
-- [X] CH01 [Part 1] The Arrival - Iria discovers the abandoned observatory
-- [D] CH02 [Part 1] The Catalogue - She finds the star catalogue with odd annotations
-- [P] CH03 [Part 1] The Pattern - First hint that the annotations form a code
-- [ ] CH04 [Part 1] The Predecessor - Learning about the previous director
-
-## Part 2: The Code
-
-- [ ] CH05 [Part 2] The Cipher - Iria begins decryption
-...
-```
-
-### Chapter restructuring
-
-If you need to rearrange the chapter order, use `/authorkit.chapter.reorder`:
-
-```bash
-/authorkit.chapter.reorder Move CH05 to after CH02
-/authorkit.chapter.reorder Split CH04 into two chapters at the scene break
-/authorkit.chapter.reorder Merge CH06 and CH07 into a single chapter
-/authorkit.chapter.reorder Insert a new chapter between CH03 and CH04
-/authorkit.chapter.reorder Remove CH08
-```
-
-This handles all renumbering — file directories, chapters.md entries, outline references, world/ chapter tags, and cross-references in plans. Removed chapters are archived (never deleted).
 
 ---
 
@@ -663,67 +531,7 @@ The index is rebuilt automatically by `world.build`, `world.sync`, `amend`, and 
 
 ## Mid-Process Changes
 
-Books rarely go exactly according to plan. Author Kit provides structured tools for handling the most common mid-process situations.
-
-### Changing direction or facts: Amend
-
-When your vision for the book changes or a specific fact needs to change — use amend to propagate the change across all artifacts. It auto-classifies whether the change is a direction change, a fact change, or both.
-
-```bash
-/authorkit.amend Cut the romance subplot entirely
-/authorkit.amend Change the ending so the protagonist fails
-/authorkit.amend Transit from the harbor to the citadel takes 40 minutes -> Transit takes 75 minutes
-/authorkit.amend Change Marcus from a soldier to a spy
-```
-
-Amend performs an **impact analysis** across concept, outline, chapters.md, world/ files, plans, and drafts. It shows you exactly what needs to change, in what order, and the risk level. You approve before any changes are made. For fact changes, it generates a **change manifest** showing every occurrence — direct references, indirect implications, and derivative details.
-
-Changes are logged in `amendments/YYYY-MM-DD-[description].md` with `(AMEND-YYYY-MM-DD)` tags for traceability.
-
-### Deferring decisions: Park
-
-Not everything needs to be decided now. Park a decision to keep writing while tracking the uncertainty.
-
-```bash
-/authorkit.park How does the magic system handle time travel?
-/authorkit.park Should Marcus die in Act 3?
-/authorkit.park list                    # See all parked decisions
-/authorkit.park resolve PD-003: Marcus lives
-```
-
-Parked decisions have **deadlines** (e.g., "must resolve before CH12"). When you plan or draft a chapter near a deadline, you'll be warned. Overdue decisions appear as findings in `/authorkit.analyze` reports.
-
-### Safety nets: Snapshot
-
-Before making a risky change, bookmark the current state with narrative context.
-
-```bash
-/authorkit.snapshot Before cutting the romance subplot
-/authorkit.snapshot Decision point: Marcus lives or dies
-/authorkit.snapshot list                    # See all snapshots
-/authorkit.snapshot compare with pre-romance-cut
-```
-
-A snapshot creates a **git tag** (for the exact file state) and a **narrative file** (what's working, what's uncertain, what's being contemplated). The compare mode shows not just what files changed, but what's narratively different.
-
-### Exploring alternatives: What-If
-
-Try a direction without committing to it. What-If creates an experimental git branch where you can draft, revise, and restructure freely.
-
-```bash
-/authorkit.whatif What if Marcus dies in chapter 5?
-/authorkit.whatif Try first person POV for the flashbacks
-
-# ... make experimental changes using normal commands ...
-
-/authorkit.whatif compare       # See narrative differences
-/authorkit.whatif merge         # Keep the experiment
-/authorkit.whatif discard       # Abandon and go back
-```
-
-What-If automatically creates a snapshot before branching. Only one experiment can be active at a time. The compare mode provides a **narrative summary**, not just a file diff — it tells you what's different about the story, not just which lines changed.
-
-### Choosing the right tool
+Books rarely go exactly according to plan. Author Kit's mid-process commands (see [Available Commands](#available-commands)) work alongside the main workflow once `concept.md` exists. Pick by intent:
 
 | You want to... | Use... |
 |----------------|--------|
@@ -737,7 +545,10 @@ What-If automatically creates a snapshot before branching. Only one experiment c
 | Try something without committing | `/authorkit.whatif` |
 | Move, split, or merge chapters | `/authorkit.chapter.reorder` |
 | Check if outline/concept drifted from drafts | `/authorkit.analyze` |
+| Verify the world/ folder for internal consistency | `/authorkit.world.sync verify` |
 | Fix issues found by review or analysis | `/authorkit.revise` |
+
+A few interactions worth knowing: `whatif` auto-creates a snapshot before branching; `amend` logs to `amendments/YYYY-MM-DD-*.md` and tags edits `(AMEND-YYYY-MM-DD)`; parked decisions surface in `analyze` reports and `authorkit status` once their deadline is past.
 
 ## Book Export, Audiobook and Statistics
 
@@ -998,17 +809,6 @@ book/
 ## Acknowledgement
 
 The structure of this kit is in part inspired by [spec-kit](https://github.com/github/spec-kit), with a twist for book and novel development.
-
----
-
-## Background Reading
-
-Long-form articles on the philosophy behind Author Kit, written for an earlier version (specific commands have evolved, but the core philosophy and approach remain the same):
-
-- [Why AI Writes the Same Book Every Time](https://medium.com/@mdemarne/why-ai-writes-the-same-book-every-time-0b02323f618a)
-- [The World Your AI Forgot to Build](https://medium.com/@mdemarne/the-world-your-ai-forgot-to-build-c7fda0fe71c7)
-- [Catching What Drifts in Your Human-Led, AI-Assisted Manuscript](https://medium.com/@mdemarne/catching-what-drifts-in-your-human-led-ai-assisted-manuscript-4d4fb7334a24)
-- [Writing with AI: What Works, What Doesn’t, and What’s Left](https://medium.com/@mdemarne/writing-with-ai-what-works-what-doesnt-and-what-s-left-72d53d95a6da)
 
 ---
 

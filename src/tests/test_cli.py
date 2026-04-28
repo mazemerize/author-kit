@@ -1494,3 +1494,256 @@ def test_check_command_reports_python_for_world_index():
     assert "python" in result.output.lower(), (
         f"Expected 'python' in check output. Got:\n{result.output}"
     )
+
+
+def test_status_constitution_resolves_against_repo_root_not_cwd(tmp_path, monkeypatch):
+    """`authorkit status` must report the constitution as present when the
+    user runs it from a subdirectory (e.g. inside `book/`). Previously the
+    path was resolved against cwd, so running from `book/` looked for
+    `book/.authorkit/memory/constitution.md` and falsely reported missing.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".authorkit" / "memory").mkdir(parents=True)
+    (repo_root / ".authorkit" / "memory" / "constitution.md").write_text(
+        "# Constitution\n", encoding="utf-8"
+    )
+    book_dir = repo_root / "book"
+    book_dir.mkdir()
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+
+    # Run from inside `book/` — the failure mode for the previous bug.
+    monkeypatch.chdir(book_dir)
+    result = runner.invoke(cli.app, ["status"])
+
+    assert result.exit_code == 0, result.output
+    assert "constitution: ok" in result.output, (
+        f"Expected constitution reported as present. Got:\n{result.output}"
+    )
+
+
+def test_status_command_handles_partial_workspace(tmp_path, monkeypatch):
+    """`authorkit status` should print a coherent dashboard for a half-initialized
+    book (only `concept.md`, no `chapters.md`, no `world/`) without raising or
+    emitting drift noise. This is the realistic state right after `/authorkit.conceive`.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    book_dir.mkdir()
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["status"])
+
+    assert result.exit_code == 0, result.output
+    assert "Workspace:" in result.output
+    assert "concept.md: ok" in result.output
+    assert "outline.md: missing" in result.output
+    assert "No chapters tracked yet" in result.output
+    # Nothing to drift against, so no drift lines should appear.
+    assert "[drift]" not in result.output
+
+
+def test_status_overdue_parked_decisions_are_counted(tmp_path, monkeypatch):
+    """`authorkit status` must surface overdue parked decisions — a decision
+    flagged "Before CH02" is overdue once chapter 2 (or any later chapter)
+    has been drafted. Closes the loop on /authorkit.park's deadline tracking
+    promise from the README.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    book_dir.mkdir()
+
+    (book_dir / "chapters" / "02").mkdir(parents=True)
+    (book_dir / "chapters" / "02" / "draft.md").write_text("# Chapter 2\n", encoding="utf-8")
+    (book_dir / "chapters.md").write_text(
+        "# Chapters\n\n- [D] CH02 Title - Summary\n", encoding="utf-8"
+    )
+
+    (book_dir / "parked-decisions.md").write_text(
+        "# Parked Decisions\n\n"
+        "## PD-001: Should Marcus die\n\n"
+        "**Status**: OPEN\n"
+        "**Deadline**: Before CH02\n\n"
+        "## PD-002: Final twist\n\n"
+        "**Status**: OPEN\n"
+        "**Deadline**: Before CH10\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["status"])
+
+    assert result.exit_code == 0, result.output
+    assert "open: 2" in result.output
+    assert "overdue: 1" in result.output, (
+        f"Expected 1 overdue decision (Before CH02 with CH02 drafted). Got:\n{result.output}"
+    )
+
+
+def test_parse_book_config_rejects_malformed_toml_with_actionable_message(tmp_path):
+    """Malformed `book.toml` must produce a `BookConfigError` carrying the
+    file path so CLI callers can surface remediation guidance instead of a
+    raw traceback.
+    """
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text(
+        "[book\ntitle = \"oops\"\n", encoding="utf-8"
+    )
+
+    try:
+        book_core.parse_book_config(book_dir)
+    except book_core.BookConfigError as exc:
+        assert "book.toml" in str(exc)
+        assert exc.config_path == (book_dir / "book.toml")
+    else:
+        raise AssertionError("Expected BookConfigError for malformed book.toml")
+
+
+def test_parse_book_config_rejects_string_typed_numeric_fields(tmp_path):
+    """A non-numeric `tts_cost_per_1m_chars` value must fail loudly. Previously
+    the value was silently dropped to None, so users who quoted their cost
+    setting saw `$0` cost reports without warning.
+    """
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text(
+        '[book]\ntitle = "Test"\n[stats]\ntts_cost_per_1m_chars = "0.005"\n',
+        encoding="utf-8",
+    )
+
+    try:
+        book_core.parse_book_config(book_dir)
+    except book_core.BookConfigError as exc:
+        assert "tts_cost_per_1m_chars" in str(exc)
+    else:
+        raise AssertionError("Expected BookConfigError for string-typed cost")
+
+
+def test_book_build_surfaces_friendly_error_for_malformed_toml(tmp_path, monkeypatch):
+    """`authorkit book build` must translate `BookConfigError` into a friendly
+    Typer message (exit code 2) instead of crashing with a raw traceback.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    (book_dir / "chapters" / "01").mkdir(parents=True)
+    (book_dir / "chapters" / "01" / "draft.md").write_text("# Ch1\n", encoding="utf-8")
+    (book_dir / "book.toml").write_text("[book\nbroken = \n", encoding="utf-8")
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["book", "build"])
+
+    assert result.exit_code != 0
+    assert "book.toml" in result.output
+    assert "authorkit init" in result.output
+
+
+def test_book_build_respects_chapter_range_filter(tmp_path, monkeypatch):
+    """`book build --from-chapter --to-chapter` must include only chapters in
+    the requested range. Mirrors the existing flag on `book audio`; closes
+    the UX gap where partial-export wasn't possible.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    for n in (1, 2, 3):
+        (book_dir / "chapters" / f"0{n}").mkdir(parents=True)
+        (book_dir / "chapters" / f"0{n}" / "draft.md").write_text(
+            f"# Chapter {n}\n\nBody {n}.\n", encoding="utf-8"
+        )
+
+    captured: dict[str, list[int]] = {}
+
+    def fake_render(book_dir, dist_dir, manuscript_path, formats, config, force=True):
+        captured["chapters"] = [
+            line for line in manuscript_path.read_text(encoding="utf-8").splitlines()
+            if line.startswith("# Chapter ")
+        ]
+        return [dist_dir / "manuscript.docx"]
+
+    monkeypatch.setattr(book_commands, "render_formats", fake_render)
+    monkeypatch.chdir(repo_root)
+
+    result = runner.invoke(cli.app, ["book", "build", "--from-chapter", "2", "--to-chapter", "2"])
+
+    assert result.exit_code == 0, result.output
+    assert captured["chapters"] == ["# Chapter 2"], (
+        f"Expected only Chapter 2 in manuscript. Got: {captured['chapters']}"
+    )
+
+
+def test_book_stats_respects_chapter_range_filter(tmp_path, monkeypatch):
+    """`book stats --from-chapter --to-chapter` must restrict computation to
+    the requested chapters."""
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    for n in (1, 2, 3):
+        (book_dir / "chapters" / f"0{n}").mkdir(parents=True)
+        (book_dir / "chapters" / f"0{n}" / "draft.md").write_text(
+            f"# Chapter {n}\n\nBody body body {n}.\n", encoding="utf-8"
+        )
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["book", "stats", "--from-chapter", "2", "--output", "json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    chapter_numbers = [c["chapter"] for c in payload["chapters"]]
+    assert chapter_numbers == [2, 3], (
+        f"Expected chapters 2 and 3 only. Got: {chapter_numbers}"
+    )
+
+
+def test_setup_book_bash_preserves_existing_book_toml_customizations(tmp_path, monkeypatch):
+    """Re-running `setup-book.sh` against an existing `book.toml` must not
+    clobber custom fields like `tts_cost_per_1m_chars` or `voice` overrides.
+    Previously the script overwrote the entire file every run, silently
+    discarding any user customization (see C1 in the audit plan).
+
+    We exercise the script via Python rather than bash so the test runs on
+    Windows too — the behavior we care about (the existing file branch) is
+    pure file-content manipulation.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    setup_script = (repo_root / ".authorkit" / "scripts" / "bash" / "setup-book.sh").read_text(
+        encoding="utf-8"
+    )
+
+    # The "file exists" branch must not contain a single-line `cat > "$BOOK_TOML"`
+    # heredoc — that was the source of the clobber. The fresh-install branch
+    # still uses one (gated on `! -f`), which is correct.
+    fresh_branch_marker = 'if [[ ! -f "$BOOK_TOML" ]]; then'
+    existing_branch_marker = "else"
+    assert fresh_branch_marker in setup_script, "setup-book.sh must branch on file existence"
+    fresh_idx = setup_script.index(fresh_branch_marker)
+    # Only one cat-redirect should remain (the fresh path).
+    assert setup_script.count('cat > "$BOOK_TOML"') == 1, (
+        "Expected exactly one full-file write, scoped to the fresh-install branch."
+    )
+    # And the existing-file branch must rely on Set-style key replacement.
+    assert "replace_book_string" in setup_script
+    # The commented `tts_cost_per_1m_chars` line keeps the README example honest.
+    assert "# tts_cost_per_1m_chars = 0.000015" in setup_script
+
+
+def test_setup_book_powershell_preserves_existing_book_toml_customizations():
+    """Same contract as the bash variant — the PowerShell script must not
+    rewrite an existing `book.toml`.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    ps_script = (
+        repo_root / ".authorkit" / "scripts" / "powershell" / "setup-book.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "Set-BookStringField" in ps_script
+    # tts_cost should ship commented out so users opt in.
+    assert "# tts_cost_per_1m_chars = 0.000015" in ps_script
+    # The existing-file branch must NOT call Write-Utf8NoBom on the full template.
+    # The full-template write is only inside the fresh-install branch.
+    fresh_marker = "-not (Test-Path $bookTomlPath -PathType Leaf)"
+    assert fresh_marker in ps_script

@@ -3,6 +3,8 @@
 Deferred creative decisions that need resolution before the book is complete.
 Use `/authorkit.park` to add, list, or resolve decisions.
 
+<!-- Schema reference for /authorkit.park; the command appends real entries below the divider. -->
+
 ---
 
 <!--

@@ -78,13 +78,84 @@ def resolve_book_dir(repo_root: Path) -> Path:
     return book_dir
 
 
+class BookConfigError(Exception):
+    """Raised when ``book.toml`` cannot be parsed or contains invalid types.
+
+    Carries the offending file path and a remediation hint so callers can
+    surface an actionable error to the user instead of a raw traceback.
+    """
+
+    def __init__(self, message: str, *, config_path: Path):
+        super().__init__(message)
+        self.config_path = config_path
+
+
+def _coerce_int(value: object, default: int, *, field: str, config_path: Path) -> int:
+    """Coerce a TOML value to ``int`` or raise BookConfigError with file context."""
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        # bool is a subclass of int in Python — explicitly reject it so that
+        # `speaking_rate_wpm = true` doesn't silently parse as 1.
+        raise BookConfigError(
+            f"`{field}` in {config_path} must be a number, got boolean.",
+            config_path=config_path,
+        )
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise BookConfigError(
+            f"`{field}` in {config_path} must be a number, got {value!r}.",
+            config_path=config_path,
+        ) from exc
+
+
+def _coerce_optional_float(value: object, *, field: str, config_path: Path) -> float | None:
+    """Coerce a TOML value to ``float``/None, rejecting strings/bools loudly.
+
+    Returning None for absent keys keeps the "uncomment to enable" UX from the
+    README — but a *present* value with the wrong type should error rather
+    than silently disable the feature.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise BookConfigError(
+            f"`{field}` in {config_path} must be a number, got boolean.",
+            config_path=config_path,
+        )
+    if isinstance(value, (int, float)):
+        return float(value)
+    raise BookConfigError(
+        f"`{field}` in {config_path} must be a number, got {value!r}.",
+        config_path=config_path,
+    )
+
+
 def parse_book_config(book_dir: Path) -> BookConfig:
-    """Load book metadata from book.toml with safe defaults."""
+    """Load book metadata from book.toml with safe defaults.
+
+    Raises:
+        BookConfigError: If the file is unreadable, malformed, or any required
+            numeric field has the wrong type. CLI callers translate this to a
+            ``typer.BadParameter`` with a hint pointing at ``authorkit init``.
+    """
     config_path = book_dir / "book.toml"
     raw: dict = {}
     if config_path.exists():
         # Accept legacy BOM-prefixed files created by some shell encodings.
-        raw = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))
+        try:
+            raw = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))
+        except tomllib.TOMLDecodeError as exc:
+            raise BookConfigError(
+                f"Could not parse {config_path}: {exc}.",
+                config_path=config_path,
+            ) from exc
+        except OSError as exc:
+            raise BookConfigError(
+                f"Could not read {config_path}: {exc}.",
+                config_path=config_path,
+            ) from exc
 
     book_section = raw.get("book", {})
     build_section = raw.get("build", {})
@@ -101,9 +172,6 @@ def parse_book_config(book_dir: Path) -> BookConfig:
     if not default_formats:
         default_formats = ["docx"]
 
-    tts_cost = stats_section.get("tts_cost_per_1m_chars")
-    parsed_tts_cost = float(tts_cost) if isinstance(tts_cost, (int, float)) else None
-
     return BookConfig(
         title=title,
         author=author,
@@ -116,9 +184,18 @@ def parse_book_config(book_dir: Path) -> BookConfig:
         audio_model=str(audio_section.get("model") or "gpt-4o-mini-tts").strip(),
         audio_voice=str(audio_section.get("voice") or "marin").strip(),
         audio_instructions=str(audio_section.get("instructions") or "").strip(),
-        speaking_rate_wpm=int(audio_section.get("speaking_rate_wpm") or 170),
-        reading_wpm=int(stats_section.get("reading_wpm") or 200),
-        tts_cost_per_1m_chars=parsed_tts_cost,
+        speaking_rate_wpm=_coerce_int(
+            audio_section.get("speaking_rate_wpm"), 170,
+            field="audio.speaking_rate_wpm", config_path=config_path,
+        ),
+        reading_wpm=_coerce_int(
+            stats_section.get("reading_wpm"), 200,
+            field="stats.reading_wpm", config_path=config_path,
+        ),
+        tts_cost_per_1m_chars=_coerce_optional_float(
+            stats_section.get("tts_cost_per_1m_chars"),
+            field="stats.tts_cost_per_1m_chars", config_path=config_path,
+        ),
     )
 
 

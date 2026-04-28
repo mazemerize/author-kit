@@ -17,6 +17,8 @@ from rich.table import Table
 
 from .book_audio import generate_audiobook
 from .book_core import (
+    BookConfig,
+    BookConfigError,
     CHAPTERS_DIR_NAME,
     DIST_DIR_NAME,
     discover_chapter_drafts,
@@ -27,6 +29,21 @@ from .book_core import (
 )
 from .book_render import SUPPORTED_FORMATS, build_manuscript_markdown, render_formats
 from .book_stats import collect_stats, render_stats_markdown
+
+
+def _safe_parse_book_config(book_dir: Path) -> BookConfig:
+    """Translate ``BookConfigError`` into an actionable Typer error.
+
+    Keeps callers focused on the happy path while ensuring users see a
+    friendly message + remediation hint instead of a raw traceback when their
+    ``book.toml`` is malformed or has wrong types.
+    """
+    try:
+        return parse_book_config(book_dir)
+    except BookConfigError as exc:
+        raise typer.BadParameter(
+            f"{exc} Fix the file or run `authorkit init --here --force` to regenerate it."
+        ) from exc
 
 # Shared Rich console for book subcommand output.
 console = Console()
@@ -82,13 +99,15 @@ def build(
     force: bool = typer.Option(False, "--force", help="Overwrite existing output files"),
     yes: bool = typer.Option(False, "--yes", help="Non-interactive confirmation for overwrite prompts (CI-friendly)"),
     quiet: bool = typer.Option(False, "--quiet", help="Reduce output"),
+    from_chapter: int | None = typer.Option(None, "--from-chapter", help="Minimum chapter number"),
+    to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
     """Build manuscript artifacts from chapter drafts."""
     _, book_dir = _resolve_context()
-    config = parse_book_config(book_dir)
+    config = _safe_parse_book_config(book_dir)
     formats = _resolve_formats(format, config.default_formats)
 
-    drafts = discover_chapter_drafts(book_dir)
+    drafts = discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter(f"No draft chapters found in {book_dir / CHAPTERS_DIR_NAME}")
 
@@ -146,7 +165,7 @@ def audio(
 ) -> None:
     """Generate audiobook files from chapter drafts."""
     repo_root, book_dir = _resolve_context()
-    config = parse_book_config(book_dir)
+    config = _safe_parse_book_config(book_dir)
 
     if provider:
         config.audio_provider = provider.lower()
@@ -184,14 +203,16 @@ def stats(
     output: str = typer.Option("table", "--output", help="Output format: table, json, markdown"),
     audio_dir: str | None = typer.Option(None, "--audio-dir", help="Audio directory for actual duration lookup"),
     wpm: int | None = typer.Option(None, "--wpm", help="Reading words-per-minute override"),
+    from_chapter: int | None = typer.Option(None, "--from-chapter", help="Minimum chapter number"),
+    to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
     """Show manuscript statistics from draft chapters."""
     _, book_dir = _resolve_context()
-    config = parse_book_config(book_dir)
+    config = _safe_parse_book_config(book_dir)
     if wpm is not None:
         config.reading_wpm = wpm
 
-    drafts = discover_chapter_drafts(book_dir)
+    drafts = discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter("No draft chapters found for stats.")
 

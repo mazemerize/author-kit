@@ -3,7 +3,7 @@ description: Sync the world/ folder with drafted chapters — extract new detail
 handoffs:
   - label: Plan Next Chapter
     agent: authorkit.chapter.plan
-    prompt: Plan chapter [N+1] with updated world context
+    prompt: Plan the chapter following the highest-numbered chapter that was just synced — use updated world context
   - label: Build More World
     agent: authorkit.world.build
     prompt: Deepen world-building in [focus area]

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 JSON_MODE=false
 REQUIRE_CHAPTERS=false
@@ -95,14 +95,17 @@ else
   echo "BOOK_DIR:$BOOK_DIR"
   echo "STYLE_ANCHOR:$STYLE_ANCHOR"
   echo "AVAILABLE_DOCS:"
-  check_file "$RESEARCH" "research.md"
-  check_file "$CHARACTERS" "characters.md"
+  # `check_file` returns 1 when the file is missing — that's expected for an
+  # optional doc, but `set -e` would otherwise terminate the script. Disable
+  # the side effect with `|| true` so we keep printing the full doc list.
+  check_file "$RESEARCH" "research.md" || true
+  check_file "$CHARACTERS" "characters.md" || true
   if dir_has_subdirs "$CHAPTERS_DIR"; then
     echo "  + chapters/"
   else
     echo "  - chapters/"
   fi
   if $INCLUDE_CHAPTERS; then
-    check_file "$CHAPTERS" "chapters.md"
+    check_file "$CHAPTERS" "chapters.md" || true
   fi
 fi
