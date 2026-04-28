@@ -62,15 +62,16 @@ def _discover_drafts_with_range_check(
 ) -> list:
     """Run ``discover_chapter_drafts`` and convert range errors to CLI errors.
 
-    The underlying ``ValueError`` for an inverted ``--from-chapter`` /
-    ``--to-chapter`` range would otherwise surface as an unhandled traceback;
-    Typer treats ``BadParameter`` as a user-facing error with exit code 2 and
-    a clean message.
+    Prints via ``console.print`` rather than raising ``typer.BadParameter`` —
+    Typer's panel renderer styles CLI flags by splitting `--foo` into
+    `-` + `-foo` ANSI segments, which prevents downstream substring checks
+    (and human eyes scanning the panel) from seeing the literal flag name.
     """
     try:
         return discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     except ValueError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
 
 
 def _resolve_context() -> tuple[Path, Path]:
