@@ -67,7 +67,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Estimated total word count (from chapter targets for outlined chapters)
    - If partial outline: note how many chapters are outlined vs. estimated total, and remind the author to run `/authorkit.outline extend` after drafting
 
-## Chapter Entry Rules
+## Key Rules
 
 **CRITICAL**: Each chapter entry must be concise but informative enough to plan from.
 

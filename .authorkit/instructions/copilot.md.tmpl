@@ -50,3 +50,4 @@ Use `/authorkit.*` commands from `{{COMMAND_SOURCE}}` to run the structured work
 - Rebuild `world/_index.md` with `authorkit.world.sync` after world edits.
 - Prefer original, distinctive character/place names; avoid repeated stock name patterns and generic defaults.
 - Anchor prose continuity to constitution + `book/style-anchor.md` + the last two approved chapter drafts when available.
+- Handoff `prompt:` strings may contain bracketed placeholders such as `[N]` (current chapter), `[N+1]` (next chapter), `[PD-NNN]` (parked decision id), or `[topic]`/`[focus area]`. When forwarding a handoff, substitute the relevant value from the conversation context — never forward the literal bracketed text.

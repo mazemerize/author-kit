@@ -1,4 +1,4 @@
-/* EPUB Stylesheet for Ab Imo Pectore */
+/* Author Kit default EPUB stylesheet — override via [build].epub_css in book.toml */
 
 body {
     font-family: serif;

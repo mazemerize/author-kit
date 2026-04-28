@@ -1062,6 +1062,69 @@ def test_build_world_index_scripts_parse_yaml_frontmatter():
         assert "the astronomer" in index_text
 
 
+def test_build_world_index_add_frontmatter_yaml_safe_for_colon_in_name():
+    """Regression: --add-frontmatter must produce valid YAML when an entity H1 contains
+    YAML-significant punctuation (colons, quotes). Names like 'Daemon: The Watcher'
+    used to interpolate raw, producing unparseable YAML."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("bash") or not shutil.which("python3"):
+        return
+
+    repo_root = Path(__file__).resolve().parents[2]
+    bash_script = repo_root / ".authorkit" / "scripts" / "bash" / "build-world-index.sh"
+    common_sh = repo_root / ".authorkit" / "scripts" / "bash" / "common.sh"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        scripts_dst = tmp_path / ".authorkit" / "scripts" / "bash"
+        scripts_dst.mkdir(parents=True)
+        shutil.copy(common_sh, scripts_dst / "common.sh")
+        shutil.copy(bash_script, scripts_dst / "build-world-index.sh")
+
+        char_dir = tmp_path / "book" / "world" / "characters"
+        char_dir.mkdir(parents=True)
+        # No frontmatter — script will derive name from the H1 and write a fresh block.
+        (char_dir / "daemon.md").write_text(
+            '# Daemon: The "Watcher"\n\nA character described in chapter (CH01).\n',
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            ["bash", str(scripts_dst / "build-world-index.sh"), "--add-frontmatter", "--json"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
+        rewritten = (char_dir / "daemon.md").read_text(encoding="utf-8")
+        # Frontmatter block must start the file and parse as YAML.
+        assert rewritten.startswith("---\n"), f"Expected frontmatter block at start, got: {rewritten[:80]!r}"
+
+        # Extract just the frontmatter body for YAML validation.
+        end = rewritten.find("\n---\n", 4)
+        assert end > 0, "Frontmatter has no closing delimiter"
+        fm_body = rewritten[4:end]
+
+        # The name field must be a valid YAML scalar even with a colon and quotes inside.
+        try:
+            import yaml as _yaml  # type: ignore
+            parsed = _yaml.safe_load(fm_body)
+            assert parsed["name"] == 'Daemon: The "Watcher"', (
+                f"name round-trip failed: got {parsed.get('name')!r}"
+            )
+        except ImportError:
+            # PyYAML not installed in test env — fall back to a structural check
+            # that the value is JSON-quoted (the encoding strategy we adopted).
+            assert '"Daemon: The \\"Watcher\\""' in fm_body or '"Daemon: The \\"Watcher\\""\n' in fm_body, (
+                f"Expected JSON-quoted YAML scalar for the name field, got frontmatter:\n{fm_body}"
+            )
+
+
 def test_docs_prompts_templates_use_single_book_workspace_paths():
     """Verify canonical docs/prompts/templates reference /book/ workspace paths."""
     repo_root = Path(__file__).resolve().parents[2]
@@ -1082,3 +1145,352 @@ def test_docs_prompts_templates_use_single_book_workspace_paths():
         text = path.read_text(encoding="utf-8")
         for pattern in disallowed:
             assert re.search(pattern, text) is None, f"Found legacy multi-book pattern '{pattern}' in {path}"
+
+
+def test_instruction_templates_carry_handoff_placeholder_note():
+    """Every AI flavor's instruction template must teach the agent to substitute
+    bracketed handoff placeholders ([N], [PD-NNN], [topic]) before forwarding.
+
+    Regression guard: this note was historically only in claude.md.tmpl, causing
+    Copilot/Codex agents to forward literal `[N]` text into chat.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    instructions_dir = repo_root / ".authorkit" / "instructions"
+    expected_signal = "Handoff `prompt:` strings may contain bracketed placeholders"
+
+    templates = sorted(instructions_dir.glob("*.md.tmpl"))
+    assert len(templates) >= 3, f"Expected at least 3 instruction templates, found {len(templates)}"
+
+    for template in templates:
+        text = template.read_text(encoding="utf-8")
+        assert expected_signal in text, (
+            f"Instruction template {template.name} is missing the handoff-placeholder "
+            f"substitution note. Copy it from claude.md.tmpl. Without it, agents will "
+            f"forward literal '[N]' text into chat."
+        )
+
+
+def test_prompts_have_no_legacy_command_references():
+    """Removed commands (pivot, reconcile, retcon, checklist, world.update,
+    world.verify, world.index) must not appear in canonical prompts.
+
+    Regression guard against accidental reintroduction during edits.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    prompt_files = list((repo_root / ".authorkit" / "prompts").glob("authorkit.*.md"))
+    assert prompt_files, "No canonical prompts found"
+
+    legacy_patterns = [
+        r"/authorkit\.pivot\b",
+        r"/authorkit\.reconcile\b",
+        r"/authorkit\.retcon\b",
+        r"/authorkit\.checklist\b",
+        r"/authorkit\.world\.update\b",
+        r"/authorkit\.world\.verify\b",
+        r"/authorkit\.world\.index\b",
+    ]
+
+    for prompt in prompt_files:
+        text = prompt.read_text(encoding="utf-8")
+        for pattern in legacy_patterns:
+            match = re.search(pattern, text)
+            assert match is None, (
+                f"Legacy command reference '{match.group(0) if match else pattern}' "
+                f"found in {prompt.name}. These commands were removed during the "
+                f"step-by-step consolidation; update the reference."
+            )
+
+
+def test_build_world_index_bash_and_powershell_produce_matching_json():
+    """Parity guard: bash and PowerShell `build-world-index` scripts must agree
+    on entity count, alias count, chapter count, and missing-frontmatter count
+    for the same fixture. The PS1 reimplements logic that the bash version
+    delegates to embedded Python; this test catches drift.
+
+    Skips when either runtime is missing (e.g. CI on Windows without bash).
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    bash_available = shutil.which("bash") and (shutil.which("python3") or shutil.which("python"))
+    pwsh_available = shutil.which("pwsh") or shutil.which("powershell")
+    if not bash_available or not pwsh_available:
+        return  # both runtimes required; skip when only one is available
+
+    repo_root = Path(__file__).resolve().parents[2]
+    bash_script = repo_root / ".authorkit" / "scripts" / "bash" / "build-world-index.sh"
+    common_sh = repo_root / ".authorkit" / "scripts" / "bash" / "common.sh"
+    ps_script = repo_root / ".authorkit" / "scripts" / "powershell" / "build-world-index.ps1"
+    common_ps = repo_root / ".authorkit" / "scripts" / "powershell" / "common.ps1"
+
+    def _run(scripts_dst_bash, scripts_dst_ps, fixture_root):
+        bash_result = subprocess.run(
+            ["bash", str(scripts_dst_bash / "build-world-index.sh"), "--json"],
+            cwd=fixture_root,
+            capture_output=True,
+            text=True,
+        )
+        assert bash_result.returncode == 0, bash_result.stderr
+
+        # On Windows, prefer 'pwsh'; fall back to Windows PowerShell if absent.
+        ps_exe = "pwsh" if shutil.which("pwsh") else "powershell"
+        ps_result = subprocess.run(
+            [
+                ps_exe,
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(scripts_dst_ps / "build-world-index.ps1"),
+                "-Json",
+            ],
+            cwd=fixture_root,
+            capture_output=True,
+            text=True,
+        )
+        assert ps_result.returncode == 0, ps_result.stderr
+
+        return json.loads(bash_result.stdout.strip()), json.loads(ps_result.stdout.strip())
+
+    with tempfile.TemporaryDirectory() as tmp:
+        fixture_root = Path(tmp)
+        subprocess.run(["git", "init", "-q"], cwd=fixture_root, check=True)
+
+        scripts_bash = fixture_root / ".authorkit" / "scripts" / "bash"
+        scripts_bash.mkdir(parents=True)
+        shutil.copy(common_sh, scripts_bash / "common.sh")
+        shutil.copy(bash_script, scripts_bash / "build-world-index.sh")
+
+        scripts_ps = fixture_root / ".authorkit" / "scripts" / "powershell"
+        scripts_ps.mkdir(parents=True)
+        shutil.copy(common_ps, scripts_ps / "common.ps1")
+        shutil.copy(ps_script, scripts_ps / "build-world-index.ps1")
+
+        # Two characters in two categories with overlapping aliases — exercises
+        # entity counting, alias dedup, and chapter manifest.
+        char_dir = fixture_root / "book" / "world" / "characters"
+        char_dir.mkdir(parents=True)
+        (char_dir / "iria.md").write_text(
+            "---\n"
+            "id: char-iria-calder\n"
+            "type: character\n"
+            "name: Iria Calder\n"
+            "aliases: [Iria, the astronomer]\n"
+            "chapters: [CONCEPT, CH01, CH03]\n"
+            "first_appearance: CH01\n"
+            "relationships: []\n"
+            "tags: []\n"
+            "last_updated: 2026-04-26\n"
+            "---\n\n# Iria Calder\n",
+            encoding="utf-8",
+        )
+        place_dir = fixture_root / "book" / "world" / "places"
+        place_dir.mkdir(parents=True)
+        (place_dir / "observatory.md").write_text(
+            "---\n"
+            "id: place-observatory\n"
+            "type: place\n"
+            "name: The Observatory\n"
+            "aliases: [observatory]\n"
+            "chapters: [CONCEPT, CH01]\n"
+            "first_appearance: CH01\n"
+            "relationships: []\n"
+            "tags: []\n"
+            "last_updated: 2026-04-26\n"
+            "---\n\n# The Observatory\n",
+            encoding="utf-8",
+        )
+
+        bash_payload, ps_payload = _run(scripts_bash, scripts_ps, fixture_root)
+
+        # Compare the four parity-critical counts. INDEX_FILE and BOOK_DIR may
+        # differ in path separator on Windows; we don't enforce string equality
+        # for those.
+        for key in ("ENTITY_COUNT", "ALIAS_COUNT", "CHAPTER_COUNT", "FILES_WITHOUT_FRONTMATTER"):
+            assert bash_payload[key] == ps_payload[key], (
+                f"build-world-index parity violation on {key}: "
+                f"bash={bash_payload[key]} ps={ps_payload[key]}. "
+                f"Bash payload: {bash_payload}. PS payload: {ps_payload}."
+            )
+
+
+def test_status_command_reports_chapter_breakdown(tmp_path, monkeypatch):
+    """`authorkit status` summarizes the project state — chapter counts by
+    status marker, parked decisions, world stats, drift warnings — closing
+    the loop between the slash workflow and the CLI.
+    """
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (book_dir / "outline.md").write_text("# Outline\n", encoding="utf-8")
+    (book_dir / "chapters.md").write_text(
+        "# Chapters\n\n"
+        "- [X] CH01 The Arrival - First chapter\n"
+        "- [D] CH02 The Catalogue - Second chapter\n"
+        "- [P] CH03 The Pattern - Third chapter\n"
+        "- [ ] CH04 The Predecessor - Fourth chapter\n",
+        encoding="utf-8",
+    )
+    (book_dir / "chapters" / "01").mkdir(parents=True)
+    (book_dir / "chapters" / "01" / "draft.md").write_text("# Chapter 1\n", encoding="utf-8")
+    (book_dir / "chapters" / "02").mkdir()
+    (book_dir / "chapters" / "02" / "draft.md").write_text("# Chapter 2\n", encoding="utf-8")
+
+    (book_dir / "parked-decisions.md").write_text(
+        "# Parked Decisions\n\n"
+        "## PD-001: Fate of Marcus\n\n"
+        "**Status**: OPEN\n"
+        "**Deadline**: Before CH12\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["status"])
+    assert result.exit_code == 0, result.output
+
+    out = result.output
+    assert "Book:" in out
+    assert "Chapters:" in out
+    assert "approved" in out
+    assert "drafted" in out
+    assert "planned" in out
+    assert "pending" in out
+    assert "Parked decisions:" in out
+    assert "Before CH12" in out
+
+
+def test_status_command_errors_when_no_book_workspace(tmp_path, monkeypatch):
+    """`authorkit status` should fail loudly with actionable guidance when
+    no book/ workspace exists, rather than silently emitting empty stats.
+    """
+    monkeypatch.chdir(tmp_path)
+    # Create a marker so find_repo_root resolves here, but no book/ folder.
+    (tmp_path / ".authorkit").mkdir()
+
+    result = runner.invoke(cli.app, ["status"])
+    assert result.exit_code == 1, result.output
+    assert "No book workspace found" in result.output
+    assert "/authorkit.conceive" in result.output
+
+
+def test_book_stats_includes_chapter_status_from_chapters_md(tmp_path, monkeypatch):
+    """`book stats` should pull chapter status (`[X]` approved, `[D]` drafted, etc.)
+    from chapters.md, not just report word counts. Closes the UX gap where users
+    couldn't tell if 120K words were drafted vs reviewed vs approved."""
+    book_dir = tmp_path / "book"
+    chapters_dir = book_dir / "chapters" / "01"
+    chapters_dir.mkdir(parents=True)
+    (chapters_dir / "draft.md").write_text("# Chapter 1\n\nHello world.\n", encoding="utf-8")
+
+    chapters2 = book_dir / "chapters" / "02"
+    chapters2.mkdir()
+    (chapters2 / "draft.md").write_text("# Chapter 2\n\nMore prose here.\n", encoding="utf-8")
+
+    (book_dir / "chapters.md").write_text(
+        "# Chapters\n\n"
+        "- [X] CH01 The Arrival - First chapter\n"
+        "- [D] CH02 The Catalogue - Second chapter\n",
+        encoding="utf-8",
+    )
+    (book_dir / "book.toml").write_text("[book]\ntitle = \"Test\"\n", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["book", "stats", "--output", "json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+
+    statuses = {ch["chapter"]: ch["status"] for ch in payload["chapters"]}
+    assert statuses == {1: "approved", 2: "drafted"}, f"Unexpected statuses: {statuses}"
+
+    breakdown = payload["totals"]["status_breakdown"]
+    assert breakdown == {"approved": 1, "drafted": 1}, f"Unexpected breakdown: {breakdown}"
+
+
+def test_prompts_use_canonical_outline_section_heading():
+    """Prompt body sections should use `## Outline` (not `## Execution Steps`,
+    `## General Guidelines`, etc.) so a reader scanning the prompt directory
+    finds the same landmark in every file. Catches future drift.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    prompt_files = list((repo_root / ".authorkit" / "prompts").glob("authorkit.*.md"))
+    assert prompt_files, "No canonical prompts found"
+
+    # Synonyms historically used in place of "## Outline" (the de-facto standard
+    # across 16+ prompts). Any of these as a top-level heading is drift.
+    drift_headings = [
+        "## Execution Steps",
+        "## General Guidelines",
+    ]
+
+    for prompt in prompt_files:
+        text = prompt.read_text(encoding="utf-8")
+        for heading in drift_headings:
+            assert heading not in text.splitlines(), (
+                f"Prompt {prompt.name} uses non-canonical heading '{heading}'. "
+                f"Rename to '## Outline' for consistency. Synonyms drift over time "
+                f"and confuse readers comparing prompts."
+            )
+
+
+def test_prompts_use_canonical_key_rules_section_heading():
+    """Constraint/rule sections at prompt end should use `## Key Rules` rather
+    than `## Key Principles`, `## Review Principles`, `## Writing Rules`,
+    `## Revision Principles`, `## Chapter Entry Rules`, etc.
+
+    Exempt: `## Operating Constraints` in analyze (declares command mode, distinct
+    from end-of-prompt rules) and `## Operation-Specific Rules` in chapter.reorder
+    (genuine operation-specific content, paired with a separate `## Key Rules`).
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    prompt_files = list((repo_root / ".authorkit" / "prompts").glob("authorkit.*.md"))
+
+    drift_headings = [
+        "## Key Principles",
+        "## Review Principles",
+        "## Writing Rules",
+        "## Revision Principles",
+        "## Chapter Entry Rules",
+    ]
+
+    for prompt in prompt_files:
+        text = prompt.read_text(encoding="utf-8")
+        for heading in drift_headings:
+            assert heading not in text.splitlines(), (
+                f"Prompt {prompt.name} uses non-canonical heading '{heading}'. "
+                f"Rename to '## Key Rules' for consistency."
+            )
+
+
+def test_cli_source_does_not_use_AuthorKit_brand_misspelling():
+    """Brand is 'Author Kit' (human-readable) or 'authorkit' (CLI/package) — never 'AuthorKit'.
+
+    Convention enforced by CONTRIBUTING.md. Catches accidental drift in docstrings,
+    user-facing strings, and inline comments. ASCII banner uses non-Latin glyphs
+    that don't trigger this regex, so banner is exempt by construction.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    cli_files = list((repo_root / "src" / "authorkit_cli").glob("*.py"))
+    assert cli_files, "Expected to find authorkit_cli source files"
+
+    for py_file in cli_files:
+        text = py_file.read_text(encoding="utf-8")
+        # Match "AuthorKit" but NOT "Author Kit" or inside URLs (github.com/.../author-kit).
+        matches = [match for match in re.finditer(r"\bAuthorKit\b", text)]
+        assert not matches, (
+            f"Brand misspelling 'AuthorKit' found in {py_file.name} "
+            f"at offset(s) {[m.start() for m in matches]}. "
+            f"Use 'Author Kit' (with space) or 'authorkit' (lowercase) per CONTRIBUTING.md."
+        )
+
+
+def test_check_command_reports_python_for_world_index():
+    """`authorkit check` must surface python availability — the bash world-index
+    script depends on it, and a missing python interpreter previously failed
+    deep inside /authorkit.world.sync rather than at install/check time.
+    """
+    result = runner.invoke(cli.app, ["check"])
+    assert result.exit_code == 0, result.output
+    assert "python" in result.output.lower(), (
+        f"Expected 'python' in check output. Got:\n{result.output}"
+    )

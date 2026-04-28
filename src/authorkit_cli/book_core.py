@@ -159,6 +159,55 @@ def chapter_title(text: str, fallback: str) -> str:
     return fallback
 
 
+# Status markers tracked in chapters.md: ` ` pending, P planned, D drafted,
+# R needs revision, X approved. See README "Chapter-Level Iteration".
+CHAPTER_STATUS_LABELS: dict[str, str] = {
+    " ": "pending",
+    "P": "planned",
+    "D": "drafted",
+    "R": "review",
+    "X": "approved",
+}
+
+
+def parse_chapter_statuses(book_dir: Path) -> dict[int, str]:
+    """Parse chapters.md and return a mapping of chapter number to status label.
+
+    Returns an empty mapping if chapters.md does not exist or parses no entries.
+    Tolerant by design: a missing or malformed chapters.md must not break stats.
+
+    Format expected (per chapters-template.md):
+        - [X] CH01 [Part 1] Title - Brief summary
+        - [D] CH02 ...
+    """
+    chapters_path = book_dir / "chapters.md"
+    if not chapters_path.exists():
+        return {}
+
+    statuses: dict[int, str] = {}
+    pattern = re.compile(r"^\s*-\s*\[(.)\]\s*CH(\d+)\b", re.IGNORECASE)
+    try:
+        text = chapters_path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return {}
+
+    for line in text.splitlines():
+        match = pattern.match(line)
+        if not match:
+            continue
+        marker = match.group(1)
+        try:
+            chapter_num = int(match.group(2))
+        except ValueError:
+            continue
+        # Normalize: lowercase letters or non-listed markers are reported as raw
+        # so an unexpected marker doesn't get silently coerced to "pending".
+        label = CHAPTER_STATUS_LABELS.get(marker.upper(), marker)
+        statuses[chapter_num] = label
+
+    return statuses
+
+
 def markdown_to_plain_text(markdown: str) -> str:
     """Remove basic markdown formatting for metrics and TTS payloads."""
     text = re.sub(r"```.*?```", "", markdown, flags=re.DOTALL)
@@ -171,5 +220,5 @@ def markdown_to_plain_text(markdown: str) -> str:
 
 
 def to_json(data: object) -> str:
-    """Serialize JSON output with predictable formatting."""
-    return json.dumps(data, indent=2, ensure_ascii=True)
+    """Serialize JSON output with predictable formatting and human-readable Unicode."""
+    return json.dumps(data, indent=2, ensure_ascii=False)

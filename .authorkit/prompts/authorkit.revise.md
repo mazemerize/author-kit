@@ -99,7 +99,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
      - `/authorkit.analyze` to check cross-chapter consistency after revisions
      - Other chapters that need attention due to ripple effects
 
-## Revision Principles
+## Key Rules
 
 - **Minimal surgery**: Make the smallest changes that fix the issue. Don't rewrite sections that are working well.
 - **Preserve voice**: Revisions should be indistinguishable in style from the original draft.

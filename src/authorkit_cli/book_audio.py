@@ -295,6 +295,10 @@ def generate_audiobook(
 
             speech_text = markdown_to_plain_text(draft.text)
             if not speech_text:
+                console.print(
+                    f"[yellow]Warning:[/yellow] CH{draft.chapter_number:02d} draft.md "
+                    "has no narratable text after markdown stripping; skipping audio generation."
+                )
                 skipped += 1
                 progress.advance(chapter_task)
                 continue
@@ -302,19 +306,26 @@ def generate_audiobook(
             speech_input = f"{clean_title}\n\n{speech_text}"
             chunks = _chunk_text(speech_input)
             temp_files: list[Path] = []
-            for idx, chunk in enumerate(chunks, start=1):
-                progress.update(
-                    chapter_task,
-                    description=f"CH{draft.chapter_number:02d}: synthesizing chunk {idx}/{len(chunks)}",
-                )
-                temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
-                _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk, instructions)
-                temp_files.append(temp_chunk)
+            try:
+                for idx, chunk in enumerate(chunks, start=1):
+                    progress.update(
+                        chapter_task,
+                        description=f"CH{draft.chapter_number:02d}: synthesizing chunk {idx}/{len(chunks)}",
+                    )
+                    temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
+                    try:
+                        _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk, instructions)
+                    except Exception as exc:
+                        raise RuntimeError(
+                            f"CH{draft.chapter_number:02d}: OpenAI TTS synthesis failed on chunk {idx}/{len(chunks)}: {exc}"
+                        ) from exc
+                    temp_files.append(temp_chunk)
 
-            progress.update(chapter_task, description=f"CH{draft.chapter_number:02d}: combining chunks")
-            _concat_mp3_files(temp_files, chapter_out)
-            for temp in temp_files:
-                temp.unlink(missing_ok=True)
+                progress.update(chapter_task, description=f"CH{draft.chapter_number:02d}: combining chunks")
+                _concat_mp3_files(temp_files, chapter_out)
+            finally:
+                for temp in temp_files:
+                    temp.unlink(missing_ok=True)
             _write_mp3_metadata(
                 path=chapter_out,
                 title=metadata_title,
@@ -334,20 +345,23 @@ def generate_audiobook(
     if merge_output and chapter_outputs:
         console.print("Merging chapter audio files into full audiobook...")
         merged_path = audio_dir / "audiobook-full.mp3"
+        rebuilt_merge = False
         if merged_path.exists():
             overwrite_merged = force or yes or typer.confirm("Merged audiobook exists: overwrite?", default=False)
             if overwrite_merged:
                 merged_path.unlink(missing_ok=True)
         if not merged_path.exists():
             _concat_mp3_files(chapter_outputs, merged_path)
-        _write_mp3_metadata(
-            path=merged_path,
-            title=f"{config.title} (Audiobook)",
-            album=config.title,
-            artist=config.author,
-            language=config.language,
-            comment="Author Kit merged audiobook",
-        )
+            rebuilt_merge = True
+        if rebuilt_merge:
+            _write_mp3_metadata(
+                path=merged_path,
+                title=f"{config.title} (Audiobook)",
+                album=config.title,
+                artist=config.author,
+                language=config.language,
+                comment="Author Kit merged audiobook",
+            )
 
     return {
         "generated": generated,

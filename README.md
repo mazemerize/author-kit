@@ -20,6 +20,7 @@ An open-source toolkit that brings structured, template-driven principles to boo
 - [Project Structure](#project-structure)
 - [Environment Variables](#environment-variables)
 - [Troubleshooting Book CLI](#troubleshooting-book-cli)
+- [Background Reading](#background-reading)
 
 ---
 
@@ -40,15 +41,7 @@ Traditional AI-assisted writing often means dumping an idea and hoping for a goo
 
 This works for **any genre**: literary fiction, thrillers, non-fiction guides, memoirs, technical books, and everything in between.
 
-### Read and Learn More about Author Kit 💡
-
-Before getting started, read more about Author Kit, its benefits and drawbacks, and how it operates.
-
-**Read our articles on Medium** (written for an earlier version of Author Kit — the specific commands have evolved, but the core philosophy and approach remain the same):
-- [Why AI Writes the Same Book Every Time](https://medium.com/@mdemarne/why-ai-writes-the-same-book-every-time-0b02323f618a)
-- [The World Your AI Forgot to Build](https://medium.com/@mdemarne/the-world-your-ai-forgot-to-build-c7fda0fe71c7)
-- [Catching What Drifts in Your Human-Led, AI-Assisted Manuscript](https://medium.com/@mdemarne/catching-what-drifts-in-your-human-led-ai-assisted-manuscript-4d4fb7334a24)
-- [Writing with AI: What Works, What Doesn’t, and What’s Left](https://medium.com/@mdemarne/writing-with-ai-what-works-what-doesnt-and-what-s-left-72d53d95a6da)
+For deeper background reading on the philosophy behind Author Kit, see [Background Reading](#background-reading) near the bottom.
 
 ---
 
@@ -113,6 +106,8 @@ authorkit init . --ai claude,copilot,codex --script sh --ignore-agent-tools
   - `CODEX_HOME` points Codex to the repo-local `.codex` folder after install.
 - Choose `sh` (Bash) for MacOS and Linux or `ps` (PowerShell) for Windows.
 
+> **Where to run what:** Commands beginning with `/` (e.g. `/authorkit.constitution`) are typed inside your AI agent's chat — Claude Code, Copilot, or Codex. Commands beginning with `authorkit` (no slash) run in your terminal at the project root.
+
 ### 2. Establish your writing principles
 
 Define the voice, tone, and style rules for your book. This becomes the "style bible" that all chapters are written and reviewed against.
@@ -129,7 +124,7 @@ Describe your book idea. Focus on **what** the book is about and **why** it matt
 /authorkit.conceive A mystery novel set in a crumbling Victorian observatory where an astronomer discovers that the star catalogue compiled by the previous director contains a hidden code. As she deciphers it, she realizes the observatory's history is entangled with a century-old disappearance.
 ```
 
-This creates a `concept.md` with the premise, genre, themes, characters, voice, and scope.
+This creates the `book/` workspace, including `concept.md` (premise, genre, themes, characters, voice, scope) and `book.toml` (publishing metadata used by `authorkit book` later).
 
 ### 4. Clarify the concept (optional)
 
@@ -343,10 +338,11 @@ The key insight: **the workflow is sequential at its core, but every step has es
 
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
-| `authorkit init` | Install/update Author Kit assets for selected AI(s) | Target dir, `--ai`, `--script` | `.authorkit/`, AI prompt folders, manifest |
-| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `pandoc`, `ffmpeg`) |
+| `authorkit init` | Install/update Author Kit assets for selected AI(s). Re-init preserves `constitution.md` and removes files no longer managed by the new selection. | Target dir, `--ai`, `--script`, `--force`, `--here`, `--no-git`, `--ignore-agent-tools` | `.authorkit/`, AI prompt folders, manifest |
+| `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `python`, `pandoc`, `ffmpeg`) |
 | `authorkit version` | Print CLI and Python versions | — | Version report |
-| `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force` | `dist/manuscript.md` + rendered docs |
+| `authorkit status` | Project health dashboard for the current book | — | Chapter breakdown by status, parked-decision counts, world entity totals, drift warnings |
+| `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force`, `--yes`, `--quiet`, `--output-dir` | `dist/manuscript.md` + rendered docs |
 | `authorkit book audio` | Generate chapter audio and optional merged audiobook | `--voice`, `--model`, `--merge` | `dist/audio/*.mp3` (+ optional merged file) |
 | `authorkit book stats` | Compute chapter/global manuscript metrics | `--output`, `--wpm` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
 
@@ -377,7 +373,7 @@ The key insight: **the workflow is sequential at its core, but every step has es
 | Command | Description | Inputs | Outputs |
 |---------|-------------|--------|---------|
 | `/authorkit.world.build` | Build the book's world — establish rules, geography, characters, history, and systems | Optional focus areas | `world/` folder with entity files |
-| `/authorkit.world.sync` | Extract, verify, and index world details — handles chapter extraction, consistency checks, and index rebuilding in one command | Chapter number(s), "verify", or "add-frontmatter" | Updated `world/` files, `world/_index.md`, verification report |
+| `/authorkit.world.sync` | Extract, verify, and index world details — handles chapter extraction, consistency checks, and index rebuilding in one command | Chapter number(s), "verify", a category path (e.g. `characters/`), or "add-frontmatter" | Updated `world/` files, `world/_index.md`, verification report |
 
 ### Quality & Analysis
 
@@ -601,10 +597,11 @@ When both flat and nested note layouts are possible, Author Kit updates existing
 **3. Sync after drafting** (after each chapter):
 
 ```bash
-/authorkit.world.sync 3         # Extract details from chapter 3
-/authorkit.world.sync 1-5       # Scan a range of chapters
-/authorkit.world.sync all       # Scan all drafted chapters
-/authorkit.world.sync verify    # Verify mode (read-only diagnostic)
+/authorkit.world.sync 3             # Extract details from chapter 3
+/authorkit.world.sync 1-5           # Scan a range of chapters
+/authorkit.world.sync all           # Scan all drafted chapters
+/authorkit.world.sync verify        # Verify mode (read-only diagnostic, all categories)
+/authorkit.world.sync characters/   # Verify just one world/ category
 ```
 
 World sync handles everything in one command: extracts new details from chapters (tagged with source chapter, e.g., `(CH03)`), verifies internal consistency (reciprocal references, system coherence, timeline, chapter tag integrity), and rebuilds the `world/_index.md` entity index.
@@ -786,7 +783,7 @@ speaking_rate_wpm = 170
 
 [stats]
 reading_wpm = 200
-tts_cost_per_1m_chars = 0.0
+# tts_cost_per_1m_chars = 0.000015   # uncomment and set to enable cost estimates in `authorkit book stats`
 ```
 
 `authorkit book build` format options:
@@ -797,8 +794,8 @@ tts_cost_per_1m_chars = 0.0
 - Use `--force` to overwrite existing output files without prompts
 
 `authorkit book audio` provider/auth and selection precedence:
-- Current provider: OpenAI (`[audio].provider = "openai"`)
-  - [Get started](https://developers.openai.com/api/docs) to create an openAI account, enable audio models, and get a key
+- OpenAI is the only supported audio provider today (`[audio].provider = "openai"`); the knob exists for future providers.
+  - [Get started](https://developers.openai.com/api/docs) to create an OpenAI account, enable audio models, and get a key
 - Required auth: `OPENAI_API_KEY` in environment or local `.env`
 - Voice selection order: `--voice` CLI flag, then `[audio].voice`, then default `marin`
   - You can explore optional voices using [openai.fm](https://github.com/openai/openai-fm)
@@ -853,11 +850,18 @@ Audio narration instructions:
 |   |-- research-topic-template.md
 |   |-- world-entity-frontmatter.md
 |   |-- style-anchor-template.md
+|   |-- parked-decisions-template.md   # /authorkit.park
+|   |-- snapshot-template.md           # /authorkit.snapshot
+|   |-- amendment-template.md          # /authorkit.amend
+|   |-- discuss-notes-template.md      # /authorkit.discuss (when notes are saved)
 |   `-- publishing/
 |       |-- reference.docx
 |       |-- epub.css
 |       `-- audio-instructions.txt
 `-- install-manifest.json            # Written by `authorkit init`
+
+# constitution lives at the toolkit level (not under `book/`) so it can be
+# edited via `/authorkit.constitution` and reused across the project's lifetime.
 
 Generated by `authorkit init` (based on `--ai`):
 - `.claude/commands/` + `CLAUDE.md`
@@ -872,7 +876,7 @@ Created when you run `/authorkit.conceive`:
 ```text
 book/
 |-- concept.md
-|-- style-anchor.md
+|-- style-anchor.md                  # Auto-derived from constitution + last 2 approved chapters; managed by chapter prompts
 |-- outline.md
 |-- research.md
 |-- research/
@@ -965,6 +969,13 @@ book/
 - Use `--force` to bypass prompt logic.
 - Use `--yes` for non-interactive acceptance (CI-friendly).
 
+### Existing manuscript outputs are not overwritten
+
+- Default behavior is interactive prompt per existing format (e.g. `manuscript.docx`).
+- Use `authorkit book build --force` to overwrite without prompts.
+- Use `authorkit book build --yes` to auto-accept overwrite prompts (CI-friendly).
+- Use `--quiet` to suppress per-format status lines.
+
 ### Audio metadata tags are missing
 
 - New audio runs write ID3 metadata automatically.
@@ -987,6 +998,17 @@ book/
 ## Acknowledgement
 
 The structure of this kit is in part inspired by [spec-kit](https://github.com/github/spec-kit), with a twist for book and novel development.
+
+---
+
+## Background Reading
+
+Long-form articles on the philosophy behind Author Kit, written for an earlier version (specific commands have evolved, but the core philosophy and approach remain the same):
+
+- [Why AI Writes the Same Book Every Time](https://medium.com/@mdemarne/why-ai-writes-the-same-book-every-time-0b02323f618a)
+- [The World Your AI Forgot to Build](https://medium.com/@mdemarne/the-world-your-ai-forgot-to-build-c7fda0fe71c7)
+- [Catching What Drifts in Your Human-Led, AI-Assisted Manuscript](https://medium.com/@mdemarne/catching-what-drifts-in-your-human-led-ai-assisted-manuscript-4d4fb7334a24)
+- [Writing with AI: What Works, What Doesn’t, and What’s Left](https://medium.com/@mdemarne/writing-with-ai-what-works-what-doesnt-and-what-s-left-72d53d95a6da)
 
 ---
 

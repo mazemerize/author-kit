@@ -51,7 +51,7 @@ Identify inconsistencies, continuity errors, pacing problems, and unresolved thr
 **Constitution Authority**: The book constitution (`.authorkit/memory/constitution.md`) is the authoritative style guide. Constitution violations are automatically CRITICAL.
 **Style Continuity Anchor**: `book/style-anchor.md` is the continuity baseline across model switches. Style-anchor drift is at least MEDIUM severity.
 
-## Execution Steps
+## Outline
 
 ### 1. Initialize Analysis Context
 

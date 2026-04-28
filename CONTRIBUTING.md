@@ -37,6 +37,22 @@ Do not re-introduce duplicated prompt sources across agent folders in this repo.
 - Author Kit is a single-book-per-repo model; use `book/` as the canonical workspace path.
 - Use lowercase directory names under `book/...` (`world/`, `chapters/`, `dist/` and `world/<entity-subdirs>/`).
 
+## Console Message Conventions
+
+Keep CLI output consistent so users get a uniform experience across commands.
+
+- **Brand:** Use `Author Kit` in human-readable strings (banners, prose). Use lowercase `authorkit` for CLI/package references (`authorkit-cli`, `authorkit init`). Never write `AuthorKit`.
+- **Sentences end with a period.** Multi-word complete-sentence messages get terminal punctuation (`Installed Author Kit in <path>.`). Label-value pairs (`Generated: 5`) and command-style hints (`Set CODEX_HOME: ...`) do not.
+- **Color convention:**
+  - `[green]` for success outcomes (e.g. `[green]Built:[/green] <file>`)
+  - `[yellow]Warning:[/yellow]` for recoverable issues
+  - `[red]...:[/red]` for errors that exit non-zero
+  - `[bold]` for emphasis (paths, command names)
+  - `[dim]` for hints below an error or status line
+- **Errors are actionable.** Tell the user *what to do*, not just what failed. Pair error messages with a one-line hint pointing to `authorkit check`, a doc section, or the missing dependency. See `book_commands.build` and `__init__.load_generation_guardrails` for the pattern.
+
+Run the test suite (`uv run pytest src/tests/test_cli.py`) to enforce the brand and convention checks.
+
 ## Running Local Checks
 
 Basic Python syntax check:

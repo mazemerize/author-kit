@@ -180,7 +180,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
      - If PASS: `/authorkit.chapter.plan [N+1]` to continue
      - If NEEDS REVISION: re-run `/authorkit.chapter.plan [N]` to re-plan with feedback, then `/authorkit.chapter.draft [N]`
 
-## Review Principles
+## Key Rules
 
 - **Be constructive**: Every criticism should come with a specific suggestion
 - **Be specific**: Quote the draft, reference line locations, give concrete examples of improvement

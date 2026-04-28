@@ -163,38 +163,11 @@ The author doesn't need to decide which type of change they're making in advance
    - Check for new contradictions introduced by the changes
    - Report any issues found
 
-8. **Write change log** to `BOOK_DIR/amendments/YYYY-MM-DD-[short-description].md`:
-
-   ```markdown
-   # Amendment: [SHORT DESCRIPTION]
-
-   **Date**: [DATE]
-   **Type**: [Fact Change / Direction Change / Mixed]
-   **Files Modified**: [N]
-   **Changes Applied**: [N]
-
-   ## Change Description
-
-   [User's original description]
-
-   ## Artifacts Modified
-
-   | File | Change Summary |
-   |------|---------------|
-   | [path] | [what was changed] |
-
-   ## Chapter Status Changes
-
-   | Chapter | Before | After | Reason |
-   |---------|--------|-------|--------|
-   | CH03 | [X] | [D] | Direct fact change in prose |
-
-   ## Post-Change Check
-
-   - Remaining old references: [N]
-   - New contradictions found: [N]
-   - Chapters needing re-review: [list]
-   ```
+8. **Write change log** to `BOOK_DIR/amendments/YYYY-MM-DD-[short-description].md`
+   using the canonical template `.authorkit/templates/amendment-template.md`.
+   Replace bracketed placeholders with the actual change summary, modified files,
+   chapter status changes, and post-change check results from steps 6-7. Do not
+   invent the schema inline — the template file is the single source of truth.
 
 9. **Report completion**:
    - Summary of all changes made
@@ -206,7 +179,7 @@ The author doesn't need to decide which type of change they're making in advance
      - `/authorkit.world.sync` to verify world consistency
      - `/authorkit.analyze` for a full consistency sweep
 
-## Key Principles
+## Key Rules
 
 - **Top-down propagation**: Update upstream artifacts (concept, outline) before downstream ones (plans, drafts). This prevents cascading inconsistencies.
 - **Find everything**: Direct references are easy. The hard part is finding indirect implications and derivative details. Spend extra effort here.

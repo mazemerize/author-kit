@@ -103,7 +103,7 @@ Given that book description, do this:
 
 6. Report completion with the concept path, which validation criteria passed/failed, and readiness for the next phase (`/authorkit.clarify` to resolve concept ambiguities, `/authorkit.discuss` to brainstorm openly, or `/authorkit.outline`).
 
-## General Guidelines
+## Key Rules
 
 ### Quick Guidelines
 

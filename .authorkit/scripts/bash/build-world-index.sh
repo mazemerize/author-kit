@@ -40,7 +40,20 @@ if [[ ! -d "$WORLD_DIR" ]]; then
   exit 1
 fi
 
-python3 - "$WORLD_DIR" "$INDEX_FILE" "$ADD_FRONTMATTER" "$JSON_MODE" "$BOOK_DIR" <<'PY'
+# Resolve a usable Python interpreter; some systems (e.g. pyenv-only setups, fresh
+# macOS toolchains, minimal Linux containers) only ship `python` without a
+# `python3` symlink. Fail with actionable guidance rather than a cryptic shell error.
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "ERROR: Python (python3 or python) is required for build-world-index.sh but was not found on PATH." >&2
+  echo "Install Python 3.11+ or run 'authorkit check' to see which dependencies are missing." >&2
+  exit 1
+fi
+
+"$PYTHON_BIN" - "$WORLD_DIR" "$INDEX_FILE" "$ADD_FRONTMATTER" "$JSON_MODE" "$BOOK_DIR" <<'PY'
 import json
 import re
 import sys
@@ -118,17 +131,23 @@ for sub in sub_dirs:
             entities.append(ent)
             files_wo.append((f, ent))
 
+def yaml_scalar(value: str) -> str:
+    # JSON string literals are valid YAML scalars and safely escape
+    # colons, quotes, backslashes, and other YAML-significant characters.
+    return json.dumps(value, ensure_ascii=False)
+
+
 if add_frontmatter:
     added = len(files_wo)
     for f, ent in files_wo:
         block = "\n".join([
             "---",
-            f"id: {ent['id']}",
-            f"type: {ent['type']}",
-            f"name: {ent['name']}",
+            f"id: {yaml_scalar(ent['id'])}",
+            f"type: {yaml_scalar(ent['type'])}",
+            f"name: {yaml_scalar(ent['name'])}",
             "aliases: []",
             f"chapters: [{', '.join(ent['chapters'])}]" if ent['chapters'] else "chapters: []",
-            f"first_appearance: {ent['first']}",
+            f"first_appearance: {yaml_scalar(ent['first'])}",
             "relationships: []",
             "tags: []",
             f"last_updated: {datetime.now().strftime('%Y-%m-%d')}",

@@ -53,50 +53,17 @@ The command operates in three modes:
       - Any leading options? (e.g., "Option A: he dies. Option B: he's captured.")
       If the user input already provides this context, skip questions.
 
-   c. Ensure `BOOK_DIR/parked-decisions.md` exists. If not, create it with header:
-
-      ```markdown
-      # Parked Decisions
-
-      Deferred creative decisions that need resolution before the book is complete.
-      Use `/authorkit.park` to add, list, or resolve decisions.
-
-      ---
-      ```
+   c. Ensure `BOOK_DIR/parked-decisions.md` exists. If not, copy the canonical
+      template from `.authorkit/templates/parked-decisions-template.md` and seed
+      the file's header from it. Do not invent the file structure inline — the
+      template is the single source of truth.
 
    d. Generate a sequential ID: `PD-001`, `PD-002`, etc. (based on existing entries).
 
-   e. Append the new decision:
-
-      ```markdown
-      ## PD-NNN: [SHORT TITLE]
-
-      **Status**: OPEN
-      **Parked**: [DATE]
-      **Deadline**: [Before CHNN / Before Part N / Before final draft / No deadline]
-      **Urgency**: [Blocking (must resolve before next chapter) / Soon (within 3-5 chapters) / Eventually (before manuscript complete)]
-
-      ### Question
-
-      [The decision that needs to be made]
-
-      ### Context
-
-      - **Affects**: [List of artifacts — chapters, characters, world files, outline sections]
-      - **Background**: [Why this is uncertain — what led to the question]
-
-      ### Options Considered
-
-      - **Option A**: [Description] — [Pros/cons if known]
-      - **Option B**: [Description] — [Pros/cons if known]
-      - **Option C**: [If applicable]
-
-      ### Resolution
-
-      *Unresolved*
-
-      ---
-      ```
+   e. Append the new decision using the entry template embedded in
+      `.authorkit/templates/parked-decisions-template.md` (the commented "ENTRY
+      TEMPLATE" block). Replace bracketed placeholders with concrete values;
+      remove the surrounding comment markers.
 
    f. **Check existing chapter plans for deadline proximity**: If any chapter currently being planned or drafted is near the deadline, warn the user immediately.
 

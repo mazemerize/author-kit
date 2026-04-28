@@ -261,6 +261,13 @@ function Extract-HeuristicMetadata {
 }
 
 # Generate YAML frontmatter string for a given entity metadata
+function ConvertTo-YamlScalar {
+    # JSON string literals are valid YAML scalars and safely escape colons,
+    # quotes, backslashes, and other YAML-significant characters.
+    param([string]$Value)
+    return ($Value | ConvertTo-Json -Compress)
+}
+
 function Format-Frontmatter {
     param([hashtable]$Entity)
 
@@ -280,20 +287,25 @@ function Format-Frontmatter {
     if ($Entity.Relationships.Count -gt 0) {
         $relLines = "`nrelationships:"
         foreach ($rel in $Entity.Relationships) {
-            $relLines += "`n  - target: $($rel.Target)`n    type: $($rel.Type)`n    since: $($rel.Since)"
+            $relLines += "`n  - target: $(ConvertTo-YamlScalar $rel.Target)`n    type: $(ConvertTo-YamlScalar $rel.Type)`n    since: $(ConvertTo-YamlScalar $rel.Since)"
         }
     } else {
         $relLines = "`nrelationships: []"
     }
 
+    $idScalar = ConvertTo-YamlScalar $Entity.Id
+    $typeScalar = ConvertTo-YamlScalar $Entity.Type
+    $nameScalar = ConvertTo-YamlScalar $Entity.Name
+    $firstScalar = ConvertTo-YamlScalar $Entity.FirstAppearance
+
     return @"
 ---
-id: $($Entity.Id)
-type: $($Entity.Type)
-name: $($Entity.Name)
+id: $idScalar
+type: $typeScalar
+name: $nameScalar
 aliases: $aliasStr
 chapters: $chapStr
-first_appearance: $($Entity.FirstAppearance)$relLines
+first_appearance: $firstScalar$relLines
 tags: $tagsStr
 last_updated: $($Entity.LastUpdated)
 ---

@@ -196,7 +196,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
     - **Full mode / chapter complete**: Suggested next steps: `/authorkit.chapter.review [N]` to review, `/authorkit.world.sync [N]` if new characters, places, or world details were introduced, then `/authorkit.chapter.plan [N+1]` for the next chapter
     - **Partial (interactive/scene/continue)**: Report progress (e.g., "Scenes 1-3 of 5 complete") and suggest: "Continue with `/authorkit.chapter.draft [N] continue`", "Write the next scene yourself", or "Get help with `/authorkit.chapter.help [N]`"
 
-## Writing Rules
+## Key Rules
 
 - **The draft is prose, not notes.** Write actual book content - full sentences, paragraphs, dialogue, descriptions.
 - **Follow the constitution religiously.** The constitution is your style bible. Every sentence should be consistent with its principles.

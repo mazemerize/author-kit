@@ -80,6 +80,7 @@ def build(
     format: list[str] | None = typer.Option(None, "--format", help="Repeat to select multiple formats: docx, epub"),
     output_dir: str | None = typer.Option(None, "--output-dir", help="Output directory (default book/dist)"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing output files"),
+    yes: bool = typer.Option(False, "--yes", help="Non-interactive confirmation for overwrite prompts (CI-friendly)"),
     quiet: bool = typer.Option(False, "--quiet", help="Reduce output"),
 ) -> None:
     """Build manuscript artifacts from chapter drafts."""
@@ -102,7 +103,7 @@ def build(
     for fmt in formats:
         out_file = dist_dir / f"manuscript.{fmt.lower()}"
         if out_file.exists() and not force:
-            overwrite = typer.confirm(f"Output already exists for {fmt}: overwrite?", default=False)
+            overwrite = yes or typer.confirm(f"Output already exists for {fmt}: overwrite?", default=False)
             if not overwrite:
                 if not quiet:
                     console.print(f"Skipped existing output: {out_file}")
@@ -120,6 +121,7 @@ def build(
         produced = render_formats(book_dir, dist_dir, manuscript_path, formats_to_render, config, force=True)
     except (RuntimeError, FileExistsError, ValueError) as exc:
         console.print(f"[red]Build failed:[/red] {exc}")
+        console.print("[dim]Run `authorkit check` to verify pandoc is installed and on PATH.[/dim]")
         raise typer.Exit(code=1) from exc
 
     if not quiet:
@@ -127,7 +129,7 @@ def build(
         console.print(f"Manuscript source: {len(drafts)} chapter draft(s)")
         console.print(f"Assembled markdown: {manuscript_path}")
         for item in produced:
-            console.print(f"Built: {item}")
+            console.print(f"[green]Built:[/green] {item}")
 
 
 @book_app.command("audio")
@@ -208,6 +210,7 @@ def stats(
 
     table = Table(title=f"Book Stats: {book_dir.name}")
     table.add_column("CH")
+    table.add_column("Status")
     table.add_column("Title")
     table.add_column("Words", justify="right")
     table.add_column("Chars", justify="right")
@@ -217,6 +220,7 @@ def stats(
     for chapter in stat_payload["chapters"]:
         table.add_row(
             str(chapter["chapter"]),
+            chapter["status"],
             chapter["title"],
             str(chapter["words"]),
             str(chapter["chars"]),
@@ -226,6 +230,12 @@ def stats(
 
     console.print(table)
     totals = stat_payload["totals"]
+    breakdown = totals.get("status_breakdown") or {}
+    breakdown_text = (
+        " status=" + ",".join(f"{label}:{count}" for label, count in sorted(breakdown.items()))
+        if breakdown
+        else ""
+    )
     console.print(
         "Totals: "
         f"chapters={totals['chapters']} "
@@ -233,4 +243,5 @@ def stats(
         f"chars={totals['chars']} "
         f"est_read_min={totals['est_read_minutes']:.2f} "
         f"est_audio_min={totals['est_audio_minutes']:.2f}"
+        f"{breakdown_text}"
     )

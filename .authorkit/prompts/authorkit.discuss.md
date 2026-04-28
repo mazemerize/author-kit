@@ -104,31 +104,9 @@ This command can be used at any point: before conceiving, between outline and dr
 4. **Saving notes** (only when the author asks):
 
    If the author says "save", "note this", "capture this", or similar:
-   - Create a discussion notes file at `BOOK_DIR/notes/discuss-YYYY-MM-DD-HH-MM.md` (use current timestamp)
-   - If `BOOK_DIR/notes/` doesn't exist, create it
-   - Format:
-
-     ```markdown
-     # Discussion Notes: [Topic]
-
-     **Date**: [YYYY-MM-DD]
-
-     ## Decisions Reached
-     - [Decision 1]
-     - [Decision 2]
-
-     ## Ideas Explored
-     - [Idea 1]: [Brief summary and status — adopted, rejected, or open]
-     - [Idea 2]: [Brief summary and status]
-
-     ## Open Questions
-     - [Question still unresolved]
-
-     ## Next Commands
-     - `[ready-to-run command with full argument]` — [why]
-     - `[ready-to-run command with full argument]` — [why]
-     ```
-
+   - Create a discussion notes file at `BOOK_DIR/notes/discuss-YYYY-MM-DD-HH-MM.md` (use current timestamp).
+   - If `BOOK_DIR/notes/` doesn't exist, create it.
+   - Use the canonical template `.authorkit/templates/discuss-notes-template.md` for the file structure. Substitute all bracketed placeholders with content from the conversation. Do not invent the schema inline — the template is the single source of truth.
    - After saving, confirm the path and suggest which command to run next based on what was discussed.
 
 5. **Ending the discussion**:
