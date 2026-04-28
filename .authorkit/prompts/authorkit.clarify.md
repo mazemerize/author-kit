@@ -1,13 +1,20 @@
 ---
-description: Identify underspecified areas in the book concept by asking targeted clarification questions and encoding answers back into the concept.
+description: Resolve ambiguities in the book concept through structured Q&A. Records accepted answers directly into concept.md.
 handoffs:
-  - label: Create Book Outline
+  - label: Discuss Ideas
+    agent: authorkit.discuss
+    prompt: Brainstorm ideas now that the concept is clearer
+  - label: Update Constitution
+    agent: authorkit.constitution
+    prompt: Refresh voice/tone rules based on the clarified concept
+  - label: Build World
+    agent: authorkit.world.build
+    prompt: Build the world from the clarified concept
+  - label: Create Outline
     agent: authorkit.outline
-    prompt: Create an outline for this book concept.
-  - label: Research A Topic
-    agent: authorkit.research
-    prompt: Research an ambiguity that needs external grounding
+    prompt: Create an outline using the clarified concept
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
@@ -17,104 +24,62 @@ scripts:
 {{USER_INPUT_TOKEN}}
 ```
 
-You **MUST** consider the user input before proceeding (if not empty).
+You **MUST** consider the user input before proceeding (if not empty). The user input may target a specific area to clarify (e.g., "the magic system", "the audience"). If empty, scan the whole concept for the highest-impact ambiguities.
+
+## Goal
+
+Identify and resolve underspecified areas in the book concept *before* outlining. Unlike `/authorkit.discuss`, this command **writes to `concept.md`** as answers are accepted — that is the point of the command, and the user is opting into it by invoking `clarify`.
+
+This is a focused, structured Q&A — not an open-ended conversation. For brainstorming or open exploration, use `/authorkit.discuss` instead.
 
 ## Outline
 
-Goal: Detect and reduce ambiguity or missing decision points in the active book concept and record the clarifications directly in the concept file.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR. All paths must be absolute.
 
-Note: This clarification workflow is expected to run BEFORE invoking `/authorkit.outline`. If the user explicitly states they are skipping clarification, you may proceed, but must warn that downstream rework risk increases.
+2. **Load context** (read whatever exists):
+   - **Required**: `concept.md` — if missing, ERROR "No concept found. Run `/authorkit.conceive` first."
+   - **Optional**: `.authorkit/memory/constitution.md` (voice, tone, writing principles)
+   - **Optional**: `outline.md`, `chapters.md`, `world/`, `characters.md` (to spot ambiguities that have already been resolved downstream)
 
-Execution steps:
+3. **Identify ambiguities** in concept.md across these areas:
+   - Premise & Scope
+   - Genre & Audience
+   - Characters/Subjects
+   - Voice & Tone
+   - Themes
+   - Structure & Pacing
+   - Setting/world
+   - Research Requirements
 
-1. Run `{{SCRIPT_CHECK_PREREQ}}` from repo root **once**. Parse JSON payload for `BOOK_DIR` and `BOOK_CONCEPT`. If JSON parsing fails, abort and instruct user to re-run `/authorkit.conceive`.
+   If the user provided a specific focus (e.g., "clarify the magic system"), restrict to that area.
 
-2. Load the current concept file. If `research.md` or `research/` exists, load relevant research artifacts first (including nested topic folders) and use them to resolve or narrow accuracy-sensitive ambiguities. Then perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing.
+4. **Prioritize** the most impactful ambiguities. Order: premise > audience > structure > voice > details. Cap at **5 questions per session** to keep the Q&A focused.
 
-   Premise & Scope:
-   - Core conflict/thesis clarity
-   - Explicit scope boundaries
-   - Target length and structure
+5. **Run structured Q&A** — one question at a time:
+   - Present ONE clarification question per turn, answerable with a short answer or multiple-choice.
+   - For each question, provide a **recommended answer** with reasoning grounded in genre conventions and existing concept context.
+   - Wait for the author's reply.
 
-   Genre & Audience:
-   - Genre conventions acknowledged
-   - Target reader specificity
-   - Comparable titles relevance
+6. **Record each accepted answer** directly into `concept.md`:
+   - Ensure a `## Clarifications` section exists (create if missing, place near the top of the file).
+   - Under a `### Session YYYY-MM-DD` subheading, append: `- Q: <question> -> A: <answer>`.
+   - Apply the answer to the relevant concept section (update Premise, Audience, Voice, etc., as appropriate). Keep edits minimal — surgical updates, not rewrites.
+   - Confirm to the author after each save: "Recorded under Clarifications and updated [Section X]."
 
-   Characters / Subjects:
-   - Protagonist/main subject depth
-   - Supporting cast/topics sufficiency
-   - Character motivations / topic relationships
+7. **Continue** until ambiguities are resolved, the author says "done", or 5 questions have been asked.
 
-   Voice & Tone:
-   - POV consistency
-   - Tense choice rationale
-   - Tone specificity (beyond vague adjectives)
+8. **Report completion**:
+   - Count of clarifications recorded
+   - Sections of `concept.md` updated
+   - Suggested next step:
+     - If voice/tone changed materially: `/authorkit.constitution` to refresh the style rules
+     - Otherwise: `/authorkit.outline` to outline from the clarified concept
 
-   Themes:
-   - Theme distinctness
-   - Theme-to-narrative mapping
-   - Potential theme conflicts
+## Key Rules
 
-   Structure & Pacing:
-   - Structural approach clarity
-   - Pacing expectations
-   - Part/act division rationale
-
-   World / Setting / Context:
-   - Setting specificity
-   - World-building requirements (fiction)
-   - Context/background needs (non-fiction)
-
-   Research Requirements:
-   - Accuracy domains identified
-   - Sensitivity areas flagged
-   - Expert consultation needs
-
-3. Generate a prioritized queue of candidate clarification questions (maximum 5):
-    - Each question must be answerable with EITHER:
-       - A short multiple-choice selection (2-5 distinct options), OR
-       - A short-phrase answer (<=5 words)
-    - Only include questions whose answers materially impact outline, chapter planning, or writing quality.
-    - Prioritize: premise clarity > audience > structure > voice > details
-
-4. Sequential questioning loop (interactive):
-    - Present EXACTLY ONE question at a time.
-    - For multiple-choice questions:
-       - Analyze all options and determine the **most suitable option** based on genre best practices and the concept context.
-       - Present your **recommended option prominently** with clear reasoning.
-       - Format as: `**Recommended:** Option [X] - <reasoning>`
-       - Then render all options as a Markdown table.
-       - After the table: `You can reply with the option letter, accept the recommendation by saying "yes", or provide your own answer.`
-    - After the user answers:
-       - If "yes" or "recommended", use your stated recommendation.
-       - Validate the answer, then record it.
-    - Stop when: all critical ambiguities resolved, user signals "done", or 5 questions asked.
-
-5. Integration after EACH accepted answer:
-    - Ensure a `## Clarifications` section exists in the concept (create if missing).
-    - Under it, create a `### Session YYYY-MM-DD` subheading for today.
-    - Append: `- Q: <question> -> A: <final answer>`.
-    - Apply the clarification to the most appropriate section of the concept.
-    - Save the concept file AFTER each integration.
-
-6. Validation after each write:
-   - Clarifications section contains one bullet per accepted answer.
-   - Updated sections contain no lingering vague placeholders the answer was meant to resolve.
-   - Markdown structure valid.
-
-7. Write the updated concept back to `BOOK_CONCEPT`.
-
-8. Report completion:
-   - Number of questions asked & answered.
-   - Path to updated concept.
-   - Sections touched.
-   - Coverage summary table.
-   - Suggested next command (`/authorkit.outline`) or `/authorkit.research` for unresolved accuracy/sensitivity domains.
-
-Behavior rules:
-- If no meaningful ambiguities found, respond: "No critical ambiguities detected." and suggest proceeding to outline.
-- If concept file missing, instruct user to run `/authorkit.conceive` first.
-- Never exceed 5 total questions.
-- Respect user early termination ("stop", "done", "proceed").
-
+- **Concept.md is the only file written.** Do not edit outline, world/, chapters, or anything else. If the clarification implies downstream changes, mention them and recommend `/authorkit.amend` — don't propagate them here.
+- **One question at a time.** Walls of questions overwhelm the author and get answered shallowly.
+- **Recommend, don't dictate.** Always offer a suggested answer with reasoning. The author can accept, modify, or reject.
+- **The author's instinct wins.** If they push back on a recommendation, support their choice — don't argue for the "correct" one.
+- **No brainstorming.** If the conversation drifts into open exploration, suggest handing off to `/authorkit.discuss` and stop.
+- **Stop at 5 questions** even if more ambiguities remain. Suggest re-running `/authorkit.clarify` later for a fresh batch.

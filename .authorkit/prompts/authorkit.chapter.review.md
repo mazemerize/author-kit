@@ -1,19 +1,23 @@
 ---
 description: Review a drafted chapter against the plan, concept, constitution, and quality criteria.
 handoffs:
+  - label: Discuss Issues First
+    agent: authorkit.discuss
+    prompt: Talk through the motivation or theme issues found in the review before replanning
   - label: Revise This Chapter
+    agent: authorkit.revise
+    prompt: Apply the review feedback to chapter [N]
+  - label: Re-plan This Chapter
     agent: authorkit.chapter.plan
     prompt: Re-plan chapter [N] based on review feedback
-  - label: Update World
-    agent: authorkit.world.update
-    prompt: Update world files for chapter [N]
-  - label: Verify World
-    agent: authorkit.world.verify
-    prompt: Verify world consistency for entities in chapter [N]
-  - label: Draft Next Chapter
+  - label: Sync World
+    agent: authorkit.world.sync
+    prompt: Sync world files for chapter [N]
+  - label: Plan Next Chapter
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N+1]
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -43,7 +47,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Required**: `chapters/NN/draft.md` (the chapter to review)
    - **Required**: `chapters/NN/plan.md` (what was planned)
    - **Required**: concept.md (book concept, themes, voice)
-   - **Required**: `/memory/constitution.md` (writing principles)
+   - **Required**: `.authorkit/memory/constitution.md` (writing principles)
    - **Required**: `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md`
    - **Recommended**: characters.md (character consistency checks)
    - **Recommended**: outline.md (chapter's role in overall structure)
@@ -94,11 +98,11 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - **Organizations**: Check any organizations referenced in this chapter against their world/organizations/ entries. Verify membership, hierarchy, purpose, and inter-organization relationships are consistent.
    - **Systems**: If the chapter involves any system (magic, technology, political, economic), verify that the chapter's depiction follows the rules, limitations, scope, and exceptions defined in world/systems/. Flag any rule violations.
    - **History**: If the chapter references past events, verify those references align with the accounts in world/history/ entries. Flag contradictory dates, participants, or outcomes.
-   - **New entities**: Flag characters, places, organizations, systems, or historical events that appear in this chapter but have NO corresponding world/ entry. These are candidates for `/authorkit.world.update`.
+   - **New entities**: Flag characters, places, organizations, systems, or historical events that appear in this chapter but have NO corresponding world/ entry. These are candidates for `/authorkit.world.sync`.
 
    For each contradiction found, cite the specific world/ file, the tagged entry, and the location in the chapter draft where the contradiction occurs. Severity:
    - Contradictions with established entries: **Critical** or **Important** depending on reader-visible impact
-   - Missing world/ entries: **Minor** (informational — these should be captured via `/authorkit.world.update`)
+   - Missing world/ entries: **Minor** (informational — these should be captured via `/authorkit.world.sync`)
 
    ### E. Continuity (if previous chapters exist)
    - Does this chapter flow naturally from the previous one?
@@ -176,7 +180,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
      - If PASS: `/authorkit.chapter.plan [N+1]` to continue
      - If NEEDS REVISION: re-run `/authorkit.chapter.plan [N]` to re-plan with feedback, then `/authorkit.chapter.draft [N]`
 
-## Review Principles
+## Key Rules
 
 - **Be constructive**: Every criticism should come with a specific suggestion
 - **Be specific**: Quote the draft, reference line locations, give concrete examples of improvement

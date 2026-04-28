@@ -17,6 +17,8 @@ from rich.table import Table
 
 from .book_audio import generate_audiobook
 from .book_core import (
+    BookConfig,
+    BookConfigError,
     CHAPTERS_DIR_NAME,
     DIST_DIR_NAME,
     discover_chapter_drafts,
@@ -28,10 +30,48 @@ from .book_core import (
 from .book_render import SUPPORTED_FORMATS, build_manuscript_markdown, render_formats
 from .book_stats import collect_stats, render_stats_markdown
 
+
+def _safe_parse_book_config(book_dir: Path) -> BookConfig:
+    """Translate ``BookConfigError`` into an actionable CLI error.
+
+    Prints via ``console.print`` rather than raising ``typer.BadParameter``
+    so the long config path isn't folded mid-token by Rich's panel wrapper —
+    folding splits ``book.toml`` across lines on narrow terminals and breaks
+    substring checks in tests/users' eyes.
+    """
+    try:
+        return parse_book_config(book_dir)
+    except BookConfigError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        console.print(
+            "[dim]Fix the file or run `authorkit init --here --force` to regenerate it.[/dim]"
+        )
+        raise typer.Exit(code=2) from exc
+
 # Shared Rich console for book subcommand output.
 console = Console()
 # Root Typer group registered as `authorkit book`.
 book_app = typer.Typer(help="Book publishing tools")
+
+
+def _discover_drafts_with_range_check(
+    book_dir: Path,
+    *,
+    from_chapter: int | None,
+    to_chapter: int | None,
+) -> list:
+    """Run ``discover_chapter_drafts`` and convert range errors to CLI errors.
+
+    Prints via ``console.print`` rather than raising ``typer.BadParameter`` —
+    Typer's panel renderer styles CLI flags by splitting `--foo` into
+    `-` + `-foo` ANSI segments, which prevents downstream substring checks
+    (and human eyes scanning the panel) from seeing the literal flag name.
+    """
+    try:
+        return discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
 
 
 def _resolve_context() -> tuple[Path, Path]:
@@ -80,14 +120,17 @@ def build(
     format: list[str] | None = typer.Option(None, "--format", help="Repeat to select multiple formats: docx, epub"),
     output_dir: str | None = typer.Option(None, "--output-dir", help="Output directory (default book/dist)"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing output files"),
+    yes: bool = typer.Option(False, "--yes", help="Non-interactive confirmation for overwrite prompts (CI-friendly)"),
     quiet: bool = typer.Option(False, "--quiet", help="Reduce output"),
+    from_chapter: int | None = typer.Option(None, "--from-chapter", help="Minimum chapter number"),
+    to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
     """Build manuscript artifacts from chapter drafts."""
     _, book_dir = _resolve_context()
-    config = parse_book_config(book_dir)
+    config = _safe_parse_book_config(book_dir)
     formats = _resolve_formats(format, config.default_formats)
 
-    drafts = discover_chapter_drafts(book_dir)
+    drafts = _discover_drafts_with_range_check(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter(f"No draft chapters found in {book_dir / CHAPTERS_DIR_NAME}")
 
@@ -102,7 +145,7 @@ def build(
     for fmt in formats:
         out_file = dist_dir / f"manuscript.{fmt.lower()}"
         if out_file.exists() and not force:
-            overwrite = typer.confirm(f"Output already exists for {fmt}: overwrite?", default=False)
+            overwrite = yes or typer.confirm(f"Output already exists for {fmt}: overwrite?", default=False)
             if not overwrite:
                 if not quiet:
                     console.print(f"Skipped existing output: {out_file}")
@@ -120,6 +163,7 @@ def build(
         produced = render_formats(book_dir, dist_dir, manuscript_path, formats_to_render, config, force=True)
     except (RuntimeError, FileExistsError, ValueError) as exc:
         console.print(f"[red]Build failed:[/red] {exc}")
+        console.print("[dim]Run `authorkit check` to verify pandoc is installed and on PATH.[/dim]")
         raise typer.Exit(code=1) from exc
 
     if not quiet:
@@ -127,7 +171,7 @@ def build(
         console.print(f"Manuscript source: {len(drafts)} chapter draft(s)")
         console.print(f"Assembled markdown: {manuscript_path}")
         for item in produced:
-            console.print(f"Built: {item}")
+            console.print(f"[green]Built:[/green] {item}")
 
 
 @book_app.command("audio")
@@ -139,12 +183,13 @@ def audio(
     merge: bool = typer.Option(False, "--merge", help="Also create merged audiobook"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing chapter audio without prompts"),
     yes: bool = typer.Option(False, "--yes", help="Non-interactive confirmation for overwrite prompts"),
+    quiet: bool = typer.Option(False, "--quiet", help="Reduce output"),
     from_chapter: int | None = typer.Option(None, "--from-chapter", help="Minimum chapter number"),
     to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
     """Generate audiobook files from chapter drafts."""
     repo_root, book_dir = _resolve_context()
-    config = parse_book_config(book_dir)
+    config = _safe_parse_book_config(book_dir)
 
     if provider:
         config.audio_provider = provider.lower()
@@ -153,7 +198,7 @@ def audio(
     if model:
         config.audio_model = model
 
-    drafts = discover_chapter_drafts(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
+    drafts = _discover_drafts_with_range_check(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter("No matching draft chapters found for audio generation.")
 
@@ -170,11 +215,12 @@ def audio(
         book_dir=book_dir,
     )
 
-    console.print(f"Audio directory: {audio_dir}")
-    console.print(f"Generated: {result['generated']}")
-    console.print(f"Skipped: {result['skipped']}")
-    if result["merged_file"]:
-        console.print(f"Merged file: {result['merged_file']}")
+    if not quiet:
+        console.print(f"Audio directory: {audio_dir}")
+        console.print(f"Generated: {result['generated']}")
+        console.print(f"Skipped: {result['skipped']}")
+        if result["merged_file"]:
+            console.print(f"Merged file: {result['merged_file']}")
 
 
 @book_app.command("stats")
@@ -182,14 +228,16 @@ def stats(
     output: str = typer.Option("table", "--output", help="Output format: table, json, markdown"),
     audio_dir: str | None = typer.Option(None, "--audio-dir", help="Audio directory for actual duration lookup"),
     wpm: int | None = typer.Option(None, "--wpm", help="Reading words-per-minute override"),
+    from_chapter: int | None = typer.Option(None, "--from-chapter", help="Minimum chapter number"),
+    to_chapter: int | None = typer.Option(None, "--to-chapter", help="Maximum chapter number"),
 ) -> None:
     """Show manuscript statistics from draft chapters."""
     _, book_dir = _resolve_context()
-    config = parse_book_config(book_dir)
+    config = _safe_parse_book_config(book_dir)
     if wpm is not None:
         config.reading_wpm = wpm
 
-    drafts = discover_chapter_drafts(book_dir)
+    drafts = _discover_drafts_with_range_check(book_dir, from_chapter=from_chapter, to_chapter=to_chapter)
     if not drafts:
         raise typer.BadParameter("No draft chapters found for stats.")
 
@@ -208,6 +256,7 @@ def stats(
 
     table = Table(title=f"Book Stats: {book_dir.name}")
     table.add_column("CH")
+    table.add_column("Status")
     table.add_column("Title")
     table.add_column("Words", justify="right")
     table.add_column("Chars", justify="right")
@@ -217,6 +266,7 @@ def stats(
     for chapter in stat_payload["chapters"]:
         table.add_row(
             str(chapter["chapter"]),
+            chapter["status"],
             chapter["title"],
             str(chapter["words"]),
             str(chapter["chars"]),
@@ -226,6 +276,12 @@ def stats(
 
     console.print(table)
     totals = stat_payload["totals"]
+    breakdown = totals.get("status_breakdown") or {}
+    breakdown_text = (
+        " status=" + ",".join(f"{label}:{count}" for label, count in sorted(breakdown.items()))
+        if breakdown
+        else ""
+    )
     console.print(
         "Totals: "
         f"chapters={totals['chapters']} "
@@ -233,4 +289,5 @@ def stats(
         f"chars={totals['chars']} "
         f"est_read_min={totals['est_read_minutes']:.2f} "
         f"est_audio_min={totals['est_audio_minutes']:.2f}"
+        f"{breakdown_text}"
     )

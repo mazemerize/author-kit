@@ -1,5 +1,5 @@
-﻿#!/usr/bin/env bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 JSON_MODE=false
 for arg in "$@"; do
@@ -24,10 +24,13 @@ eval "$(get_book_paths)"
 mkdir -p "$BOOK_DIR" "$CHAPTERS_DIR"
 
 template="$REPO_ROOT/.authorkit/templates/outline-template.md"
-if [[ -f "$template" ]]; then
-  cp "$template" "$OUTLINE"
-else
-  : > "$OUTLINE"
+if [[ ! -f "$OUTLINE" ]]; then
+  if [[ -f "$template" ]]; then
+    cp "$template" "$OUTLINE"
+  else
+    echo "WARNING: Outline template not found at $template" >&2
+    : > "$OUTLINE"
+  fi
 fi
 
 if $JSON_MODE; then

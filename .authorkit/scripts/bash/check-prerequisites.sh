@@ -1,5 +1,5 @@
-﻿#!/usr/bin/env bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 JSON_MODE=false
 REQUIRE_CHAPTERS=false
@@ -44,6 +44,7 @@ if $PATHS_ONLY; then
     echo "REPO_ROOT: $REPO_ROOT"
     echo "BOOK_DIR: $BOOK_DIR"
     echo "BOOK_CONCEPT: $BOOK_CONCEPT"
+    echo "STYLE_ANCHOR: $STYLE_ANCHOR"
     echo "OUTLINE: $OUTLINE"
     echo "CHAPTERS: $CHAPTERS"
   fi
@@ -68,10 +69,14 @@ if $REQUIRE_CHAPTERS && [[ ! -f "$CHAPTERS" ]]; then
   exit 1
 fi
 
+dir_has_subdirs() {
+  [[ -d "$1" ]] && find "$1" -mindepth 1 -maxdepth 1 -type d | head -n 1 | grep -q .
+}
+
 docs=()
 [[ -f "$RESEARCH" ]] && docs+=("research.md")
 [[ -f "$CHARACTERS" ]] && docs+=("characters.md")
-if [[ -d "$CHAPTERS_DIR" ]] && find "$CHAPTERS_DIR" -mindepth 1 -maxdepth 1 -type d | head -n 1 | grep -q .; then
+if dir_has_subdirs "$CHAPTERS_DIR"; then
   docs+=("chapters/")
 fi
 if $INCLUDE_CHAPTERS && [[ -f "$CHAPTERS" ]]; then
@@ -85,14 +90,22 @@ if $JSON_MODE; then
     json_docs=$(printf '"%s",' "${docs[@]}")
     json_docs="[${json_docs%,}]"
   fi
-  printf '{"BOOK_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$BOOK_DIR" "$json_docs"
+  printf '{"BOOK_DIR":"%s","STYLE_ANCHOR":"%s","AVAILABLE_DOCS":%s}\n' "$BOOK_DIR" "$STYLE_ANCHOR" "$json_docs"
 else
   echo "BOOK_DIR:$BOOK_DIR"
+  echo "STYLE_ANCHOR:$STYLE_ANCHOR"
   echo "AVAILABLE_DOCS:"
-  check_file "$RESEARCH" "research.md"
-  check_file "$CHARACTERS" "characters.md"
-  check_dir_has_files "$CHAPTERS_DIR" "chapters/"
+  # `check_file` returns 1 when the file is missing — that's expected for an
+  # optional doc, but `set -e` would otherwise terminate the script. Disable
+  # the side effect with `|| true` so we keep printing the full doc list.
+  check_file "$RESEARCH" "research.md" || true
+  check_file "$CHARACTERS" "characters.md" || true
+  if dir_has_subdirs "$CHAPTERS_DIR"; then
+    echo "  + chapters/"
+  else
+    echo "  - chapters/"
+  fi
   if $INCLUDE_CHAPTERS; then
-    check_file "$CHAPTERS" "chapters.md"
+    check_file "$CHAPTERS" "chapters.md" || true
   fi
 fi

@@ -4,13 +4,14 @@ handoffs:
   - label: Update Outline
     agent: authorkit.outline
     prompt: Update the outline to reflect the restructured chapters
-  - label: Verify World Tags
-    agent: authorkit.world.verify
-    prompt: Verify chapter tags in world/ files after reorder
+  - label: Sync World Tags
+    agent: authorkit.world.sync
+    prompt: Sync world files after chapter reorder
   - label: Run Analysis
     agent: authorkit.analyze
     prompt: Analyze consistency after chapter restructuring
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -145,11 +146,11 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
    e. **Phase 5 — Update cross-references**:
       - **outline.md**: Update all chapter references
-      - **world/ files**: Update all `(CHxx)`, `(CHxx-rev)`, `(RETCON-date)` tags
+      - **world/ files**: Update all `(CHxx)`, `(CHxx-rev)`, `(AMEND-date)` tags
       - **Chapter plans**: Update references to other chapters (e.g., "continues from CH03")
       - **Chapter drafts**: Update any explicit chapter references in prose (rare but possible in non-fiction)
       - **parked-decisions.md** (if exists): Update deadline references (e.g., "Before CH12")
-      - **Pivot logs** (if exist): Note the renumbering but don't rewrite history
+      - **Amendment logs** in `amendments/` if they exist: Note the renumbering but don't rewrite history
 
    f. **Phase 6 — Update outline.md**:
       - Reorder chapter entries to match new structure
@@ -157,7 +158,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
 
    g. **Phase 7 — Update world/ frontmatter and rebuild index**:
       - For every world/ file whose `(CHxx)` tags were renumbered: update the YAML frontmatter `chapters` field to reflect the new chapter numbers. Update `last_updated`.
-      - Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to rebuild `world/_index.md`.
+      - Rebuild `world/_index.md` by running `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root.
 
 7. **Post-reorder validation**:
    - Verify all chapter directories exist at their new locations
@@ -196,7 +197,7 @@ Handle structural rearrangements of the chapter order — moves, splits, and mer
    ### Next Steps
 
    - `/authorkit.analyze` — verify cross-chapter consistency after restructure
-   - `/authorkit.world.verify` — check world/ tag integrity
+   - `/authorkit.world.sync` — check world/ tag integrity
    - [For splits]: `/authorkit.chapter.plan [N]` — plan the new chapter(s)
    - [For merges]: `/authorkit.chapter.review [N]` — review the combined chapter
    ```

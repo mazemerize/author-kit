@@ -19,7 +19,6 @@ from pathlib import Path
 BOOK_DIR_NAME = "book"
 WORLD_DIR_NAME = "world"
 CHAPTERS_DIR_NAME = "chapters"
-CHECKLISTS_DIR_NAME = "checklists"
 DIST_DIR_NAME = "dist"
 
 @dataclass(slots=True)
@@ -79,13 +78,84 @@ def resolve_book_dir(repo_root: Path) -> Path:
     return book_dir
 
 
+class BookConfigError(Exception):
+    """Raised when ``book.toml`` cannot be parsed or contains invalid types.
+
+    Carries the offending file path and a remediation hint so callers can
+    surface an actionable error to the user instead of a raw traceback.
+    """
+
+    def __init__(self, message: str, *, config_path: Path):
+        super().__init__(message)
+        self.config_path = config_path
+
+
+def _coerce_int(value: object, default: int, *, field: str, config_path: Path) -> int:
+    """Coerce a TOML value to ``int`` or raise BookConfigError with file context."""
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        # bool is a subclass of int in Python — explicitly reject it so that
+        # `speaking_rate_wpm = true` doesn't silently parse as 1.
+        raise BookConfigError(
+            f"`{field}` in {config_path} must be a number, got boolean.",
+            config_path=config_path,
+        )
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise BookConfigError(
+            f"`{field}` in {config_path} must be a number, got {value!r}.",
+            config_path=config_path,
+        ) from exc
+
+
+def _coerce_optional_float(value: object, *, field: str, config_path: Path) -> float | None:
+    """Coerce a TOML value to ``float``/None, rejecting strings/bools loudly.
+
+    Returning None for absent keys keeps the "uncomment to enable" UX from the
+    README — but a *present* value with the wrong type should error rather
+    than silently disable the feature.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise BookConfigError(
+            f"`{field}` in {config_path} must be a number, got boolean.",
+            config_path=config_path,
+        )
+    if isinstance(value, (int, float)):
+        return float(value)
+    raise BookConfigError(
+        f"`{field}` in {config_path} must be a number, got {value!r}.",
+        config_path=config_path,
+    )
+
+
 def parse_book_config(book_dir: Path) -> BookConfig:
-    """Load book metadata from book.toml with safe defaults."""
+    """Load book metadata from book.toml with safe defaults.
+
+    Raises:
+        BookConfigError: If the file is unreadable, malformed, or any required
+            numeric field has the wrong type. CLI callers translate this to a
+            ``typer.BadParameter`` with a hint pointing at ``authorkit init``.
+    """
     config_path = book_dir / "book.toml"
     raw: dict = {}
     if config_path.exists():
         # Accept legacy BOM-prefixed files created by some shell encodings.
-        raw = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))
+        try:
+            raw = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))
+        except tomllib.TOMLDecodeError as exc:
+            raise BookConfigError(
+                f"Could not parse {config_path}: {exc}.",
+                config_path=config_path,
+            ) from exc
+        except OSError as exc:
+            raise BookConfigError(
+                f"Could not read {config_path}: {exc}.",
+                config_path=config_path,
+            ) from exc
 
     book_section = raw.get("book", {})
     build_section = raw.get("build", {})
@@ -102,9 +172,6 @@ def parse_book_config(book_dir: Path) -> BookConfig:
     if not default_formats:
         default_formats = ["docx"]
 
-    tts_cost = stats_section.get("tts_cost_per_1m_chars")
-    parsed_tts_cost = float(tts_cost) if isinstance(tts_cost, (int, float)) else None
-
     return BookConfig(
         title=title,
         author=author,
@@ -115,16 +182,41 @@ def parse_book_config(book_dir: Path) -> BookConfig:
         epub_css=str(build_section.get("epub_css") or "").strip(),
         audio_provider=str(audio_section.get("provider") or "openai").strip().lower(),
         audio_model=str(audio_section.get("model") or "gpt-4o-mini-tts").strip(),
-        audio_voice=str(audio_section.get("voice") or "onyx").strip(),
+        audio_voice=str(audio_section.get("voice") or "marin").strip(),
         audio_instructions=str(audio_section.get("instructions") or "").strip(),
-        speaking_rate_wpm=int(audio_section.get("speaking_rate_wpm") or 170),
-        reading_wpm=int(stats_section.get("reading_wpm") or 200),
-        tts_cost_per_1m_chars=parsed_tts_cost,
+        speaking_rate_wpm=_coerce_int(
+            audio_section.get("speaking_rate_wpm"), 170,
+            field="audio.speaking_rate_wpm", config_path=config_path,
+        ),
+        reading_wpm=_coerce_int(
+            stats_section.get("reading_wpm"), 200,
+            field="stats.reading_wpm", config_path=config_path,
+        ),
+        tts_cost_per_1m_chars=_coerce_optional_float(
+            stats_section.get("tts_cost_per_1m_chars"),
+            field="stats.tts_cost_per_1m_chars", config_path=config_path,
+        ),
     )
 
 
 def discover_chapter_drafts(book_dir: Path, from_chapter: int | None = None, to_chapter: int | None = None) -> list[ChapterDraft]:
-    """Load chapter draft files in numeric order."""
+    """Load chapter draft files in numeric order.
+
+    Raises:
+        ValueError: If both ``from_chapter`` and ``to_chapter`` are set and the
+            range is inverted (``from_chapter > to_chapter``). Without this
+            check, an inverted range silently produces an empty list and the
+            CLI surfaces a generic "no drafts found" error that hides the
+            user's typo.
+    """
+    if (
+        from_chapter is not None
+        and to_chapter is not None
+        and from_chapter > to_chapter
+    ):
+        raise ValueError(
+            f"--from-chapter ({from_chapter}) must be <= --to-chapter ({to_chapter})."
+        )
     chapters_root = book_dir / CHAPTERS_DIR_NAME
     if not chapters_root.exists():
         return []
@@ -133,7 +225,10 @@ def discover_chapter_drafts(book_dir: Path, from_chapter: int | None = None, to_
     for entry in chapters_root.iterdir():
         if not entry.is_dir():
             continue
-        match = re.match(r"^(\d+)", entry.name)
+        # Only directories whose names are pure numeric (e.g. "01", "02") are real
+        # chapter folders. This excludes backups like "01-old/" or "chapters/archived/"
+        # which would otherwise silently be included in book build/stats output.
+        match = re.match(r"^(\d+)$", entry.name)
         if not match:
             continue
         chapter_num = int(match.group(1))
@@ -157,6 +252,55 @@ def chapter_title(text: str, fallback: str) -> str:
     return fallback
 
 
+# Status markers tracked in chapters.md: ` ` pending, P planned, D drafted,
+# R needs revision, X approved. See README "Chapter-Level Iteration".
+CHAPTER_STATUS_LABELS: dict[str, str] = {
+    " ": "pending",
+    "P": "planned",
+    "D": "drafted",
+    "R": "review",
+    "X": "approved",
+}
+
+
+def parse_chapter_statuses(book_dir: Path) -> dict[int, str]:
+    """Parse chapters.md and return a mapping of chapter number to status label.
+
+    Returns an empty mapping if chapters.md does not exist or parses no entries.
+    Tolerant by design: a missing or malformed chapters.md must not break stats.
+
+    Format expected (per chapters-template.md):
+        - [X] CH01 [Part 1] Title - Brief summary
+        - [D] CH02 ...
+    """
+    chapters_path = book_dir / "chapters.md"
+    if not chapters_path.exists():
+        return {}
+
+    statuses: dict[int, str] = {}
+    pattern = re.compile(r"^\s*-\s*\[(.)\]\s*CH(\d+)\b", re.IGNORECASE)
+    try:
+        text = chapters_path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return {}
+
+    for line in text.splitlines():
+        match = pattern.match(line)
+        if not match:
+            continue
+        marker = match.group(1)
+        try:
+            chapter_num = int(match.group(2))
+        except ValueError:
+            continue
+        # Normalize: lowercase letters or non-listed markers are reported as raw
+        # so an unexpected marker doesn't get silently coerced to "pending".
+        label = CHAPTER_STATUS_LABELS.get(marker.upper(), marker)
+        statuses[chapter_num] = label
+
+    return statuses
+
+
 def markdown_to_plain_text(markdown: str) -> str:
     """Remove basic markdown formatting for metrics and TTS payloads."""
     text = re.sub(r"```.*?```", "", markdown, flags=re.DOTALL)
@@ -169,5 +313,5 @@ def markdown_to_plain_text(markdown: str) -> str:
 
 
 def to_json(data: object) -> str:
-    """Serialize JSON output with predictable formatting."""
-    return json.dumps(data, indent=2, ensure_ascii=True)
+    """Serialize JSON output with predictable formatting and human-readable Unicode."""
+    return json.dumps(data, indent=2, ensure_ascii=False)

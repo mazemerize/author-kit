@@ -4,14 +4,17 @@ handoffs:
   - label: Re-Review Chapter
     agent: authorkit.chapter.review
     prompt: Review chapter [N] after revision
-  - label: Update World After Revision
-    agent: authorkit.world.update
-    prompt: Update world files after revising chapter [N]
+  - label: Sync World After Revision
+    agent: authorkit.world.sync
+    prompt: Sync world files after revising chapter [N]
   - label: Run Analysis Again
     agent: authorkit.analyze
     prompt: Run a fresh cross-chapter analysis
-    send: true
+  - label: Clarify Concept First
+    agent: authorkit.clarify
+    prompt: Resolve concept ambiguities before applying the revision
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -60,14 +63,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
       - Fallbacks:
         - If one approved chapter exists: use constitution + that chapter.
         - If none exist: use constitution only.
-      - Use this fixed schema:
-        - `## Non-Negotiables (POV, Tense, Narrative Distance)`
-        - `## Cadence Profile (Sentence and Paragraph Rhythm)`
-        - `## Dialogue Profile`
-        - `## Diction and Register`
-        - `## Imagery Density and Taboo Patterns`
-        - `## Drift Red Flags`
-        - `## Provenance`
+      - Load `.authorkit/templates/style-anchor-template.md` for the canonical section order and headings, then **write the resolved style anchor to `BOOK_DIR/style-anchor.md`** following the template's structure exactly.
 
    c. **Apply revisions to the draft**:
       - Make targeted edits to `chapters/NN/draft.md`
@@ -91,7 +87,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
    - If a revision changes a fact, character detail, or plot point: identify all other chapters that reference it
    - List any other chapters that may need updates as a result
    - Do NOT automatically edit other chapters - flag them for the user
-   - **world/ synchronization**: Recommend running `/authorkit.world.update [N]` after revision to update world/ files and get a full downstream impact report of what changed and which chapters may be affected
+   - **world/ synchronization**: Recommend running `/authorkit.world.sync [N]` after revision to update world/ files and get a full downstream impact report of what changed and which chapters may be affected
 
 6. **Report completion**:
    - Chapters revised and their paths
@@ -102,7 +98,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
      - `/authorkit.analyze` to check cross-chapter consistency after revisions
      - Other chapters that need attention due to ripple effects
 
-## Revision Principles
+## Key Rules
 
 - **Minimal surgery**: Make the smallest changes that fix the issue. Don't rewrite sections that are working well.
 - **Preserve voice**: Revisions should be indistinguishable in style from the original draft.

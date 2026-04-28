@@ -1,5 +1,5 @@
-﻿#!/usr/bin/env bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 JSON_MODE=false
 ADD_FRONTMATTER=false
@@ -40,7 +40,31 @@ if [[ ! -d "$WORLD_DIR" ]]; then
   exit 1
 fi
 
-python3 - "$WORLD_DIR" "$INDEX_FILE" "$ADD_FRONTMATTER" "$JSON_MODE" "$BOOK_DIR" <<'PY'
+# Resolve a usable Python interpreter. Walk both `python3` and `python` and
+# verify each candidate actually executes Python by checking the produced
+# stdout — `command -v` alone (and even `-c "import sys"` which exits 0)
+# isn't enough on Windows, where the Microsoft Store alias stub
+# (`%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe`) emits a UTF-16
+# "Python was not found" message and exits non-zero only when given stdin.
+# A unique sentinel string round-trip is the reliable signal.
+PYTHON_BIN=""
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1; then
+    out=$("$candidate" -c "print('AUTHORKIT_PY_OK')" 2>/dev/null) || out=""
+    if [[ "$out" == "AUTHORKIT_PY_OK" ]]; then
+      PYTHON_BIN="$candidate"
+      break
+    fi
+  fi
+done
+
+if [[ -z "$PYTHON_BIN" ]]; then
+  echo "ERROR: Python (python3 or python) is required for build-world-index.sh but was not found on PATH." >&2
+  echo "Install Python 3.11+ or run 'authorkit check' to see which dependencies are missing." >&2
+  exit 1
+fi
+
+"$PYTHON_BIN" - "$WORLD_DIR" "$INDEX_FILE" "$ADD_FRONTMATTER" "$JSON_MODE" "$BOOK_DIR" <<'PY'
 import json
 import re
 import sys
@@ -64,7 +88,7 @@ type_map = {
 }
 
 def kebab(s: str) -> str:
-    s = re.sub(r"^(the|a|an)\\s+", "", s.strip().lower())
+    s = re.sub(r"^(the|a|an)\s+", "", s.strip().lower())
     s = re.sub(r"[^a-z0-9]+", "-", s)
     return re.sub(r"-+", "-", s).strip("-")
 
@@ -77,18 +101,18 @@ for sub in sub_dirs:
     for f in sorted(d.rglob("*.md")):
         text = f.read_text(encoding="utf-8")
         rel = f.relative_to(world_dir).as_posix()
-        m = re.match(r"---\\n(.*?)\\n---\\n", text, flags=re.S)
+        m = re.match(r"---\n(.*?)\n---\n", text, flags=re.S)
         if m:
             fm = m.group(1)
             def extract(key, default=""):
-                mm = re.search(rf"^{key}:\\s*(.+)$", fm, re.M)
+                mm = re.search(rf"^{key}:\s*(.+)$", fm, re.M)
                 return mm.group(1).strip() if mm else default
             name = extract("name") or f.stem.replace("-", " ").title()
             aliases = []
-            am = re.search(r"^aliases:\\s*\\[([^\\]]*)\\]", fm, re.M)
+            am = re.search(r"^aliases:\s*\[([^\]]*)\]", fm, re.M)
             if am and am.group(1).strip(): aliases = [x.strip() for x in am.group(1).split(",")]
             ch = []
-            cm = re.search(r"^chapters:\\s*\\[([^\\]]*)\\]", fm, re.M)
+            cm = re.search(r"^chapters:\s*\[([^\]]*)\]", fm, re.M)
             if cm and cm.group(1).strip(): ch = [x.strip() for x in cm.group(1).split(",")]
             entities.append({
                 "id": extract("id") or f"{type_map.get(sub, ('misc-','misc'))[0]}{kebab(name)}",
@@ -102,32 +126,39 @@ for sub in sub_dirs:
             })
         else:
             lines = text.splitlines()
-            name = next((re.sub(r"^#\\s+", "", l).strip() for l in lines if l.startswith("# ")), f.stem.replace("-", " ").title())
+            name = next((re.sub(r"^#\s+", "", l).strip() for l in lines if l.startswith("# ")), f.stem.replace("-", " ").title())
             prefix, typ = type_map.get(sub, ("misc-", "misc"))
-            ch = sorted(set(re.findall(r"\\((CONCEPT|CH\\d{2}|CH\\d{2}-rev|RETCON-\\d{4}-\\d{2}-\\d{2}|PIVOT-\\d{4}-\\d{2}-\\d{2})\\)", text)))
+            ch = sorted(set(re.findall(r"\((CONCEPT|CH\d{2}|CH\d{2}-rev|AMEND-\d{4}-\d{2}-\d{2})\)", text)))
             ent = {
                 "id": f"{prefix}{kebab(name)}",
                 "type": typ,
                 "name": name,
                 "aliases": [],
                 "chapters": ch,
-                "first": next((x for x in ch if re.match(r"^CH\\d{2}$", x)), "CONCEPT"),
+                "first": next((x for x in ch if re.match(r"^CH\d{2}$", x)), "CONCEPT"),
                 "rel": rel,
                 "has_frontmatter": False,
             }
             entities.append(ent)
             files_wo.append((f, ent))
 
+def yaml_scalar(value: str) -> str:
+    # JSON string literals are valid YAML scalars and safely escape
+    # colons, quotes, backslashes, and other YAML-significant characters.
+    return json.dumps(value, ensure_ascii=False)
+
+
 if add_frontmatter:
+    added = len(files_wo)
     for f, ent in files_wo:
-        block = "\\n".join([
+        block = "\n".join([
             "---",
-            f"id: {ent['id']}",
-            f"type: {ent['type']}",
-            f"name: {ent['name']}",
+            f"id: {yaml_scalar(ent['id'])}",
+            f"type: {yaml_scalar(ent['type'])}",
+            f"name: {yaml_scalar(ent['name'])}",
             "aliases: []",
             f"chapters: [{', '.join(ent['chapters'])}]" if ent['chapters'] else "chapters: []",
-            f"first_appearance: {ent['first']}",
+            f"first_appearance: {yaml_scalar(ent['first'])}",
             "relationships: []",
             "tags: []",
             f"last_updated: {datetime.now().strftime('%Y-%m-%d')}",
@@ -137,6 +168,8 @@ if add_frontmatter:
         f.write_text(block + f.read_text(encoding="utf-8"), encoding="utf-8")
         ent["has_frontmatter"] = True
     files_wo = []
+    if added:
+        print(f"[authorkit] Added frontmatter to {added} file(s)", file=sys.stderr)
 
 if not entities:
     if json_mode:
@@ -144,6 +177,9 @@ if not entities:
     sys.exit(0)
 
 entities.sort(key=lambda x: (x["type"], x["name"]))
+type_counts = {}
+for e in entities:
+    type_counts[e["type"]] = type_counts.get(e["type"], 0) + 1
 registry = ["| ID | Type | Name | Aliases | File | Chapters | First Appearance | Flags |", "|----|------|------|---------|------|----------|-----------------|-------|"]
 alias_rows = ["| Alias | Entity ID | Type | Ambiguous |", "|-------|-----------|------|-----------|"]
 alias_map = {}
@@ -159,9 +195,9 @@ for e in entities:
         alias_map.setdefault(key, {"display": a, "entities": []})["entities"].append((e["id"], e["type"]))
 
     for ch in e["chapters"]:
-        if re.match(r"^(CONCEPT|CH\\d{2}|CH\\d{2}-rev)$", ch):
+        if re.match(r"^(CONCEPT|CH\d{2}|CH\d{2}-rev)$", ch):
             chapter_map.setdefault(ch, set()).add(e["id"])
-        m = re.match(r"^(CH\\d{2})-rev$", ch)
+        m = re.match(r"^(CH\d{2})-rev$", ch)
         if m:
             chapter_map.setdefault(m.group(1), set()).add(e["id"])
 
@@ -176,13 +212,22 @@ for key in sorted(alias_map, key=lambda k: alias_map[k]["display"].lower()):
 chapter_keys = []
 if "CONCEPT" in chapter_map:
     chapter_keys.append("CONCEPT")
-chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\\d{2}$", k)]))
-chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\\d{2}-rev$", k)]))
+chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\d{2}$", k)]))
+chapter_keys.extend(sorted([k for k in chapter_map if re.match(r"^CH\d{2}-rev$", k)]))
 manifest = []
 for k in chapter_keys:
     manifest.extend([f"### {k}", ", ".join(sorted(chapter_map[k])), ""])
 
-content = "\\n".join([
+stats_lines = [
+    f"- **Total entities**: {len(entities)}",
+    f"- **Total aliases**: {alias_count}",
+    f"- **Chapters tracked**: {len(chapter_keys)}",
+    f"- **Files with frontmatter**: {sum(1 for e in entities if e['has_frontmatter'])}/{len(entities)}",
+]
+for typ in sorted(type_counts):
+    stats_lines.append(f"- **{typ.title()} entries**: {type_counts[typ]}")
+
+content = "\n".join([
     "---",
     f"generated: {datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}",
     f"entity_count: {len(entities)}",
@@ -204,10 +249,7 @@ content = "\\n".join([
     *manifest,
     "## Statistics",
     "",
-    f"- **Total entities**: {len(entities)}",
-    f"- **Total aliases**: {alias_count}",
-    f"- **Chapters tracked**: {len(chapter_keys)}",
-    f"- **Files with frontmatter**: {sum(1 for e in entities if e['has_frontmatter'])}/{len(entities)}",
+    *stats_lines,
 ])
 index_file.write_text(content, encoding="utf-8")
 

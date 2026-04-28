@@ -7,13 +7,14 @@ handoffs:
   - label: Build World
     agent: authorkit.world.build
     prompt: Expand world-building with the latest research findings
-  - label: Rebuild World Index
-    agent: authorkit.world.index
-    prompt: Rebuild world index after research sync
+  - label: Sync World
+    agent: authorkit.world.sync
+    prompt: Sync world files after research
   - label: Plan Chapter
     agent: authorkit.chapter.plan
     prompt: Plan chapter [N] with updated research context
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
@@ -43,7 +44,7 @@ By default, this command is **suggest-only** and does not modify `world/` files.
 
 ## Outline
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}} -Json -PathsOnly` from repo root and parse `BOOK_DIR` and `BOOK_CONCEPT`. All paths must be absolute.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root (the `scripts:` frontmatter selects the right shell-flavor flags) and parse `BOOK_DIR` and `BOOK_CONCEPT`. All paths must be absolute.
 
 2. **Parse user intent and optional directives**:
    - Infer topic, scope, source preferences, and sync intent from free-form text first.
@@ -61,6 +62,13 @@ By default, this command is **suggest-only** and does not modify `world/` files.
    - Other scopes map directly: `clarify`, `world`, `outline`, `general`.
 
 4. **Resolve topic file path**:
+
+   **Precedence (highest wins)**:
+   1. Existing topic file (matched by frontmatter `id` anywhere under `BOOK_DIR/research/`) — always update in place; no relocation.
+   2. Explicit `folder:` directive — write to `BOOK_DIR/research/<folder>/<id>-<slug>.md`.
+   3. `scope:`-based folder map (when nested placement is warranted; see below).
+   4. Adaptive flat-first placement at `BOOK_DIR/research/<id>-<slug>.md`.
+
    - Ensure `BOOK_DIR/research/` exists.
    - First, search recursively under `BOOK_DIR/research/` for an existing topic file with matching frontmatter `id`. If found, update that file in place.
    - Otherwise, if `folder:` is provided, write to `BOOK_DIR/research/<folder>/<id>-<slug>.md`.
@@ -134,7 +142,7 @@ By default, this command is **suggest-only** and does not modify `world/` files.
    - Suggested next step:
      - clarify/world scope -> `/authorkit.world.build` or `/authorkit.outline`
      - chapter scope -> `/authorkit.chapter.plan [N]`
-     - sync-world mode -> `/authorkit.world.verify`
+     - sync-world mode -> `/authorkit.world.sync`
 
 ## Key Rules
 

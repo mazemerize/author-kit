@@ -15,7 +15,7 @@ from pathlib import Path
 
 from mutagen import File
 
-from .book_core import BookConfig, ChapterDraft, chapter_title, markdown_to_plain_text
+from .book_core import BookConfig, ChapterDraft, chapter_title, markdown_to_plain_text, parse_chapter_statuses
 
 
 @dataclass(slots=True)
@@ -24,6 +24,7 @@ class ChapterStats:
 
     chapter: int
     title: str
+    status: str
     words: int
     chars: int
     paragraphs: int
@@ -69,6 +70,11 @@ def collect_stats(drafts: list[ChapterDraft], config: BookConfig, audio_dir: Pat
     """Build per-chapter and global manuscript statistics."""
     per_chapter: list[ChapterStats] = []
 
+    # Chapter status comes from chapters.md (the single source of truth). When
+    # absent we report "drafted" since the draft.md exists by definition.
+    book_dir = drafts[0].draft_path.parent.parent.parent if drafts else None
+    statuses = parse_chapter_statuses(book_dir) if book_dir else {}
+
     for draft in drafts:
         plain = markdown_to_plain_text(draft.text)
         words = [token for token in re.split(r"\s+", plain) if token]
@@ -85,6 +91,7 @@ def collect_stats(drafts: list[ChapterDraft], config: BookConfig, audio_dir: Pat
             ChapterStats(
                 chapter=draft.chapter_number,
                 title=chapter_title(draft.text, f"CH{draft.chapter_number:02d}"),
+                status=statuses.get(draft.chapter_number, "drafted"),
                 words=word_count,
                 chars=len(plain),
                 paragraphs=paragraph_count,
@@ -100,6 +107,10 @@ def collect_stats(drafts: list[ChapterDraft], config: BookConfig, audio_dir: Pat
     total_chars = sum(item.chars for item in per_chapter)
     est_audio_minutes = sum(item.est_audio_minutes for item in per_chapter)
 
+    status_breakdown: dict[str, int] = {}
+    for item in per_chapter:
+        status_breakdown[item.status] = status_breakdown.get(item.status, 0) + 1
+
     output: dict[str, object] = {
         "chapters": [asdict(item) for item in per_chapter],
         "totals": {
@@ -108,6 +119,7 @@ def collect_stats(drafts: list[ChapterDraft], config: BookConfig, audio_dir: Pat
             "chars": total_chars,
             "est_read_minutes": sum(item.est_read_minutes for item in per_chapter),
             "est_audio_minutes": est_audio_minutes,
+            "status_breakdown": status_breakdown,
         },
         "cost_estimate": {
             "tts_cost_per_1m_chars": config.tts_cost_per_1m_chars,
@@ -140,14 +152,18 @@ def render_stats_markdown(stats: dict[str, object]) -> str:
     lines.append(f"- Characters: {totals['chars']}")
     lines.append(f"- Estimated read time (minutes): {totals['est_read_minutes']:.2f}")
     lines.append(f"- Estimated audio duration (minutes): {totals['est_audio_minutes']:.2f}")
+    breakdown = totals.get("status_breakdown") or {}
+    if breakdown:
+        labels = ", ".join(f"{count} {label}" for label, count in sorted(breakdown.items()))
+        lines.append(f"- Status: {labels}")
     lines.append("")
     lines.append("## Per Chapter")
     lines.append("")
-    lines.append("| Chapter | Title | Words | Chars | Dialogue Ratio | Est Audio Min |")
-    lines.append("|---|---|---:|---:|---:|---:|")
+    lines.append("| Chapter | Status | Title | Words | Chars | Dialogue Ratio | Est Audio Min |")
+    lines.append("|---|---|---|---:|---:|---:|---:|")
 
     for chapter in stats["chapters"]:
         lines.append(
-            f"| {chapter['chapter']} | {chapter['title']} | {chapter['words']} | {chapter['chars']} | {chapter['dialogue_ratio']:.2f} | {chapter['est_audio_minutes']:.2f} |"
+            f"| {chapter['chapter']} | {chapter['status']} | {chapter['title']} | {chapter['words']} | {chapter['chars']} | {chapter['dialogue_ratio']:.2f} | {chapter['est_audio_minutes']:.2f} |"
         )
     return "\n".join(lines) + "\n"

@@ -4,10 +4,11 @@ handoffs:
   - label: Resolve a Parked Decision
     agent: authorkit.park
     prompt: Resolve the parked decision about...
-  - label: Pivot Based on Decision
-    agent: authorkit.pivot
-    prompt: Apply the resolved decision as a pivot
+  - label: Amend Based on Decision
+    agent: authorkit.amend
+    prompt: Apply parked decision [PD-NNN] as an amendment
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
@@ -48,54 +49,27 @@ The command operates in three modes:
 
    b. Ask the user (max 3 questions) to establish context:
       - Where does this decision matter? (which chapters, which artifacts)
-      - How urgent is it? When must it be resolved? (e.g., "before CH12", "before Act 3", "anytime")
+      - How urgent is it? When must it be resolved?
+        Acceptable deadline values (consumers parse only these — free-form
+        labels like "before Act 3" do not trigger overdue warnings, so
+        translate them to a chapter number first):
+          - `Before CHNN` (e.g. `Before CH12`)
+          - `Before final draft`
+          - `No deadline`
       - Any leading options? (e.g., "Option A: he dies. Option B: he's captured.")
       If the user input already provides this context, skip questions.
 
-   c. Ensure `BOOK_DIR/parked-decisions.md` exists. If not, create it with header:
-
-      ```markdown
-      # Parked Decisions
-
-      Deferred creative decisions that need resolution before the book is complete.
-      Use `/authorkit.park` to add, list, or resolve decisions.
-
-      ---
-      ```
+   c. Ensure `BOOK_DIR/parked-decisions.md` exists. If not, copy the canonical
+      template from `.authorkit/templates/parked-decisions-template.md` and seed
+      the file's header from it. Do not invent the file structure inline — the
+      template is the single source of truth.
 
    d. Generate a sequential ID: `PD-001`, `PD-002`, etc. (based on existing entries).
 
-   e. Append the new decision:
-
-      ```markdown
-      ## PD-NNN: [SHORT TITLE]
-
-      **Status**: OPEN
-      **Parked**: [DATE]
-      **Deadline**: [Before CHNN / Before Part N / Before final draft / No deadline]
-      **Urgency**: [Blocking (must resolve before next chapter) / Soon (within 3-5 chapters) / Eventually (before manuscript complete)]
-
-      ### Question
-
-      [The decision that needs to be made]
-
-      ### Context
-
-      - **Affects**: [List of artifacts — chapters, characters, world files, outline sections]
-      - **Background**: [Why this is uncertain — what led to the question]
-
-      ### Options Considered
-
-      - **Option A**: [Description] — [Pros/cons if known]
-      - **Option B**: [Description] — [Pros/cons if known]
-      - **Option C**: [If applicable]
-
-      ### Resolution
-
-      *Unresolved*
-
-      ---
-      ```
+   e. Append the new decision using the entry template embedded in
+      `.authorkit/templates/parked-decisions-template.md` (the commented "ENTRY
+      TEMPLATE" block). Replace bracketed placeholders with concrete values;
+      remove the surrounding comment markers.
 
    f. **Check existing chapter plans for deadline proximity**: If any chapter currently being planned or drafted is near the deadline, warn the user immediately.
 
@@ -113,7 +87,7 @@ The command operates in three modes:
       | ID | Title | Status | Urgency | Deadline | Parked Date |
       |----|-------|--------|---------|----------|-------------|
       | PD-001 | Magic and time travel | OPEN | Soon | Before CH12 | 2026-02-01 |
-      | PD-002 | Marcus's fate | OPEN | Eventually | Before Act 3 | 2026-02-05 |
+      | PD-002 | Marcus's fate | OPEN | Eventually | Before final draft | 2026-02-05 |
       | PD-003 | Flashback POV | RESOLVED | - | - | 2026-01-28 |
       ```
 
@@ -139,13 +113,21 @@ The command operates in three modes:
         **Decided**: [DATE]
         **Decision**: [What was decided]
         **Rationale**: [Why this option was chosen]
-        **Next Steps**: [Any actions needed — pivot, revise, update world, etc.]
+        **Next Steps**: [Any actions needed — amend, revise, world.sync, etc.]
         ```
 
-   d. **Assess downstream impact**:
-      - Does the resolution require changes to existing artifacts?
-      - If yes: recommend `/authorkit.pivot` for broad changes or `/authorkit.revise` for targeted fixes
-      - If the resolution introduces new world-building elements: recommend `/authorkit.world.build` to establish them
+   d. **Assess downstream impact** and suggest the right next command based on what the resolution entails:
+
+      | Resolution type | Suggested next command |
+      |---|---|
+      | Changes existing direction, character, or plot across chapters | `/authorkit.amend [description]` |
+      | Targeted fix to one or two chapters | `/authorkit.revise [chapter(s)] [issue]` |
+      | Introduces new world-building elements (places, rules, factions) | `/authorkit.world.build [area]` |
+      | Updates a world detail already in world/ files | `/authorkit.world.sync` |
+      | Affects an upcoming unplanned chapter | `/authorkit.chapter.plan [N]` |
+      | Discussion still needed before acting | `/authorkit.discuss [topic]` |
+
+      Provide the specific invocation — e.g., `/authorkit.amend Change Marcus from a soldier to a spy` — not just the command name.
 
    e. Report: Decision resolved, any recommended follow-up actions.
 
@@ -160,9 +142,9 @@ The following commands check `parked-decisions.md` for deadline proximity:
 ## Key Rules
 
 - **Never block writing.** The whole point is to keep momentum. Parking a decision explicitly permits moving forward with uncertainty.
-- **Be specific about deadlines.** "Eventually" is acceptable, but "Before CH12" is better. The earlier a deadline is known, the better.
+- **Be specific about deadlines.** Use one of the three accepted forms (`Before CHNN`, `Before final draft`, `No deadline`); only `Before CHNN` triggers automated overdue warnings in `chapter.plan`, `chapter.draft`, `analyze`, and `authorkit status`. Translate "Before Act 3" or "Before Part 2" into a concrete chapter number when parking.
 - **Track options.** Even vague options help future resolution. Capture what the author is considering.
 - **Warn proactively.** When deadlines approach, warn loudly — but don't force resolution.
-- **Resolution is action.** Resolving a parked decision often triggers downstream work (pivot, revise, world update). Always suggest next steps.
+- **Resolution is action.** Resolving a parked decision often triggers downstream work (amend, revise, world.sync). Always suggest next steps.
 - **Keep the file clean.** Resolved decisions stay in the file (for historical reference) but are clearly marked RESOLVED.
 

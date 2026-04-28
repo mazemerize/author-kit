@@ -24,6 +24,8 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
 from .book_commands import book_app
+from .book_core import find_repo_root, resolve_book_dir
+from .book_status import collect_status, format_status_lines
 
 # Shared Rich console for terminal output.
 console = Console()
@@ -44,7 +46,7 @@ TAGLINE = "Write books with structured AI assistance."
 # Supported AI targets and CLI requirements.
 AGENT_CONFIG = {
     "claude": {"name": "Claude Code", "folder": ".claude", "requires_cli": True, "tool": "claude"},
-    "copilot": {"name": "GitHub Copilot", "folder": ".github", "requires_cli": False, "tool": None, "optional_cli_tool": "copilot"},
+    "copilot": {"name": "GitHub Copilot", "folder": ".github", "requires_cli": False, "tool": None},
     "codex": {"name": "Codex CLI", "folder": ".codex", "requires_cli": True, "tool": "codex"},
 }
 
@@ -55,26 +57,26 @@ PROTECTED_MANAGED_PATHS = {".authorkit/memory/constitution.md"}
 # Canonical path to the shared generation guardrail source asset.
 SHARED_GUARDRAILS_PATH = Path(".authorkit/prompts/_shared/generation-guardrails.md")
 # Prompts that receive the shared generation guardrail block when rendered.
+# Excluded by design: workflow tools that don't generate user-facing prose
+# (park, snapshot, whatif, chapter.reorder) — they orchestrate state, files,
+# and git, so the prose-generation guardrails don't apply.
 GUARDRAIL_PROMPT_ALLOWLIST = {
+    "authorkit.amend.md",
     "authorkit.analyze.md",
     "authorkit.chapter.draft.md",
-    "authorkit.chapter.md",
+    "authorkit.chapter.help.md",
     "authorkit.chapter.plan.md",
     "authorkit.chapter.review.md",
     "authorkit.chapters.md",
-    "authorkit.checklist.md",
     "authorkit.clarify.md",
     "authorkit.conceive.md",
     "authorkit.constitution.md",
+    "authorkit.discuss.md",
     "authorkit.outline.md",
-    "authorkit.pivot.md",
-    "authorkit.reconcile.md",
     "authorkit.research.md",
-    "authorkit.retcon.md",
     "authorkit.revise.md",
     "authorkit.world.build.md",
-    "authorkit.world.update.md",
-    "authorkit.world.verify.md",
+    "authorkit.world.sync.md",
 }
 
 
@@ -287,7 +289,6 @@ def resolve_token_script(token: str, script_type: str) -> str:
     token_map = {
         "{{SCRIPT_CHECK_PREREQ}}": "check-prerequisites",
         "{{SCRIPT_SETUP_BOOK}}": "setup-book",
-        "{{SCRIPT_CREATE_BOOK}}": "create-new-book",
         "{{SCRIPT_SETUP_OUTLINE}}": "setup-outline",
         "{{SCRIPT_BUILD_WORLD_INDEX}}": "build-world-index",
     }
@@ -361,7 +362,6 @@ def render_prompt(raw: str, ai: str, script_type: str, prompt_name: str, guardra
         for token in [
             "{{SCRIPT_CHECK_PREREQ}}",
             "{{SCRIPT_SETUP_BOOK}}",
-            "{{SCRIPT_CREATE_BOOK}}",
             "{{SCRIPT_SETUP_OUTLINE}}",
             "{{SCRIPT_BUILD_WORLD_INDEX}}",
         ]:
@@ -385,7 +385,6 @@ def render_prompt(raw: str, ai: str, script_type: str, prompt_name: str, guardra
     for token in [
         "{{SCRIPT_CHECK_PREREQ}}",
         "{{SCRIPT_SETUP_BOOK}}",
-        "{{SCRIPT_CREATE_BOOK}}",
         "{{SCRIPT_SETUP_OUTLINE}}",
         "{{SCRIPT_BUILD_WORLD_INDEX}}",
     ]:
@@ -577,7 +576,7 @@ def write_manifest(project_path: Path, ais: list[str], script: str, managed: set
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "installed_at": datetime.now(timezone.utc).isoformat(),
-        "version": "0.1.0",
+        "version": get_cli_version(),
         "ai": ais[0] if ais else "copilot",
         "ais": ais,
         "script": script,
@@ -679,6 +678,31 @@ def init(
                 )
             raise typer.BadParameter(details)
 
+    previous_ais = previous.get("ais") or ([previous["ai"]] if isinstance(previous.get("ai"), str) else [])
+    dropped_ais = [ai for ai in previous_ais if ai not in selected_ais]
+    if dropped_ais and not force:
+        # Count files that would be removed for the dropped AI flavor(s) so the
+        # user can see the blast radius before confirming. These are tracked in
+        # managed_paths from the previous manifest.
+        dropped_paths = [
+            rel
+            for rel in previous.get("managed_paths", [])
+            if any(rel.startswith(AGENT_CONFIG[ai]["folder"] + "/") for ai in dropped_ais if ai in AGENT_CONFIG)
+            or any(rel == ("CLAUDE.md" if ai == "claude" else f"{AGENT_CONFIG[ai]['folder']}/copilot-instructions.md" if ai == "copilot" else f"{AGENT_CONFIG[ai]['folder']}/AGENTS.md") for ai in dropped_ais)
+        ]
+        dropped_names = ", ".join(AGENT_CONFIG[ai]["name"] for ai in dropped_ais if ai in AGENT_CONFIG)
+        kept_names = ", ".join(AGENT_CONFIG[ai]["name"] for ai in selected_ais)
+        console.print(
+            f"[yellow]Switching AI flavors.[/yellow] Re-installing for [bold]{kept_names}[/bold] "
+            f"will remove {len(dropped_paths)} file(s) installed for [bold]{dropped_names}[/bold]."
+        )
+        console.print(
+            f"[dim]To keep both, re-run with `--ai {' --ai '.join(previous_ais + [ai for ai in selected_ais if ai not in previous_ais])}`. "
+            f"Pass `--force` to skip this prompt.[/dim]"
+        )
+        if not typer.confirm("Continue?", default=False):
+            raise typer.Exit(0)
+
     remove_old_managed_paths(project_path, previous)
 
     managed: set[str] = set()
@@ -749,8 +773,8 @@ def init(
         ensure_shell_exec_bits(project_path)
         progress.advance(install_task)
 
-    console.print(f"Installed Author Kit in [bold]{project_path}[/bold]")
-    console.print(f"AI flavors: [bold]{', '.join(selected_ais)}[/bold], script flavor: [bold]{selected_script}[/bold]")
+    console.print(f"Installed Author Kit in [bold]{project_path}[/bold].")
+    console.print(f"AI flavors: [bold]{', '.join(selected_ais)}[/bold], script flavor: [bold]{selected_script}[/bold].")
     if "codex" in selected_ais:
         codex_home = project_path / ".codex"
         if os.name == "nt":
@@ -758,16 +782,26 @@ def init(
         else:
             console.print(f"Set CODEX_HOME: export CODEX_HOME={codex_home}")
 
+    console.print()
+    console.print("[bold green]Next steps:[/bold green]")
+    console.print(f"  1. Open your AI agent (e.g. {AGENT_CONFIG[selected_ais[0]]['name']}) in this directory.")
+    console.print("  2. Run [bold]/authorkit.constitution[/bold] to set your voice/tone/style rules.")
+    console.print('  3. Run [bold]/authorkit.conceive "your book idea here"[/bold] to create the workspace.')
+    console.print("  4. See the project README for the full workflow.")
+
 
 @app.command()
 def check() -> None:
     """Check local environment for supported tools."""
     show_banner()
+    # Python is required by the bash world-index script. Either `python3` or `python` works.
+    python_present = tool_exists("python3") or tool_exists("python")
     console.print("Tool checks:")
     console.print(f"- git: {'ok' if tool_exists('git') else 'missing'}")
     console.print(f"- claude: {'ok' if tool_exists('claude') else 'missing'}")
     console.print(f"- codex: {'ok' if tool_exists('codex') else 'missing'}")
     console.print(f"- copilot (optional for Copilot CLI workflows): {'ok' if tool_exists('copilot') else 'missing'}")
+    console.print(f"- python (world index, bash flavor): {'ok' if python_present else 'missing'}")
     console.print(f"- pandoc (book build): {'ok' if tool_exists('pandoc') else 'missing'}")
     console.print(f"- ffmpeg (book audio): {'ok' if tool_exists('ffmpeg') else 'missing'}")
 
@@ -778,6 +812,30 @@ def version() -> None:
     show_banner()
     console.print(f"authorkit-cli {get_cli_version()}")
     console.print(f"Python {platform.python_version()}")
+
+
+@app.command()
+def status() -> None:
+    """Print a project health dashboard for the current book.
+
+    Aggregates chapter status (pending/planned/drafted/review/approved),
+    parked-decision counts, world-entity totals, and drift between chapters.md
+    and the chapters/ directory. Run from the project root.
+    """
+    repo_root = find_repo_root()
+    try:
+        book_dir = resolve_book_dir(repo_root)
+    except FileNotFoundError as exc:
+        console.print(f"[red]No book workspace found:[/red] {exc}")
+        console.print("[dim]Run /authorkit.conceive to create the book/ workspace.[/dim]")
+        raise typer.Exit(code=1) from exc
+
+    report = collect_status(book_dir, repo_root)
+    # markup=False so Rich does not consume the literal `[X]`, `[P]`,
+    # `[unwritten]`, etc. brackets as style tags. The status formatter emits
+    # plain text on purpose; markup interpretation would silently strip them.
+    for line in format_status_lines(report):
+        console.print(line, markup=False, highlight=False)
 
 
 def main() -> None:

@@ -1,9 +1,9 @@
 ---
 description: Bookmark the current book state with narrative context before a risky change.
 handoffs:
-  - label: Apply Pivot
-    agent: authorkit.pivot
-    prompt: Now apply the pivot I was planning
+  - label: Apply Amendment
+    agent: authorkit.amend
+    prompt: Now apply the change I was planning
   - label: Compare With Snapshot
     agent: authorkit.snapshot
     prompt: Compare current state with snapshot...
@@ -11,6 +11,7 @@ handoffs:
     agent: authorkit.whatif
     prompt: Start an experimental branch from this snapshot
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --include-chapters
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeChapters
 ---
 
@@ -55,52 +56,13 @@ The command operates in three modes:
       - outline.md: Structure overview
       - world/ folder: Count of entity files per category
       - parked-decisions.md (if exists): Count of OPEN decisions
-      - pivots/ (if exists): Count of previous pivots
+      - amendments/ if exists: Count of previous amendments
 
-   c. **Create snapshot file** at `BOOK_DIR/snapshots/YYYY-MM-DD-[slug].md`:
-
-      ```markdown
-      # Snapshot: [DESCRIPTION]
-
-      **Date**: [DATE]
-      **Git Tag**: snapshot/YYYY-MM-DD-[slug]
-      **Branch**: [current git branch]
-
-      ## Book State
-
-      ### Progress
-
-      | Status | Count | Chapters |
-      |--------|-------|----------|
-      | Pending [ ] | [N] | CH06-CH20 |
-      | Planned [P] | [N] | CH05 |
-      | Drafted [D] | [N] | CH04 |
-      | Reviewed [R] | [N] | - |
-      | Approved [X] | [N] | CH01-CH03 |
-
-      **Total word count**: [estimated from drafts]
-      **world/ files**: [N] across [N] categories
-
-      ### What's Working Well
-
-      - [Key strength — e.g., "The mystery structure is tight through chapters 1-3"]
-      - [Another strength]
-
-      ### Current Uncertainties
-
-      - [What's not yet decided — e.g., "Whether Marcus survives Act 3"]
-      - [Parked decisions, if any]
-
-      ### Decision Being Contemplated
-
-      [The reason for this snapshot — what change is being considered]
-
-      ## Context for Future Comparison
-
-      - **Key plot points so far**: [Brief summary of major events in drafted chapters]
-      - **Character states**: [Where each major character is at this point]
-      - **Open threads**: [Unresolved story threads or pending arguments]
-      ```
+   c. **Create snapshot file** at `BOOK_DIR/snapshots/YYYY-MM-DD-[slug].md`
+      using the canonical template `.authorkit/templates/snapshot-template.md`.
+      Substitute all bracketed placeholders with concrete values from the
+      assessment in step 3b. Do not invent the schema inline — the template
+      file is the single source of truth and any future edits land there.
 
    d. **Create git tag**: Run `git tag snapshot/YYYY-MM-DD-[slug]` to bookmark the exact commit state.
 
@@ -145,7 +107,7 @@ The command operates in three modes:
       | Chapters approved | [N] | [N] | +[N] |
       | Total word count | [N] | [N] | +[N] |
       | world/ files | [N] | [N] | +[N] |
-      | Pivots since | - | [N] | [list] |
+      | Amendments since | - | [N] | [list] |
 
       ### Decision Outcome
 
@@ -172,6 +134,6 @@ The command operates in three modes:
 - **Snapshots are lightweight.** The file is a narrative summary, not a copy of all artifacts. Git handles the actual state preservation.
 - **Always create a git tag.** The snapshot file provides context; the git tag provides the actual revertible state.
 - **Capture narrative, not just metrics.** "What's working well" and "what's uncertain" are more valuable than chapter counts.
-- **Recommend before risky changes.** When `/authorkit.pivot` detects 5+ artifacts affected, it should suggest snapshotting first.
+- **Recommend before risky changes.** When `/authorkit.amend` detects 5+ artifacts affected, it should suggest snapshotting first.
 - **Don't clutter.** Snapshots are for decision points, not routine checkpoints. Git commits handle the latter.
 

@@ -59,14 +59,7 @@ $paths = Get-BookPaths
 # If paths-only mode, output paths and exit
 if ($PathsOnly) {
     if ($Json) {
-        [PSCustomObject]@{
-            REPO_ROOT    = $paths.REPO_ROOT
-            BOOK_DIR     = $paths.BOOK_DIR
-            BOOK_CONCEPT = $paths.BOOK_CONCEPT
-            STYLE_ANCHOR = $paths.STYLE_ANCHOR
-            OUTLINE      = $paths.OUTLINE
-            CHAPTERS     = $paths.CHAPTERS
-        } | ConvertTo-Json -Compress
+        Get-BookPathsJson
     } else {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
         Write-Output "BOOK_DIR: $($paths.BOOK_DIR)"

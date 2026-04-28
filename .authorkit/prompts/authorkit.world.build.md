@@ -1,22 +1,29 @@
 ---
 description: Build the book's world before writing - establish rules, geography, characters, history, and systems.
 handoffs:
+  - label: Clarify Concept First
+    agent: authorkit.clarify
+    prompt: Resolve concept ambiguities before world-building
+  - label: Discuss World Ideas
+    agent: authorkit.discuss
+    prompt: Brainstorm world-building ideas before committing
   - label: Build Outline
     agent: authorkit.outline
     prompt: Create the book outline using the established world
   - label: Deepen World
     agent: authorkit.world.build
     prompt: Expand world-building in the area of...
-  - label: Verify World
-    agent: authorkit.world.verify
+  - label: Sync World
+    agent: authorkit.world.sync
     prompt: Verify the world files for internal consistency
-  - label: Clarify Concept
-    agent: authorkit.clarify
-    prompt: Clarify aspects of the book concept
+  - label: Amend Existing Chapters
+    agent: authorkit.amend
+    prompt: New world rules conflict with already-drafted chapters — propagate the correct version
   - label: Research A Topic
     agent: authorkit.research
-    prompt: Research a world-building topic before adding it to world files
+    prompt: Research [topic] before adding it to world files
 scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
   ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
@@ -40,9 +47,11 @@ This command can be run multiple times to iteratively deepen specific areas.
 
 2. **Load context**:
    - **Required**: concept.md (premise, genre, themes, characters, setting)
-   - **Optional**: `/memory/constitution.md` (voice, tone — informs world-building style)
+   - **Optional**: `.authorkit/memory/constitution.md` (voice, tone — informs world-building style)
    - **Optional**: Existing `world/` folder (if running iteratively to deepen)
    - **Optional**: `research.md` and relevant `research/` topic files discovered recursively (use these grounded findings as inputs when they match requested focus areas)
+
+   **Concept clarity check**: Scan `concept.md` for `[NEEDS CLARIFICATION]` markers or an unresolved `## Clarifications` section. If unresolved items touch the requested focus area (e.g., the user asked to build the magic system and the concept has an open clarification about magic), warn the user and recommend running `/authorkit.clarify` first. The user may explicitly choose to proceed regardless.
 
 3. **Assess genre and determine relevant categories**:
 
@@ -76,17 +85,19 @@ This command can be run multiple times to iteratively deepen specific areas.
 
 5. **Create the world/ folder structure**:
 
+   Only create folders for categories that have content to put in them. Use the genre relevance table in step 3 to guide this — if a category is "Rarely" or "Sometimes" for this genre and neither the concept nor user input mentions anything for it, **skip that folder entirely**. Do not create empty placeholder folders.
+
+   For example, a contemporary romance might only need `characters/` and `notes/`. An epic fantasy might need all six. A non-fiction book might only need `systems/` and `notes/`.
+
    ```
    BOOK_DIR/world/
-   ├── characters/
-   ├── organizations/
-   ├── places/
-   ├── history/
-   ├── systems/
-   └── notes/
+   ├── characters/      (if needed)
+   ├── organizations/   (if needed)
+   ├── places/          (if needed)
+   ├── history/         (if needed)
+   ├── systems/         (if needed)
+   └── notes/           (if needed)
    ```
-
-   Only create folders for categories relevant to this book.
 
 6. **Decide file placement per entity before writing**:
    - If an entity already exists (resolve via `world/_index.md` by `id`/aliases, or by recursive world/ scan if no index), update that existing file in place.
@@ -99,7 +110,7 @@ This command can be run multiple times to iteratively deepen specific areas.
 
 7. **Create initial files** in each category using the chapter-tagged format:
 
-   All pre-writing entries are tagged `(CONCEPT)` to indicate they were established before any chapter was written. This distinguishes them from details that emerge during drafting (which will be tagged `(CHxx)` by `/authorkit.world.update`).
+   All pre-writing entries are tagged `(CONCEPT)` to indicate they were established before any chapter was written. This distinguishes them from details that emerge during drafting (which will be tagged `(CHxx)` by `/authorkit.world.sync`).
 
    **characters/** — One file per major character (see `.authorkit/templates/world-entity-frontmatter.md` for full schema):
    ```markdown
@@ -294,7 +305,7 @@ This command can be run multiple times to iteratively deepen specific areas.
    - [Note] (CONCEPT)
    ```
 
-8. **Build the world/ index**: Run `.authorkit/scripts/powershell/build-world-index.ps1 -Json` from the repo root to generate `world/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
+8. **Build the world/ index**: Run `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root to generate `world/_index.md`. This creates the Entity Registry, Alias Lookup, and Chapter Manifest for fast lookups across all commands.
 
 9. **Internal consistency validation**:
    - Check that character relationships are reciprocal (if A is B's enemy, B should know about A)
@@ -308,14 +319,14 @@ This command can be run multiple times to iteratively deepen specific areas.
    - Count of entries per category
    - Any consistency warnings or gaps flagged
    - Areas that could benefit from more depth
-   - Suggested next step: `/authorkit.research [topic]` for additional grounding, `/authorkit.world.build [specific area]` to deepen, `/authorkit.world.verify` to check internal consistency, or `/authorkit.outline` to proceed to outlining
+   - Suggested next step: `/authorkit.research [topic]` for additional grounding, `/authorkit.world.build [specific area]` to deepen, `/authorkit.world.sync` to check internal consistency, or `/authorkit.outline` to proceed to outlining
 
 ## Key Rules
 
 - **This is reference material, not prose.** world/ files should read like an encyclopedia, not a novel.
 - **Be specific, not vague.** "A large city" is bad. "A port city of ~200,000 on the western coast, built on steep hills overlooking a natural harbor" is good.
-- **Tag everything (CONCEPT).** This tag is critical for the evolution tracking system. When chapters are drafted and `/authorkit.world.update` runs, new details will be tagged with chapter numbers.
-- **Include YAML frontmatter.** Every world/ file must have a frontmatter block with `id`, `type`, `name`, `aliases`, `chapters`, `first_appearance`, `relationships`, `tags`, and `last_updated`. See `.authorkit/templates/world-entity-frontmatter.md` for the full schema.
+- **Tag everything (CONCEPT).** This tag is critical for the evolution tracking system. When chapters are drafted and `/authorkit.world.sync` runs, new details will be tagged with chapter numbers.
+- **YAML frontmatter is recommended but optional.** New files created by this command include full frontmatter (`id`, `type`, `name`, `aliases`, `chapters`, `first_appearance`, `relationships`, `tags`, `last_updated` — see `.authorkit/templates/world-entity-frontmatter.md`). However, files the author creates or edits by hand do not need frontmatter — `/authorkit.world.sync` can read them without it and can add frontmatter later via its `add-frontmatter` mode.
 - **Don't over-build.** Only create entries for things that will actually matter to the story. A magic system with 50 rules that only appears once is wasted effort. Focus on what the reader will encounter.
 - **Cross-reference.** Use relative paths to link related entries (e.g., "See characters/iria-calder.md" or "Related: history/the-great-war.md").
 - **Iterative by design.** This command can be run multiple times. Each run should deepen or add, not replace. If world/ already has entries, read them first and build on them.
