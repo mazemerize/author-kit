@@ -39,15 +39,21 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-# Resolve a usable Python interpreter for the in-place TOML edit helper.
-# Some systems (pyenv-only setups, minimal containers, Windows Git Bash) only
-# ship `python` without a `python3` symlink. Fail with actionable guidance
-# rather than a cryptic shell error.
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-else
+# Resolve a usable Python interpreter for the in-place TOML edit helper. Walk
+# both `python3` and `python` and verify each candidate actually executes
+# Python — `command -v` alone isn't enough on Windows, where it finds the
+# Microsoft Store alias stub (`%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe`)
+# that emits a UTF-16 "Python was not found" message and exits non-zero
+# instead of running.
+PYTHON_BIN=""
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$PYTHON_BIN" ]]; then
   echo "ERROR: Python (python3 or python) is required for setup-book.sh but was not found on PATH." >&2
   echo "Install Python 3.11+ or run 'authorkit check' to see which dependencies are missing." >&2
   exit 1

@@ -40,14 +40,20 @@ if [[ ! -d "$WORLD_DIR" ]]; then
   exit 1
 fi
 
-# Resolve a usable Python interpreter; some systems (e.g. pyenv-only setups, fresh
-# macOS toolchains, minimal Linux containers) only ship `python` without a
-# `python3` symlink. Fail with actionable guidance rather than a cryptic shell error.
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-else
+# Resolve a usable Python interpreter. Walk both `python3` and `python` and
+# verify each candidate actually executes Python — `command -v` alone isn't
+# enough on Windows, where it finds the Microsoft Store alias stub
+# (`%LOCALAPPDATA%\Microsoft\WindowsApps\python3.exe`) that emits a UTF-16
+# "Python was not found" message and exits non-zero instead of running.
+PYTHON_BIN=""
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$PYTHON_BIN" ]]; then
   echo "ERROR: Python (python3 or python) is required for build-world-index.sh but was not found on PATH." >&2
   echo "Install Python 3.11+ or run 'authorkit check' to see which dependencies are missing." >&2
   exit 1
