@@ -74,7 +74,7 @@ def resolve_book_dir(repo_root: Path) -> Path:
     """Resolve the canonical single-book directory."""
     book_dir = (repo_root / BOOK_DIR_NAME).resolve()
     if not book_dir.exists():
-        raise FileNotFoundError(f"No book directory found at {book_dir}. Run /authorkit.conceive first.")
+        raise FileNotFoundError(f"No book directory found at {book_dir}. Run /authorkit.discuss first.")
     return book_dir
 
 

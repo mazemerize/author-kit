@@ -83,9 +83,9 @@ def test_init_installs_multiple_ai_flavors_side_by_side():
         )
 
         assert result.exit_code == 0, result.output
-        assert Path(".claude/commands/authorkit.chapter.plan.md").exists()
+        assert Path(".claude/commands/authorkit.write.md").exists()
         assert Path(".claude/commands/authorkit.research.md").exists()
-        assert Path(".github/prompts/authorkit.chapter.plan.prompt.md").exists()
+        assert Path(".github/prompts/authorkit.write.prompt.md").exists()
         assert Path(".github/prompts/authorkit.research.prompt.md").exists()
         assert Path("CLAUDE.md").exists()
         assert Path(".github/copilot-instructions.md").exists()
@@ -93,9 +93,9 @@ def test_init_installs_multiple_ai_flavors_side_by_side():
         manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
         assert manifest["ais"] == ["claude", "copilot"]
         assert manifest["script"] == "sh"
-        assert ".claude/commands/authorkit.chapter.plan.md" in manifest["managed_paths"]
+        assert ".claude/commands/authorkit.write.md" in manifest["managed_paths"]
         assert ".claude/commands/authorkit.research.md" in manifest["managed_paths"]
-        assert ".github/prompts/authorkit.chapter.plan.prompt.md" in manifest["managed_paths"]
+        assert ".github/prompts/authorkit.write.prompt.md" in manifest["managed_paths"]
         assert ".github/prompts/authorkit.research.prompt.md" in manifest["managed_paths"]
 
 
@@ -140,11 +140,11 @@ def test_init_rerun_replaces_unselected_ai_outputs():
         )
         assert second.exit_code == 0, second.output
 
-        assert Path(".codex/prompts/authorkit.chapter.plan.md").exists()
+        assert Path(".codex/prompts/authorkit.write.md").exists()
         assert Path(".codex/prompts/authorkit.research.md").exists()
         assert Path(".codex/AGENTS.md").exists()
-        assert not Path(".claude/commands/authorkit.chapter.plan.md").exists()
-        assert not Path(".github/prompts/authorkit.chapter.plan.prompt.md").exists()
+        assert not Path(".claude/commands/authorkit.write.md").exists()
+        assert not Path(".github/prompts/authorkit.write.prompt.md").exists()
 
         manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
         assert manifest["ais"] == ["codex"]
@@ -535,7 +535,7 @@ def test_book_build_requires_canonical_book_directory():
     with runner.isolated_filesystem():
         result = runner.invoke(cli.app, ["book", "build"])
         assert result.exit_code != 0
-    assert "/authorkit.conceive" in result.output
+    assert "/authorkit.discuss" in result.output
 
 
 def test_book_build_rejects_pdf_format():
@@ -755,17 +755,21 @@ def test_init_injects_shared_generation_guardrails_and_keeps_shared_asset_unrend
         )
         assert result.exit_code == 0, result.output
 
-        draft_prompt = Path(".codex/prompts/authorkit.chapter.draft.md").read_text(encoding="utf-8")
-        assert "## Shared Generation Guardrails" in draft_prompt
-        assert "### Name Originality Protocol" in draft_prompt
+        write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
+        assert "## Shared Generation Guardrails" in write_prompt
+        assert "### Name Originality Protocol" in write_prompt
 
         assert Path(".authorkit/prompts/_shared/generation-guardrails.md").exists()
         assert not Path(".codex/prompts/generation-guardrails.md").exists()
         assert not Path(".codex/prompts/_shared/generation-guardrails.md").exists()
 
 
-def test_init_renders_clarify_prompt_for_all_ai_flavors():
-    """Verify authorkit.clarify is rendered for claude, copilot, and codex with guardrails injected."""
+def test_init_renders_discuss_prompt_for_all_ai_flavors():
+    """Verify authorkit.discuss is rendered for claude, copilot, and codex with guardrails injected.
+
+    Discuss absorbs the legacy clarify behavior — it owns the Clarifications log in
+    concept.md — so we assert that the rendered prompt still references that mechanism.
+    """
     with runner.isolated_filesystem():
         result = runner.invoke(
             cli.app,
@@ -789,20 +793,26 @@ def test_init_renders_clarify_prompt_for_all_ai_flavors():
         assert result.exit_code == 0, result.output
 
         rendered_paths = [
-            Path(".claude/commands/authorkit.clarify.md"),
-            Path(".github/prompts/authorkit.clarify.prompt.md"),
-            Path(".codex/prompts/authorkit.clarify.md"),
+            Path(".claude/commands/authorkit.discuss.md"),
+            Path(".github/prompts/authorkit.discuss.prompt.md"),
+            Path(".codex/prompts/authorkit.discuss.md"),
         ]
         for path in rendered_paths:
-            assert path.exists(), f"Expected rendered clarify prompt at {path}"
+            assert path.exists(), f"Expected rendered discuss prompt at {path}"
             body = path.read_text(encoding="utf-8")
             assert "## Shared Generation Guardrails" in body, f"Guardrails missing in {path}"
             assert "### Name Originality Protocol" in body, f"Name protocol missing in {path}"
             assert "Clarifications" in body, f"Clarifications section reference missing in {path}"
 
 
-def test_chapter_prompts_enforce_style_anchor_workflow():
-    """Verify chapter lifecycle prompts include style-anchor loading and refresh instructions."""
+def test_write_prompt_enforces_style_anchor_workflow():
+    """Verify the unified write prompt includes style-anchor loading and refresh instructions.
+
+    Style continuity was previously enforced across chapter.plan / chapter.draft /
+    chapter.review; in v0.5.0 it all lives in /authorkit.write, which runs plan +
+    draft + revise + reconcile and refreshes the anchor before every prose-producing
+    mode.
+    """
     with runner.isolated_filesystem():
         result = runner.invoke(
             cli.app,
@@ -821,13 +831,11 @@ def test_chapter_prompts_enforce_style_anchor_workflow():
         )
         assert result.exit_code == 0, result.output
 
-        plan_prompt = Path(".codex/prompts/authorkit.chapter.plan.md").read_text(encoding="utf-8")
-        draft_prompt = Path(".codex/prompts/authorkit.chapter.draft.md").read_text(encoding="utf-8")
+        write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
 
-        for text in (plan_prompt, draft_prompt):
-            assert "STYLE_ANCHOR" in text
-            assert "last two approved chapters" in text
-            assert "templates/style-anchor-template.md" in text
+        assert "STYLE_ANCHOR" in write_prompt
+        assert "last two approved chapters" in write_prompt
+        assert "templates/style-anchor-template.md" in write_prompt
 
 
 def test_docs_prompts_templates_and_instructions_avoid_seeded_stock_examples():
@@ -892,44 +900,75 @@ def test_research_prompt_supports_adaptive_routing_and_sync_paths():
     assert "Preserve human layout" in research_prompt
 
 
-def test_world_prompts_document_recursive_layout_and_path_preservation():
-    """Verify world prompts describe recursive scans and preserving human-organized paths."""
-    repo_root = Path(__file__).resolve().parents[2]
-    world_build = (repo_root / ".authorkit" / "prompts" / "authorkit.world.build.md").read_text(encoding="utf-8")
-    world_sync = (repo_root / ".authorkit" / "prompts" / "authorkit.world.sync.md").read_text(encoding="utf-8")
+def test_world_handling_preserves_human_layout_and_rebuilds_index():
+    """Verify the prompts that touch world/ describe path preservation and index rebuilding.
 
-    assert "Never relocate or normalize existing files; preserve human-organized folder layouts." in world_build
-    assert "Auto-created nesting depth is one level under the category root." in world_build
-    # world.sync merges the former world.update + world.verify + world.index
-    assert "world/" in world_sync
-    assert "Rebuild" in world_sync or "index" in world_sync.lower()
+    In v0.5.0, world building and extraction are no longer standalone commands —
+    they live as modes inside /authorkit.discuss (World Seed, cross-cutting amend)
+    and /authorkit.write (Reconcile after drafting). This test asserts that both
+    of those prompts still document the two load-bearing guarantees:
+
+    1. Existing files are updated in place (no relocation / normalization).
+    2. world/_index.md is rebuilt after world writes.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    discuss = (repo_root / ".authorkit" / "prompts" / "authorkit.discuss.md").read_text(encoding="utf-8")
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+
+    # Preserve human-organized folder layouts: phrase from the legacy world.build
+    # rule, preserved in the discuss World Seed and write Reconcile sections.
+    assert "Never relocate or normalize existing files" in discuss
+    assert "Preserve file layout" in write or "Preserve human" in write or "Preserve file" in write
+
+    # Index rebuild via the canonical script token. The renderer substitutes the
+    # token at install time, so we check for the token *or* the resolved name.
+    for body in (discuss, write):
+        rebuilds_index = (
+            "{{SCRIPT_BUILD_WORLD_INDEX}}" in body
+            or "build-world-index" in body
+            or "world/_index.md" in body
+        )
+        assert rebuilds_index, "Prompt must reference rebuilding world/_index.md after world writes"
 
 
 def test_research_consumers_use_recursive_topic_loading_language():
-    """Verify prompts that consume research artifacts mention recursive topic discovery."""
+    """Verify prompts that consume research artifacts mention recursive topic discovery.
+
+    The four v0.5.0 commands replace 13+ legacy prompts. Of those four,
+    /authorkit.discuss (any mode that loads context), /authorkit.write (planning
+    + drafting + reconciling), and /authorkit.review (chapter craft + manuscript
+    drift) all consume research artifacts. /authorkit.research itself writes them
+    and is therefore exempt from this test.
+    """
     repo_root = Path(__file__).resolve().parents[2]
     targets = [
-        repo_root / ".authorkit" / "prompts" / "authorkit.outline.md",
-        repo_root / ".authorkit" / "prompts" / "authorkit.chapter.plan.md",
-        repo_root / ".authorkit" / "prompts" / "authorkit.chapter.draft.md",
-        repo_root / ".authorkit" / "prompts" / "authorkit.chapter.review.md",
-        repo_root / ".authorkit" / "prompts" / "authorkit.chapters.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.discuss.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.write.md",
+        repo_root / ".authorkit" / "prompts" / "authorkit.review.md",
     ]
 
     for target in targets:
         text = target.read_text(encoding="utf-8")
-        assert "recursively" in text or "nested" in text
+        assert "recursive" in text.lower() or "nested" in text, (
+            f"{target.name} must mention recursive/nested research/ loading"
+        )
 
 
 def test_readme_documents_adaptive_research_layout():
-    """Verify README describes adaptive flat-first research placement and dual sync paths."""
+    """Verify README describes adaptive flat-first research placement and gated world sync.
+
+    The v0.5.0 README condenses the research section. It still has to describe:
+    1. Where topic files go (research.md + research/**/*.md, flat-first).
+    2. That world sync is offered/gated, not automatic, and writes to world/.
+    """
     repo_root = Path(__file__).resolve().parents[2]
     readme = (repo_root / "README.md").read_text(encoding="utf-8")
 
     assert "`research/**/*.md`" in readme
-    assert "Placement is adaptive: simple one-off topics stay flat" in readme
-    assert "`world/notes/research-*.md` or `world/notes/research/*.md`" in readme
-    assert "preserving any existing note path" in readme
+    assert "flat" in readme.lower(), "README should describe flat-first research placement"
+    assert "world sync" in readme.lower(), "README should mention world sync behavior"
+    # Gated by author approval, not automatic.
+    assert "gated" in readme.lower() or "approval" in readme.lower() or "offers" in readme.lower()
 
 
 def test_path_scripts_expose_style_anchor_path():
@@ -1013,26 +1052,22 @@ def test_concept_template_uses_bracket_placeholder():
 
 
 def test_prompt_scripts_blocks_declare_both_shells():
-    """Verify every prompt with a scripts: block declares both sh: and ps: variants.
+    """Verify every prompt declares both sh: and ps: variants in its scripts: block.
 
-    `authorkit.constitution.md` is intentionally exempt: it edits
-    `.authorkit/memory/constitution.md` directly and has no setup script to dispatch.
+    In v0.5.0 all four user-facing prompts (discuss, write, review, research)
+    need to call check-prerequisites at minimum, so each ships a scripts: block.
     """
     repo_root = Path(__file__).resolve().parents[2]
     prompts_dir = repo_root / ".authorkit" / "prompts"
-    exempt = {"authorkit.constitution.md"}
     for prompt in prompts_dir.glob("authorkit.*.md"):
         text = prompt.read_text(encoding="utf-8")
         front_match = re.match(r"^---\n(.*?)\n---", text, flags=re.S)
-        if not front_match:
-            continue
+        assert front_match, f"{prompt.name}: missing YAML frontmatter"
         frontmatter = front_match.group(1)
-        if "scripts:" not in frontmatter:
-            assert prompt.name in exempt, (
-                f"{prompt.name}: missing scripts: block. "
-                f"Add one or extend the exempt set with rationale."
-            )
-            continue
+        assert "scripts:" in frontmatter, (
+            f"{prompt.name}: missing scripts: block. "
+            f"Every v0.5.0 prompt invokes a script (typically check-prerequisites)."
+        )
         assert re.search(r"^\s+sh:\s+scripts/bash/", frontmatter, re.M), (
             f"{prompt.name}: scripts: block is missing sh: variant for Linux/macOS"
         )
@@ -1408,7 +1443,7 @@ def test_status_command_errors_when_no_book_workspace(tmp_path, monkeypatch):
     result = runner.invoke(cli.app, ["status"])
     assert result.exit_code == 1, result.output
     assert "No book workspace found" in result.output
-    assert "/authorkit.conceive" in result.output
+    assert "/authorkit.discuss" in result.output
 
 
 def test_book_stats_includes_chapter_status_from_chapters_md(tmp_path, monkeypatch):
@@ -1524,7 +1559,8 @@ def test_cli_source_does_not_use_AuthorKit_brand_misspelling():
 def test_check_command_reports_python_for_world_index():
     """`authorkit check` must surface python availability — the bash world-index
     script depends on it, and a missing python interpreter previously failed
-    deep inside /authorkit.world.sync rather than at install/check time.
+    deep inside the world-extraction phase of /authorkit.write rather than at
+    install/check time.
     """
     result = runner.invoke(cli.app, ["check"])
     assert result.exit_code == 0, result.output
@@ -1562,7 +1598,8 @@ def test_status_constitution_resolves_against_repo_root_not_cwd(tmp_path, monkey
 def test_status_command_handles_partial_workspace(tmp_path, monkeypatch):
     """`authorkit status` should print a coherent dashboard for a half-initialized
     book (only `concept.md`, no `chapters.md`, no `world/`) without raising or
-    emitting drift noise. This is the realistic state right after `/authorkit.conceive`.
+    emitting drift noise. This is the realistic state right after the first
+    /authorkit.discuss session that produces concept.md.
     """
     repo_root = tmp_path
     (repo_root / ".authorkit").mkdir()
@@ -1586,8 +1623,9 @@ def test_status_command_handles_partial_workspace(tmp_path, monkeypatch):
 def test_status_overdue_parked_decisions_are_counted(tmp_path, monkeypatch):
     """`authorkit status` must surface overdue parked decisions — a decision
     flagged "Before CH02" is overdue once chapter 2 (or any later chapter)
-    has been drafted. Closes the loop on /authorkit.park's deadline tracking
-    promise from the README.
+    has been drafted. Closes the loop on the Park-mode deadline tracking
+    promise of /authorkit.discuss (and the legacy /authorkit.park behavior
+    it absorbed).
     """
     repo_root = tmp_path
     (repo_root / ".authorkit").mkdir()

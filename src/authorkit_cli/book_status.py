@@ -228,7 +228,7 @@ def format_status_lines(report: StatusReport) -> list[str]:
 
     lines.append("Chapters:")
     if report.chapter_total == 0:
-        lines.append("  - No chapters tracked yet. Run /authorkit.outline then /authorkit.chapters.")
+        lines.append("  - No chapters tracked yet. Run /authorkit.write to outline and plan the first chapters.")
     else:
         ordered_labels = ["pending", "planned", "drafted", "review", "approved"]
         breakdown_parts = []

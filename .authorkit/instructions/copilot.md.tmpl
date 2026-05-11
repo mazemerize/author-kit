@@ -4,50 +4,43 @@ You are an AI writing assistant working within the Author Kit framework.
 
 ## Project Structure
 
-- `.authorkit/memory/constitution.md` - Style bible
-- `.authorkit/templates/` - Book templates
+- `.authorkit/memory/constitution.md` - Style bible (voice/tone/style rules)
+- `.authorkit/templates/` - Canonical templates for every file Author Kit writes
 - `{{SCRIPT_DIR}}` - Automation scripts
-- `book/` - Book workspace
+- `book/` - Book workspace (concept, outline, chapters, world, research, parked decisions, amendments, snapshots)
 
 ## Workflow
 
-Use `/authorkit.*` commands from `{{COMMAND_SOURCE}}` to run the structured workflow:
+Author Kit exposes **four slash commands** under `{{COMMAND_SOURCE}}`. They map to authoring activities, not to artifacts. The model handles all scaffolding (concept.md, outline.md, world/, chapters.md, parked-decisions.md, characters.md, constitution, snapshots, amendments) as side-effects.
 
-**Core flow**: constitution -> conceive -> clarify (opt, structured Q&A on concept) -> discuss (opt, open brainstorm) -> research (opt, repeatable) -> world.build (opt) -> outline -> chapters -> chapter.plan -> chapter.draft -> chapter.review -> analyze / revise.
+- **`/authorkit.discuss`** — talk through anything: brainstorm an idea, clarify ambiguities, decide and route the answer to the right file, propagate a cross-cutting change with an impact plan, restructure chapters, try a what-if on an experimental branch, update voice/tone rules, defer a question, save discussion notes. Read-only by default; every write is proposed and confirmed before it happens. Use this for the very first session on an empty repo too — it produces `concept.md`.
+- **`/authorkit.write`** — produce manuscript prose. Generates `outline.md` and `chapters.md` when missing, plans the requested chapter, drafts it (full pass or scene-by-scene / continue / from-scene / interactive), revises an existing draft, helps with a specific passage, and reconciles state after writing (extracts new world details, refreshes outline summary, updates `chapters.md` status, scans for new ambiguities, rebuilds `world/_index.md`).
+- **`/authorkit.review`** — review one chapter (craft-level: plan adherence, constitution compliance, craft quality, character/world consistency, continuity, theme integration; produces `chapters/NN/review.md`) or the whole manuscript (drift, continuity, threads, pacing, voice, world-building, overdue parked decisions; read-only with gated upstream drift fixes). A range argument runs both.
+- **`/authorkit.research`** — grounded research for a topic from web/news/wikipedia/MCP sources. Writes a topic file under `research/` and updates `research.md`. Offers world sync when findings are durable and clearly map to a `world/` category, gated by chat-level approval.
 
-**Foundation commands** (run once, in order):
-- `constitution` — voice/tone/style rules; the "style bible" all chapters are written and reviewed against
-- `conceive` — create `concept.md` and the `book/` workspace from a natural-language premise
-- `clarify` — resolve concept ambiguities through structured Q&A; writes accepted answers into `concept.md`
-- `discuss` — open-ended brainstorming; read-only by default
-- `research` — ground a topic with web/news/wikipedia/MCP sources; writes reusable notes
-- `world.build` — establish characters, places, organizations, history, systems before writing
-- `outline` — full or partial book outline with chapter summaries, character arcs, thematic threads
-- `chapters` — convert the outline into a chapter-level task list with status markers
+## State the model manages (do not ask the author to edit these by hand)
 
-**Chapter lifecycle** (per chapter):
-- `chapter.plan` — scenes, beats, emotional arc, connections; status `[ ]` -> `[P]`
-- `chapter.draft` — write prose; full, scene-by-scene, continue, or single scene; status `[P]` -> `[D]`
-- `chapter.help` — targeted help on a specific passage while drafting
-- `chapter.review` — review against plan, constitution, characters, world; status `[D]` -> `[X]` or `[R]`
-- `chapter.reorder` — move/split/merge/insert/remove chapters with auto-renumbering
-
-**Quality & analysis**:
-- `analyze` — cross-chapter consistency and quality (read-only by default; gated drift remediation)
-- `revise` — apply targeted fixes from review or analysis
-
-**Mid-process tools** (available anytime once `concept.md` exists):
-- `amend` — propagate a direction or fact change across all artifacts
-- `park` — defer a creative decision with a deadline; resolve later
-- `snapshot` — bookmark current state (git tag + narrative summary) before risky changes
-- `whatif` — try a direction on an experimental branch; merge or discard
-- `world.sync` — extract new world details from chapters, verify consistency, rebuild the index
+- `book/concept.md` — premise, audience, voice, themes, scope, success criteria, Clarifications log
+- `book/outline.md` — structural overview, chapter breakdowns, character arcs, thematic threads, Continuation Notes for partial outlines
+- `book/chapters.md` — chapter status list (`[ ]` pending, `[P]` planned, `[D]` drafted, `[R]` reviewed-needs-work, `[X]` approved)
+- `book/characters.md` — index of character profiles
+- `book/world/` — characters/, places/, organizations/, history/, systems/, notes/ with YAML frontmatter and `(CONCEPT)`/`(CHxx)`/`(CHxx-rev)`/`(AMEND-…)` tags
+- `book/world/_index.md` — generated entity registry, alias lookup, chapter manifest (rebuilt after world writes)
+- `book/research.md`, `book/research/**/*.md` — grounded research index and topic notes
+- `book/parked-decisions.md` — deferred decisions with deadlines (`Before CHNN` / `Before final draft` / `No deadline`)
+- `book/chapters/NN/{plan.md, draft.md, review.md}` — per-chapter plan, prose draft, craft review
+- `book/style-anchor.md` — prose continuity anchor (constitution + last two approved chapters), refreshed before drafting/revising
+- `book/snapshots/YYYY-MM-DD-<slug>.md` — narrative bookmarks (paired with `snapshot/*` git tags) created before risky operations
+- `book/amendments/YYYY-MM-DD-<slug>.md` — change logs for cross-cutting amendments
+- `book/whatif-active.md` — present only while a what-if experimental branch is in flight
+- `book/notes/discuss-*.md` — discussion notes saved on author request
 
 ## Notes
 
 - Use absolute paths when operating on files.
-- World files use YAML frontmatter metadata.
-- Rebuild `world/_index.md` with `authorkit.world.sync` after world edits.
-- Prefer original, distinctive character/place names; avoid repeated stock name patterns and generic defaults.
-- Anchor prose continuity to constitution + `book/style-anchor.md` + the last two approved chapter drafts when available.
-- Handoff `prompt:` strings may contain bracketed placeholders such as `[N]` (current chapter), `[N+1]` (next chapter), `[PD-NNN]` (parked decision id), or `[topic]`/`[focus area]`. When forwarding a handoff, substitute the relevant value from the conversation context — never forward the literal bracketed text.
+- World files use YAML frontmatter; rebuild `world/_index.md` after any world write (the `/authorkit.write` reconcile pass and `/authorkit.discuss` mode that touches `world/` both do this automatically).
+- Style continuity anchors to `.authorkit/memory/constitution.md` + `book/style-anchor.md` + the last two approved chapter drafts (`[X]`) when available.
+- Prefer original, distinctive character/place names; avoid repeated stock-name patterns and generic defaults.
+- Numeric facts in new prose need rationale; when multiple values are plausible, pick a context-bounded varied value, not a repetitive default.
+- Handoff `prompt:` strings may contain bracketed placeholders such as `[N]` (chapter), `[topic]`, `[focus area]`. When forwarding a handoff, substitute the relevant value from the conversation context — never forward the literal bracketed text.
+- Every command ends its turn with a list of files written (paths + one-line summary). If nothing was written, say so.

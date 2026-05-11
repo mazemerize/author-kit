@@ -57,26 +57,15 @@ PROTECTED_MANAGED_PATHS = {".authorkit/memory/constitution.md"}
 # Canonical path to the shared generation guardrail source asset.
 SHARED_GUARDRAILS_PATH = Path(".authorkit/prompts/_shared/generation-guardrails.md")
 # Prompts that receive the shared generation guardrail block when rendered.
-# Excluded by design: workflow tools that don't generate user-facing prose
-# (park, snapshot, whatif, chapter.reorder) — they orchestrate state, files,
-# and git, so the prose-generation guardrails don't apply.
+# All four v0.5.0 user-facing commands generate or evaluate prose: discuss
+# produces concept/world/constitution prose, write drafts manuscript and
+# refreshes outline/plans, review evaluates prose against the style anchor,
+# and research writes structured topic notes that may sync into world/.
 GUARDRAIL_PROMPT_ALLOWLIST = {
-    "authorkit.amend.md",
-    "authorkit.analyze.md",
-    "authorkit.chapter.draft.md",
-    "authorkit.chapter.help.md",
-    "authorkit.chapter.plan.md",
-    "authorkit.chapter.review.md",
-    "authorkit.chapters.md",
-    "authorkit.clarify.md",
-    "authorkit.conceive.md",
-    "authorkit.constitution.md",
     "authorkit.discuss.md",
-    "authorkit.outline.md",
     "authorkit.research.md",
-    "authorkit.revise.md",
-    "authorkit.world.build.md",
-    "authorkit.world.sync.md",
+    "authorkit.review.md",
+    "authorkit.write.md",
 }
 
 
@@ -785,8 +774,8 @@ def init(
     console.print()
     console.print("[bold green]Next steps:[/bold green]")
     console.print(f"  1. Open your AI agent (e.g. {AGENT_CONFIG[selected_ais[0]]['name']}) in this directory.")
-    console.print("  2. Run [bold]/authorkit.constitution[/bold] to set your voice/tone/style rules.")
-    console.print('  3. Run [bold]/authorkit.conceive "your book idea here"[/bold] to create the workspace.')
+    console.print('  2. Run [bold]/authorkit.discuss "your book idea here"[/bold] to brainstorm and create the workspace.')
+    console.print("  3. Use [bold]/authorkit.write[/bold], [bold]/authorkit.review[/bold], and [bold]/authorkit.research[/bold] as the book progresses.")
     console.print("  4. See the project README for the full workflow.")
 
 
@@ -827,7 +816,7 @@ def status() -> None:
         book_dir = resolve_book_dir(repo_root)
     except FileNotFoundError as exc:
         console.print(f"[red]No book workspace found:[/red] {exc}")
-        console.print("[dim]Run /authorkit.conceive to create the book/ workspace.[/dim]")
+        console.print("[dim]Run /authorkit.discuss to brainstorm a concept and create the book/ workspace.[/dim]")
         raise typer.Exit(code=1) from exc
 
     report = collect_status(book_dir, repo_root)
