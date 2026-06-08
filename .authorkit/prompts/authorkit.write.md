@@ -62,7 +62,7 @@ If the input is genuinely ambiguous (e.g., just a number with no context), defau
 4. **Targeted context** (load per the mode chosen):
    - `outline.md` (overall structure, chapter entry)
    - `characters.md` (profiles, voices)
-   - `world/` files — if `world/_index.md` exists, use the Chapter Manifest to find entities from the previous chapter (carry-over context) and resolve entity names in the chapter plan or draft via the Alias Lookup. Load only matched files.
+   - `world/` files — if `world/_index.md` exists, use the Chapter Manifest to find entities from the previous chapter (carry-over context) and resolve entity names in the chapter plan or draft via the Alias Lookup. Load only matched files. Within each, treat the `## Current State` block as the canonical now-truth to write from; `## History` is provenance, not the current picture.
    - Previous chapter draft (`chapters/N-1/draft.md`) and plan (`chapters/N-1/plan.md`) for continuity
    - `research.md` and relevant `research/` topic files (recursive scan, prefer scope `general`, `outline`, `chapter CHNN`)
    - `parked-decisions.md` — scan for OPEN decisions whose deadline is at or before this chapter. If any found, **list them inline** at the top of the run and recommend resolving via `/authorkit.discuss` (Park mode). **Do not block** — the author can proceed.
@@ -365,13 +365,13 @@ After a Full-mode draft or a complete chapter (or a revision), reconcile state a
    a. Identify new or updated details: Characters, Organizations, Places, History/Events, Systems.
    b. For each detail:
       - Resolve entity via `world/_index.md` Alias Lookup (or recursive scan if no index)
-      - **Existing entity**: add the detail tagged `(CHxx)` to the existing file in place
-      - **New entity**: create file in the appropriate category folder with YAML frontmatter (per `.authorkit/templates/world-entity-frontmatter.md`). Default to category root; only nest when a clear grouping reason exists.
+      - **Existing entity**: append the detail tagged `(CHxx)` to the file's `## History` section, then surgically refresh the affected `## Current State` line so the now-truth stays accurate (supersede in place — don't leave Current State contradicting the new detail).
+      - **New entity**: create file in the appropriate category folder with YAML frontmatter (per `.authorkit/templates/world-entity-frontmatter.md`). Seed both a `## Current State` block (the now-truth) and a `## History` section holding the `(CHxx)` entry. Default to category root; only nest when a clear grouping reason exists.
    c. Cross-reference: if a detail connects entities, update both files.
 4. **Revision reconciliation** (per chapter, when existing tags found):
    a. Catalog existing `(CHxx)` entries.
    b. Re-read the revised draft.
-   c. Unchanged details: keep as-is. Changed details: update and tag `(CHxx-rev)`. Removed details: check if other chapters reference them — keep with note if yes, deprecate if no.
+   c. Unchanged details: keep as-is. Changed details: append a `(CHxx-rev)` entry to `## History` AND supersede the affected `## Current State` line in place. Removed details: check if other chapters reference them — keep with note in History if yes (drop from Current State), deprecate if no.
    d. Scan for new details not previously captured; add tagged `(CHxx-rev)`.
    e. Generate a Downstream Impact section in the report listing which other chapters may be affected.
 
@@ -436,6 +436,7 @@ Run `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root. This regenerates the Entity R
 - **Every detail MUST be chapter-tagged.** `(CHxx)` fresh, `(CHxx-rev)` revisions, `(CONCEPT)` pre-writing.
 - **Don't speculate.** Only record what is explicitly in the chapter text.
 - **Update incrementally.** Add to existing files; don't rewrite them.
+- **Maintain Current State.** `## History` is append-only and chapter-tagged; `## Current State` is the untagged now-truth, surgically superseded in place. Drafting and review read Current State as canonical — keep it accurate after every extraction. See `.authorkit/templates/world-entity-frontmatter.md`.
 - **Preserve file layout.** Keep human-organized subfolders.
 - **Cross-reference generously.** Connected entities update each other.
 - **Respect (CONCEPT) entries.** If a chapter contradicts a `(CONCEPT)` entry, flag and update with the chapter tag. If substantive, recommend `/authorkit.discuss` (Cross-cutting change) for systematic propagation.

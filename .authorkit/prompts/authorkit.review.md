@@ -129,7 +129,7 @@ Load `.authorkit/prompts/_shared/literary-tic-catalog.md` and check the chapter 
 
 ##### D1. World Consistency (if `world/` exists)
 
-Cross-check this chapter against ALL relevant world/ categories. For each category, compare what appears in the chapter against the established world/ entries:
+Cross-check this chapter against ALL relevant world/ categories. For each entity, compare what appears in the chapter against its `## Current State` block (the canonical now-truth); use `## History` to tell whether a discrepancy is a genuine contradiction or an established later-chapter evolution. For each category:
 
 - **Characters**: compare every character appearing in this chapter against their `world/characters/` profile — physical descriptions (appearance, age, distinguishing features), personality traits, speech patterns, relationships, background details. Flag contradictions with both `(CONCEPT)` and `(CHxx)` tagged entries.
 - **Places**: compare every location described or mentioned against its `world/places/` entry — physical descriptions, key features, atmosphere, spatial relationships. Flag setting details that contradict established descriptions. **Critically, verify that all character actions are physically possible within the established geometry** — characters cannot exit a dead-end cave "out the other side," cannot see a landmark from a location without line-of-sight, cannot walk between places faster than the established distance allows. Check any "Physical Constraints" section.
@@ -245,7 +245,7 @@ Runs only after at least several chapters have been drafted. Identifies inconsis
 - Character profiles, speech patterns, relationships
 
 **From world/ folder (if exists):**
-- If `world/_index.md` exists: read it first. Use the Chapter Manifest to load entity files per chapter (targeted loading) rather than all files at once. Use the Alias Lookup for name resolution when cross-referencing chapter text against `world/` entities.
+- If `world/_index.md` exists: read it first. Use the Chapter Manifest to load entity files per chapter (targeted loading) rather than all files at once. Use the Alias Lookup for name resolution when cross-referencing chapter text against `world/` entities. Within each loaded file, `## Current State` is the canonical now-truth; `## History` is the tagged provenance log.
 - If no index: load all entity files (`characters/`, `places/`, `organizations/`, `history/`, `systems/`, `notes/`).
 - Pay attention to chapter tags `(CHxx)` and `(CONCEPT)` for evolution tracking.
 
@@ -284,8 +284,29 @@ For not-yet-drafted chapters: check if their claims about already-drafted chapte
 
 #### 1d. World Drift (`world/` files)
 
-- For `world/` files tagged `(CHxx)`: verify tagged claims against the actual draft.
+- Treat each file's `## Current State` block as the entity's canonical now-truth; use `## History` (the tagged log) for provenance and "when did this enter" checks.
+- For `## History` entries tagged `(CHxx)`: verify the tagged claim against the actual draft.
 - For `(CONCEPT)` entries: check if drafts now cover that topic differently.
+
+#### 1e. Outline Aggregate-Section Resynthesis (`outline.md`)
+
+Steps 1a–1d check the *per-chapter* outline entries. The synthesized cross-cutting sections drift separately, because reconcile only refreshes the chapter that was just drafted and never re-derives these:
+
+- **Narrative Arc / Argument Flow** table — do the phase→chapter mappings still match how the drafted chapters actually function?
+- **Character Arcs / Concept Progression** tables — does each row reflect where the character/concept actually stands in the drafts?
+- **Thematic Thread Map** — are the Introduced / Developed / Resolved chapters accurate against what the drafts actually do with each theme?
+
+Flag rows that no longer match drafted reality. These are **resynthesis candidates**: the fix rebuilds the section from the drafts, not a line-edit. Severity: Medium by default (these feed planning, so staleness here misleads future chapters); High if a not-yet-drafted chapter's plan would inherit a wrong arc/theme position.
+
+#### 1f. World Entity Consolidation (`world/` files)
+
+Long books accumulate layered `## History` in entity files. Using the `world/_index.md` Entity Registry (prioritise entities with the most chapter tags), check each entity for:
+
+- **Stale Current State**: the `## Current State` block disagrees with the latest `(CHxx-rev)` / `(AMEND-)` entry in `## History`, or is missing entirely (legacy flat-list file).
+- **Unresolved internal contradiction**: two History entries assert conflicting facts (e.g. `(CH05)` "left-handed", `(CH22)` "right-handed") with no later entry or Current State line establishing which holds. Cross-check the drafts to determine the true current value.
+- **Dead weight**: details deprecated in earlier reconciles that no chapter references any more.
+
+These are **consolidation candidates**: the fix refreshes `## Current State` to the draft-verified now-truth and may move long-dead entries under a `### Superseded` subheading in History (never deletes provenance). Severity: High if a stale Current State would mislead drafting/review of the next chapter; Medium otherwise.
 
 **Drift severity**:
 - **High**: a future chapter plan referencing this claim would produce a continuity error.
@@ -293,6 +314,8 @@ For not-yet-drafted chapters: check if their claims about already-drafted chapte
 - **Low**: technically compatible but could be more precise.
 
 **Offer drift fixes** (gated): after presenting drift findings, ask the user: *"Fix all / Fix high-severity only / Review one by one / Skip?"* On approval, update upstream documents to match drafts (never modify drafts). Tag updates `(AMEND-YYYY-MM-DD)` in world/ files. Rebuild the world index with `{{SCRIPT_BUILD_WORLD_INDEX}}` after world edits.
+
+**Consolidation fixes are snapshot-gated.** The 1e/1f fixes (outline aggregate resynthesis, world `## Current State` refresh, History archival under `### Superseded`) rewrite canonical planning state rather than correcting a single stale claim, and unlike a draft they have no "drafts are canonical" safety net. Before applying any of them, **take a snapshot first** the same way a Cross-cutting change does: write `BOOK_DIR/snapshots/YYYY-MM-DD-pre-consolidate-[slug].md` from `.authorkit/templates/snapshot-template.md` and `git tag snapshot/YYYY-MM-DD-pre-consolidate-[slug]`. A Current State refresh is tagged `(AMEND-YYYY-MM-DD)` in History; resynthesized outline sections need no tag. Rebuild the world index after world edits.
 
 ### Step 2: Detection Passes
 
@@ -387,6 +410,15 @@ Output a Markdown report (no file write unless the author asks to save):
 |--------|-------|---------------|----------|--------|
 | outline.md CH03 | [claim] | [reality] | High | [Yes/No/Skipped] |
 
+### Consolidation (if any proposed — snapshot-gated)
+
+| Target | Issue | Action | Severity | Applied? |
+|--------|-------|--------|----------|----------|
+| outline.md Character Arcs | Iria's arc row stale vs CH12–CH18 | Resynthesize from drafts | Medium | [Yes/No/Skipped] |
+| world/characters/iria.md | Current State stale vs CH22-rev | Refresh + archive 3 dead History entries | High | [Yes/No/Skipped] |
+
+*If any consolidation was applied, note the snapshot tag here.*
+
 ### Findings
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
@@ -465,6 +497,6 @@ For an input like `5-10` or `chapters 5-10`:
 - **Prioritize ruthlessly**: one critical + three minor issues → critical first.
 - **Grade fairly**: A = exceptional, B = solid, C = adequate, D = needs significant work.
 - **PASS threshold**: no critical issues, no more than 2 important issues, constitution compliance is B or above.
-- **Reviews are gated**: a chapter review writes only `chapters/NN/review.md` and updates the chapter row in `chapters.md`. A manuscript drift run writes nothing unless the author approves drift fixes — and those fixes touch only upstream planning artifacts (concept / outline / chapters.md / world), never chapter drafts.
+- **Reviews are gated**: a chapter review writes only `chapters/NN/review.md` and updates the chapter row in `chapters.md`. A manuscript drift run writes nothing unless the author approves drift fixes — and those fixes touch only upstream planning artifacts (concept / outline / chapters.md / world), never chapter drafts. Consolidation fixes (1e/1f) additionally write a pre-consolidate snapshot before applying.
 - **Cap manuscript findings at 50** to keep reports actionable.
 - **Use absolute paths.**

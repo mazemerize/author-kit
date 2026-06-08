@@ -3,7 +3,7 @@
 **Date**: [DATE] | **Concept**: [link]
 **Input**: Book concept from `/book/concept.md`
 
-**Note**: This template is filled in by the `/authorkit.outline` command.
+**Note**: This template is filled in by `/authorkit.write` (Outline mode).
 
 ## Summary
 
@@ -121,11 +121,11 @@
 
 <!--
   Only populated for partial/incremental outlines (when the outline was generated
-  for a subset of chapters using `/authorkit.outline part N` or similar).
+  for a subset of chapters using `/authorkit.write outline` for a partial outline or similar).
   Remove this section entirely for full outlines.
 
   This section captures the state of all narrative threads at the end of the last
-  outlined section, providing context for the next `/authorkit.outline extend` session.
+  outlined section, providing context for the next `/authorkit.write outline extend` session.
 -->
 
 ### Last Outlined Through: [Part N / Chapter NN]

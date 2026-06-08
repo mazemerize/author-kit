@@ -216,7 +216,7 @@ Used when the author wants to change something established across the manuscript
 4. **Wait for explicit approval.** The author may: approve all, modify specific changes, exclude files/chapters, abandon, or request a snapshot first.
 5. **Auto-snapshot** if 5+ artifacts are affected or any approved (`[X]`) chapter draft will be touched. Use the Snapshot Helper below.
 6. **Execute top-down (upstream → downstream)**:
-   a. **world/ files**: update entries. Tag changes `(AMEND-YYYY-MM-DD)`. Update YAML frontmatter: add the amend tag to `chapters`, refresh `aliases`/`relationships` if they changed, set `last_updated`. After all world edits, rebuild the index with `{{SCRIPT_BUILD_WORLD_INDEX}}`.
+   a. **world/ files**: update entries. Append the change tagged `(AMEND-YYYY-MM-DD)` to `## History` AND supersede the affected `## Current State` lines in place so the now-truth reflects the amendment. Update YAML frontmatter: add the amend tag to `chapters`, refresh `aliases`/`relationships` if they changed, set `last_updated`. After all world edits, rebuild the index with `{{SCRIPT_BUILD_WORLD_INDEX}}`.
    b. **concept.md / outline.md / characters.md / chapters.md**: update directly.
    c. **Chapter plans**: update affected scene descriptions. If a plan changed significantly, reset chapter status to `[P]`.
    d. **Chapter drafts** — apply changes while **preserving each chapter's existing voice and style**:
@@ -432,7 +432,7 @@ This is the "build initial world entries" path. For mid-manuscript additions, pr
 4. **Per category, either**: accept user-supplied details, extract from concept (preferring grounded research over unsupported assumptions), or ask up to 3 targeted questions if details are too sparse.
 5. **Create folders only for categories that have content.** Don't create empty placeholder folders.
 6. **File placement**: if an entity exists (resolve via `world/_index.md` `id`/aliases or recursive scan), update it in place. Never relocate or normalize existing files. New entities default to category root; only nest one level when a subfolder exists or this run creates 3+ entities sharing a clear grouping label.
-7. **Write entries** using the chapter-tagged format. All pre-writing entries tag `(CONCEPT)`; tags become `(CHxx)` later when world.sync ingests from drafts. The full frontmatter schema lives in `.authorkit/templates/world-entity-frontmatter.md` — use it.
+7. **Write entries** using the chapter-tagged format. Each entry gets a `## Current State` block (the now-truth) and a `## History` section: seed History with `(CONCEPT)` entries and mirror those established facts into Current State. Tags become `(CHxx)` later when reconcile ingests from drafts. The full frontmatter and body schema lives in `.authorkit/templates/world-entity-frontmatter.md` — use it.
 8. **Rebuild the index** with `{{SCRIPT_BUILD_WORLD_INDEX}}`.
 9. **Internal consistency**: check that relationships are reciprocal, systems don't contradict, geography is plausible (travel times, climate), history is causally coherent. Flag any contradictions.
 10. **Report** by category: files created, count per category, consistency warnings, gaps that could use more depth.

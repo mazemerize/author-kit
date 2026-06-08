@@ -354,9 +354,18 @@ For a deeper verification pass (consistency between world/ and the manuscript, d
 
 Findings are rated by severity (Critical, High, Medium, Low) with specific file paths and actionable recommendations.
 
+### Entity body: Current State + History
+
+Each world/ entity file keeps its body in two parts so it stays legible as the book grows:
+
+- **`## Current State`** — the canonical now-truth (the entity as it stands at the latest drafted chapter), written in concise, untagged statements. Drafting and review read this as authoritative, so they never have to reconstruct the current picture from the full log.
+- **`## History`** — the append-only, chapter-tagged provenance log of how the entity evolved. When a later chapter changes a fact, reconcile appends the tagged entry here and supersedes the matching Current State line in place.
+
+This prevents long-running entity files from becoming palimpsests where the current truth is buried under layers of edits. A `/authorkit.review` consolidation pass can refresh a stale Current State and archive long-dead History entries (snapshot-gated).
+
 ### Evolution tags
 
-world/ files track how details evolve across the manuscript:
+`## History` entries are tagged to show how details evolve across the manuscript:
 
 | Tag | Meaning |
 |-----|---------|

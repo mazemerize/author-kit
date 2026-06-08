@@ -21,7 +21,7 @@
   ============================================================================
   IMPORTANT: The chapters below are SAMPLE ENTRIES for illustration only.
 
-  The /authorkit.chapters command MUST replace these with actual chapters from:
+  `/authorkit.write` (Chapters mode) MUST replace these with actual chapters from:
   - Chapter breakdown in outline.md
   - Themes and character arcs from concept.md
   - Research requirements from research.md
@@ -120,15 +120,15 @@
   detailed outline entries appear above. As you draft the outlined chapters and
   discover more about your book, extend the outline and chapter list:
 
-  1. Run `/authorkit.outline extend` to outline the next section
-  2. Run `/authorkit.chapters` again to add entries for newly outlined chapters
+  1. Run `/authorkit.write outline extend` to outline the next section
+  2. Run `/authorkit.write` again to add entries for newly outlined chapters
 
   Existing entries and their statuses are preserved when re-running this command.
 -->
 
 ## Notes
 
-- Each chapter should be planned before drafting (`/authorkit.chapter.plan`)
+- Each chapter should be planned before drafting (`/authorkit.write` plans before it drafts)
 - Update status markers as chapters progress through the workflow
 - Review checkpoints at end of each part to catch inconsistencies early
-- Use `/authorkit.analyze` after completing all chapters for cross-chapter consistency
+- Use `/authorkit.review` (manuscript drift) after completing all chapters for cross-chapter consistency

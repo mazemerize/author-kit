@@ -1,14 +1,14 @@
 # Parked Decisions
 
 Deferred creative decisions that need resolution before the book is complete.
-Use `/authorkit.park` to add, list, or resolve decisions.
+Use `/authorkit.discuss` (Park mode) to add, list, or resolve decisions.
 
-<!-- Schema reference for /authorkit.park; the command appends real entries below the divider. -->
+<!-- Schema reference for `/authorkit.discuss` (Park mode); the command appends real entries below the divider. -->
 
 ---
 
 <!--
-ENTRY TEMPLATE — copy and fill when adding a parked decision via /authorkit.park
+ENTRY TEMPLATE — copy and fill when adding a parked decision via `/authorkit.discuss` (Park mode)
 
 ## PD-NNN: [SHORT TITLE]
 
@@ -19,8 +19,8 @@ ENTRY TEMPLATE — copy and fill when adding a parked decision via /authorkit.pa
 
 <!--
 DEADLINE GRAMMAR (strict — consumers parse this):
-- `Before CHNN` — numeric chapter, two-digit (e.g. `Before CH12`). The /authorkit.chapter.plan,
-  /authorkit.chapter.draft, /authorkit.analyze, and `authorkit status` commands check for this
+- `Before CHNN` — numeric chapter, two-digit (e.g. `Before CH12`). `/authorkit.write` (plan/draft),
+  `/authorkit.review`, and `authorkit status` check for this
   exact form. Free-form labels like "Before Act 3" or "Before Part 2" are NOT parsed and will
   silently never trigger overdue warnings — translate them to a chapter number instead.
 - `Before final draft` — non-blocking; reported but not numerically due.
@@ -52,7 +52,7 @@ DEADLINE GRAMMAR (strict — consumers parse this):
 **Decided**: [YYYY-MM-DD]
 **Decision**: [What was decided]
 **Rationale**: [Why this option was chosen]
-**Next Steps**: [Any actions needed — amend, revise, world.sync, etc.]
+**Next Steps**: [Any actions needed — e.g. `/authorkit.discuss` to propagate the change, `/authorkit.write N revise`, etc.]
 
 ---
 -->

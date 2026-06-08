@@ -25,8 +25,36 @@ tags: [protagonist, magic-user]
 last_updated: 2026-02-13
 ---
 # Iria Calder
-... body content ...
+
+## Current State
+
+[Canonical now-truth as of the latest drafted chapter. Concise, factual, NO chapter tags.]
+
+## History
+
+- (CONCEPT) [Detail established in pre-writing.]
+- (CH01) [Detail confirmed/added when CH01 was drafted.]
+- (CH03-rev) [Detail changed in the CH03 revision — supersedes the matching Current State line.]
 ```
+
+## Body Structure: Current State + History
+
+The body below the frontmatter has two parts. This split is what keeps an entity file legible as a book grows — without it, a long-running character file becomes a palimpsest where the current truth has to be reconstructed by reading every tagged layer in order.
+
+### `## Current State` (canonical now-truth)
+
+Concise factual statements describing the entity **as it stands at the latest drafted chapter** — appearance, role, relationships, status. This is the authoritative view: drafting (`/authorkit.write`) and consistency-checking (`/authorkit.review`) read Current State as truth and must not have to reconstruct it from the full history.
+
+- **No chapter tags in Current State.** Tags live in History. Because the index builders (`build-world-index.sh`/`.ps1`) extract the `chapters` field by scanning the body for `(CONCEPT)`/`(CHxx)` patterns, the untagged Current State block is invisible to them and never pollutes the tag aggregation.
+- When a later chapter changes a fact, **supersede the matching Current State line in place** (surgical edit) — never append a contradicting one. Current State is a summary, not a log; keep it short.
+
+### `## History` (provenance / audit trail)
+
+The append-only, chapter-tagged log of how the entity evolved. Every detail is tagged: `(CONCEPT)` pre-writing, `(CHxx)` first appearance/confirmation, `(CHxx-rev)` revision, `(AMEND-YYYY-MM-DD)` amendment. Routine reconciliation only **appends** here — it never rewrites History. It answers "when did this fact enter the book?" and lets a consolidation pass reconstruct or repair Current State.
+
+A superseded History line stays in place (provenance is the point); the supersession is reflected by updating Current State, not by deleting history. A consolidation pass (`/authorkit.review`) may move long-dead History entries under a `### Superseded` subheading, but only with author approval and a snapshot — it still never deletes provenance.
+
+**Legacy files** with a flat tagged body (no headings) remain valid: treat the whole body as History with an empty Current State. The next reconcile, or a `/authorkit.review` consolidation pass, populates Current State from the draft-verified now-truth.
 
 ## Field Reference
 
@@ -99,7 +127,7 @@ The `chapters` field aggregates all evolution tags found in the file body:
 | `CONCEPT` | Established during pre-writing world-building | `CONCEPT` |
 | `CHxx` | First appeared or confirmed in chapter xx | `CH01`, `CH03` |
 | `CHxx-rev` | Updated when chapter xx was revised | `CH07-rev` |
-| `AMEND-YYYY-MM-DD` | Changed during a direction or fact amendment (`/authorkit.amend`) | `AMEND-2026-02-13` |
+| `AMEND-YYYY-MM-DD` | Changed during a direction or fact amendment (`/authorkit.discuss` Cross-cutting change) | `AMEND-2026-02-13` |
 
 ## Relationship Conventions
 
@@ -121,7 +149,7 @@ Relationship types are freeform strings but should be descriptive and consistent
 
 **Event-to-Place**: `occurred-at`, `site-of`
 
-Relationships should ideally be reciprocal: if Iria has `member-of` → Iron Guild, the Iron Guild file should have `has-member` → Iria. The `world.sync` command checks for missing reciprocals.
+Relationships should ideally be reciprocal: if Iria has `member-of` → Iron Guild, the Iron Guild file should have `has-member` → Iria. The reconcile pass (`/authorkit.write`) cross-references connected entities so the reciprocal is added to the other file.
 
 ## Backward Compatibility
 
