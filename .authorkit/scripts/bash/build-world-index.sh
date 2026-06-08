@@ -36,7 +36,7 @@ if [[ ! -d "$WORLD_DIR" ]]; then
     exit 1
   fi
   echo "ERROR: world/ directory not found at $WORLD_DIR"
-  echo "Run /authorkit.world.build first to create the world."
+  echo "Run /authorkit.discuss first to create the world."
   exit 1
 fi
 

@@ -349,7 +349,7 @@ if (-not (Test-Path $worldDir -PathType Container)) {
         exit 1
     }
     Write-Output "ERROR: world/ directory not found at $worldDir"
-    Write-Output "Run /authorkit.world.build first to create the world."
+    Write-Output "Run /authorkit.discuss first to create the world."
     exit 1
 }
 

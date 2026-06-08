@@ -53,19 +53,19 @@ fi
 
 if [[ ! -d "$BOOK_DIR" ]]; then
   echo "ERROR: Book directory not found: $BOOK_DIR"
-  echo "Run /authorkit.conceive first to create the book structure."
+  echo "Run /authorkit.discuss first to create the book structure."
   exit 1
 fi
 
 if [[ ! -f "$OUTLINE" ]]; then
   echo "ERROR: outline.md not found in $BOOK_DIR"
-  echo "Run /authorkit.outline first to create the book outline."
+  echo "Run /authorkit.write outline first to create the book outline."
   exit 1
 fi
 
 if $REQUIRE_CHAPTERS && [[ ! -f "$CHAPTERS" ]]; then
   echo "ERROR: chapters.md not found in $BOOK_DIR"
-  echo "Run /authorkit.chapters first to create the chapter breakdown."
+  echo "Run /authorkit.write first to create the chapter breakdown."
   exit 1
 fi
 
