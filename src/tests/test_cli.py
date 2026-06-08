@@ -4,8 +4,11 @@ Author:
     Mazemerize contributors.
 """
 
+import contextlib
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -19,6 +22,26 @@ from typer.testing import CliRunner
 
 
 runner = CliRunner()
+
+
+@contextlib.contextmanager
+def isolated_filesystem():
+    """Run a block inside a fresh temporary working directory.
+
+    Replaces ``CliRunner.isolated_filesystem`` which Click removed in 8.3.
+    Restoring it here keeps the tests independent of the installed Click
+    version (deps are unpinned, so CI may resolve a newer Click than local).
+
+    Yields:
+        str: The temporary directory now serving as the working directory.
+    """
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmp:
+        os.chdir(tmp)
+        try:
+            yield tmp
+        finally:
+            os.chdir(cwd)
 
 
 def _bash_with_working_python_available() -> bool:
@@ -63,7 +86,7 @@ def test_init_installs_multiple_ai_flavors_side_by_side():
     Returns:
         None
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
@@ -105,7 +128,7 @@ def test_init_rerun_replaces_unselected_ai_outputs():
     Returns:
         None
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         first = runner.invoke(
             cli.app,
             [
@@ -161,7 +184,7 @@ def test_init_errors_when_required_tool_missing(monkeypatch):
     """
     monkeypatch.setattr(cli, "tool_exists", lambda tool: False if tool == "codex" else True)
 
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
@@ -196,7 +219,7 @@ def test_init_captures_git_init_output(monkeypatch):
 
     monkeypatch.setattr(cli.subprocess, "run", fake_run)
 
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
@@ -221,7 +244,7 @@ def test_init_captures_git_init_output(monkeypatch):
 
 def test_init_ensures_gitignore_contains_required_entries():
     """Verify init creates repo-level .gitignore with required local entries."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
@@ -260,7 +283,7 @@ def test_init_ensures_gitignore_contains_required_entries():
 
 def test_init_appends_required_gitignore_entries_without_duplicates():
     """Verify init appends required entries once and avoids duplicates on reruns."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         Path(".gitignore").write_text("node_modules", encoding="utf-8")
 
         first = runner.invoke(
@@ -317,7 +340,7 @@ def test_init_appends_required_gitignore_entries_without_duplicates():
 
 def test_init_preserves_existing_constitution_on_rerun():
     """Verify init does not overwrite a user-edited constitution on rerun."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         first = runner.invoke(
             cli.app,
             [
@@ -383,7 +406,7 @@ def _seed_book_tree() -> Path:
 
 def test_parse_book_config_accepts_utf8_bom():
     """Verify book.toml with UTF-8 BOM is parsed successfully."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = Path("book")
         book_dir.mkdir(parents=True, exist_ok=True)
         (book_dir / "book.toml").write_text(
@@ -402,7 +425,7 @@ def test_book_build_command_writes_manuscript_and_formats(monkeypatch):
     Args:
         monkeypatch: Pytest monkeypatch fixture.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
         outputs = [book_dir / "dist" / "manuscript.docx"]
 
@@ -448,7 +471,7 @@ def test_book_build_prompts_and_skips_existing_output(monkeypatch):
     Args:
         monkeypatch: Pytest monkeypatch fixture.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
         dist_dir = book_dir / "dist"
         dist_dir.mkdir(parents=True, exist_ok=True)
@@ -475,7 +498,7 @@ def test_book_build_prompts_and_overwrites_existing_output(monkeypatch):
     Args:
         monkeypatch: Pytest monkeypatch fixture.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
         dist_dir = book_dir / "dist"
         dist_dir.mkdir(parents=True, exist_ok=True)
@@ -505,7 +528,7 @@ def test_book_build_command_reports_render_failures(monkeypatch):
     Args:
         monkeypatch: Pytest monkeypatch fixture.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
 
         def fail_render(*args, **kwargs):
@@ -521,7 +544,7 @@ def test_book_build_command_reports_render_failures(monkeypatch):
 
 def test_book_commands_reject_removed_book_option():
     """Verify single-book mode rejects the legacy --book option."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         _seed_book_tree()
         result = runner.invoke(cli.app, ["book", "build", "--book", "book"])
         assert result.exit_code != 0
@@ -532,7 +555,7 @@ def test_book_commands_reject_removed_book_option():
 
 def test_book_build_requires_canonical_book_directory():
     """Verify build shows actionable guidance when book/ is missing."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(cli.app, ["book", "build"])
         assert result.exit_code != 0
     assert "/authorkit.discuss" in result.output
@@ -540,7 +563,7 @@ def test_book_build_requires_canonical_book_directory():
 
 def test_book_build_rejects_pdf_format():
     """Verify PDF format is rejected as unsupported."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
         result = runner.invoke(cli.app, ["book", "build", "--format", "pdf"])
 
@@ -550,7 +573,7 @@ def test_book_build_rejects_pdf_format():
 
 def test_book_stats_json_output_contains_totals():
     """Verify stats command emits JSON totals payload."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
         result = runner.invoke(cli.app, ["book", "stats", "--output", "json"])
 
@@ -562,7 +585,7 @@ def test_book_stats_json_output_contains_totals():
 
 def test_book_stats_table_includes_est_audio_minutes():
     """Verify table output renders the per-chapter estimated audio duration column."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
         result = runner.invoke(cli.app, ["book", "stats", "--output", "table"])
 
@@ -576,7 +599,7 @@ def test_book_audio_command_uses_generator(monkeypatch):
     Args:
         monkeypatch: Pytest monkeypatch fixture.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         book_dir = _seed_book_tree()
         called = {}
 
@@ -606,7 +629,7 @@ def test_generate_audiobook_skipped_existing_file_still_writes_metadata(monkeypa
     Args:
         monkeypatch: Pytest monkeypatch fixture.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
         chapter_dir = Path("book/chapters/01")
@@ -696,7 +719,7 @@ def test_audio_instructions_loaded_from_template():
 
 def test_audio_instructions_custom_path():
     """Verify custom instructions path from config is used."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         custom = Path("my-instructions.txt")
         custom.write_text("Custom narrator instructions.", encoding="utf-8")
 
@@ -737,7 +760,7 @@ def test_docs_and_prompts_use_lowercase_world_paths():
 
 def test_init_injects_shared_generation_guardrails_and_keeps_shared_asset_unrendered():
     """Verify rendered generation prompts inject shared guardrails and do not render shared assets as commands."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
@@ -770,7 +793,7 @@ def test_init_renders_discuss_prompt_for_all_ai_flavors():
     Discuss absorbs the legacy clarify behavior — it owns the Clarifications log in
     concept.md — so we assert that the rendered prompt still references that mechanism.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
@@ -813,7 +836,7 @@ def test_write_prompt_enforces_style_anchor_workflow():
     draft + revise + reconcile and refreshes the anchor before every prose-producing
     mode.
     """
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
@@ -1009,7 +1032,7 @@ def test_instruction_templates_have_no_utf8_bom():
 
 def test_rendered_prompts_do_not_contain_unsubstituted_args_token():
     """Verify rendered prompts contain no literal {ARGS} placeholder (the renderer only substitutes {{USER_INPUT_TOKEN}}/$ARGUMENTS/{SCRIPT}/{{SCRIPT_*}})."""
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli.app,
             [
