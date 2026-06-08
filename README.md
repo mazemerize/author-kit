@@ -203,7 +203,7 @@ Read more in [Book Export](#book-export-audiobook-and-statistics) below.
 
 ## The Four Commands
 
-Author Kit's slash-command surface is **four commands** that map to authoring activities. Everything that used to be a separate command (clarify, conceive, outline, chapter.plan, chapter.draft, chapter.review, chapter.help, chapter.reorder, world.build, world.sync, amend, park, analyze, revise, snapshot, constitution, whatif, chapters) lives inside one of these four as a mode the model picks based on what you ask for and what already exists on disk.
+Author Kit's slash-command surface is **four commands** that map to authoring activities. Each one dispatches to the right mode based on what you ask for and what already exists on disk — you don't pick a sub-command, the model reads the situation.
 
 ```
   ┌─────────────────────────────────────────────────────────────────────┐
@@ -409,7 +409,7 @@ The index (`world/_index.md`) contains three lookup tables:
 
 The index is rebuilt automatically by every command that touches `world/` files: `/authorkit.write` (after drafting / reconcile), `/authorkit.discuss` (after cross-cutting amendments, world seeding, or chapter restructuring), and `/authorkit.research` (when an author-approved sync writes to `world/notes/`). You only need to rebuild it manually if you've edited world/ files by hand — and `/authorkit.write` or `/authorkit.discuss` on its next run will rebuild it for you anyway.
 
-Add YAML frontmatter to legacy files (created before frontmatter was standard) by asking `/authorkit.discuss` to "add frontmatter to world files that lack it" — it routes through the same index-rebuild path.
+Add YAML frontmatter to any world files that lack it by asking `/authorkit.discuss` to "add frontmatter to world files that lack it" — it routes through the same index-rebuild path.
 
 ---
 
