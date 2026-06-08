@@ -29,6 +29,25 @@
   - None approved: constitution only.
 - Keep prose aligned on POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behavior defined by the style anchor.
 
+### Literary Tic Avoidance
+
+- The canonical list of LLM-typical prose tics, with default budgets and the
+  constitution-override clause, lives at
+  `.authorkit/prompts/_shared/literary-tic-catalog.md`. Load it for any
+  command that drafts, revises, or reviews manuscript prose.
+- Treat the catalog's budgets as defaults. A pattern is permitted beyond its
+  budget only when the constitution (or the style anchor's **Avoid** /
+  **Imagery Density** sections) **explicitly** names the pattern, raises its
+  budget, or states a voice/genre rationale. A generic "literary register"
+  note does not waive a pattern.
+- A book's constitution can also tighten a budget (e.g., zero negations).
+  Treat tightening as binding.
+- Drafting commands: write within budget on the first pass; do not generate
+  tic-rich prose and clean it up after.
+- Review commands: count instances per pattern (per chapter and per 1,000
+  words for density patterns), compare against the budgets, and report any
+  active constitution waivers at the top of the review.
+
 ### Tag and Placeholder Conventions
 
 Author Kit uses three distinct bracket conventions. Do not mix them.
@@ -48,3 +67,11 @@ Status markers `[ ]`, `[P]`, `[D]`, `[R]`, `[X]` appearing in `chapters.md` are 
 - Style audit:
   - Confirm alignment with constitution and `book/style-anchor.md`.
   - Flag and correct drift before final output.
+- Literary tic audit:
+  - Count instances of each pattern in `literary-tic-catalog.md` over the new
+    prose (per chapter, and per 1,000 words for density patterns).
+  - Compare to the catalog's budgets. For any pattern over budget, either
+    rewrite to comply or — if a constitution waiver applies — note the waiver
+    in the run report.
+  - Zero-budget patterns (3, 7) and high-signal patterns (10, 13) get a
+    dedicated pre-output sweep before saving.

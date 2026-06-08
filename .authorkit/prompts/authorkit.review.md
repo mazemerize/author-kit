@@ -96,6 +96,20 @@ For a single chapter number `N`.
 - Are any constitution principles violated?
 - Does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile?
 
+#### B1. LLM Literary Tic Audit
+
+Load `.authorkit/prompts/_shared/literary-tic-catalog.md` and check the chapter against every pattern in it.
+
+- For each pattern, count instances in the chapter (and per 1,000 words for density patterns 2, 4+5, 12).
+- Compare counts against the catalog's default budgets.
+- **Constitution waivers**: before flagging anything, check `.authorkit/memory/constitution.md` and the style anchor's **Avoid** / **Imagery Density** sections for explicit waivers (the pattern must be named by number, by example, or by description — a vague "literary register" line is not a waiver). If a waiver applies, note it at the top of the review (e.g., *"Polysyndeton waived by constitution §II"*) and skip the corresponding count.
+- Tightened budgets in the constitution are binding — flag at the tightened threshold, not the default.
+- For every pattern over its (effective) budget, write a finding with: pattern number/name, count vs. budget, line/paragraph citations for each instance, and a one-line rewrite suggestion that does NOT introduce a different pattern from the catalog.
+- Severity mapping:
+  - Patterns 7 and 13 over budget → **Critical**
+  - Patterns 3 and 10 over budget → **Important**
+  - Other patterns over budget → **Minor** (single instance over) or **Important** (≥2× budget)
+
 #### C. Craft Quality
 
 - **Pacing**: does the chapter flow well? Sections that drag or rush?
@@ -182,6 +196,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 | Plan Adherence | [A/B/C/D] | [Brief note] |
 | Constitution Compliance | [A/B/C/D] | [Brief note] |
 | Style Anchor Compliance | [A/B/C/D] | [Brief note] |
+| LLM Tic Audit | [A/B/C/D] | [Patterns over budget; active waivers, if any] |
 | Craft Quality | [A/B/C/D] | [Brief note] |
 | Character/Content | [A/B/C/D] | [Brief note] |
 | Continuity | [A/B/C/D] | [Brief note] |
@@ -313,6 +328,7 @@ Focus on high-signal findings. Limit to 50 total findings (excluding drift findi
 - Prose style drift (more/less literary)
 - Constitution principle violations
 - Drift from `book/style-anchor.md` profile
+- **LLM tic density across chapters**: load `.authorkit/prompts/_shared/literary-tic-catalog.md` and aggregate pattern counts across all drafted chapters in scope. Honor any constitution waivers (skip the corresponding patterns). Flag any pattern whose cross-chapter density is ≥2× the per-chapter budget on average, even if no single chapter is over budget on its own — this catches voice drift toward AI-flavoured prose that any single chapter could plausibly defend. Severity: HIGH for patterns 7 and 13; MEDIUM for the rest.
 
 #### F. Argument Coherence (Non-Fiction)
 - Claims made without support
