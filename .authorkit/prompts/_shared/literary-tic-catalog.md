@@ -202,14 +202,132 @@ Examples:
 **Fix:** lead with the positive. Drop the negated clause entirely.
 **Budget:** at most **two per chapter** unless the constitution waives.
 
+### 14. Vague interiority — "something" as emotional load-bearer
+
+Emotion gestured at through an unnamed "something" instead of a named feeling
+or a concrete physical fact.
+
+Examples:
+- "something in her chest loosened"
+- "something passed between them"
+- "something like grief, but not grief"
+- "a feeling she couldn't name"
+
+**Why it fails:** Simulates depth by refusing specificity. Once a book it
+reads as restraint; once a scene it reads as evasion. The "something like X,
+but not X" variant is pattern 13 wearing a coat.
+
+**Fix:** name the feeling, or show its physical fact instead.
+**Budget:** at most **two per chapter** combined. The "a feeling (s)he
+couldn't name" family ("couldn't quite name," "had no name for"):
+**budget 0**.
+
+### 15. Stock somatic beats
+
+The same small set of body responses rotating as emotional shorthand.
+
+Examples:
+- "her chest tightened" / "his stomach dropped" / "her breath caught"
+- "his heart hammered" / "her jaw clenched" / "his knuckles whitened"
+- Sibling form — agentive body parts: "her hand found the rail," "his eyes
+  found hers"
+
+**Why it fails:** Each beat is fine alone. In rotation, emotion becomes
+physiological boilerplate — the reader gets a vitals readout instead of a
+person.
+
+**Budget:** at most **three per 1,000 words** combined across the stock set.
+"Released a breath (s)he didn't know (s)he'd been holding" (any phrasing):
+**budget 0** — it is the single most recognizable AI-prose cliché.
+
+### 16. Appositive thematic tail
+
+A concrete sentence with an abstraction bolted on as a trailing appositive.
+
+Examples:
+- "She set the cup down between them, a small truce."
+- "He signed his name, the weight of it settling."
+- "…, a kind of answer."
+- "…, the shape of an apology."
+
+**Why it fails:** Bolts the theme onto the sentence so the reader cannot miss
+it. Serial use turns every action into a captioned museum exhibit. Tell-words:
+"a kind of," "the shape of," "the weight of."
+
+**Fix:** trust the concrete sentence; cut the caption.
+**Budget:** at most **two per chapter**, never in consecutive paragraphs.
+
+### 17. Triadic litany with the abstract third slot
+
+Rule-of-three structures — anaphoric sentences or in-sentence lists — where
+the third item escalates from concrete to abstract.
+
+Examples:
+- "She had packed his books. She had packed his letters. She had packed the
+  years."
+- "It was in the floorboards, in the curtains, in the quiet between them."
+
+**Why it fails:** Concrete-concrete-abstract is the model's default rhetorical
+figure. Litanies repeated across a chapter become a metronome.
+
+**Budget:** at most **one anaphoric litany per chapter**; lists whose third
+item goes abstract, at most **two per chapter**.
+
+### 18. Personified atmosphere
+
+Ambient nouns given agency whenever characters stop talking.
+
+Examples:
+- "the silence stretched" / "the quiet pressed in"
+- "the air thickened" / "darkness pooled"
+- "the silence settled over the room"
+
+**Why it fails:** It is the model's default scene-glue between dialogue beats.
+The room starts acting so the characters don't have to.
+
+**Budget:** at most **two per 1,000 words**, and never the same noun-verb pair
+twice in a chapter.
+
+### 19. Epiphany cadence closer
+
+Chapter endings that land on a quiet thematic zoom-out coda of earned wisdom.
+
+Examples:
+- "And for the first time in a long time, that was enough."
+- "Maybe that was the point."
+- "It wasn't forgiveness. But it was a start." (also trips pattern 13)
+
+**Why it fails:** One is an ending; eight is a stamp. When every chapter
+closes on the same cadence, the book audibly ends the same way over and over.
+
+**Budget:** "for the first time" at most **one per chapter**. Zoom-out coda
+endings on no more than **two consecutive chapters** — the consecutive-chapter
+check belongs to manuscript-wide review, since no single chapter trips it.
+
+### 20. Em-dash interruption density
+
+Appositive interruptions and dramatic dashes as the default rhythm move.
+
+Example:
+- "She reached for the letter — the one he'd left — and stopped."
+
+**Why it fails:** The em-dash appositive is the model's favorite punctuation
+gesture and the most publicly cited AI tell. In density it gives prose a
+breathless, over-qualified rhythm. It is also legitimate style in many hands —
+which is exactly what the constitution waiver mechanism is for.
+
+**Budget:** at most **four per 1,000 words**, no more than **two in a single
+paragraph**, unless the constitution names the em-dash as a voice choice.
+
 ## How to Apply
 
 **At generation time** (`/authorkit.write` draft / revise / passage help):
 - Internalize the budgets before writing. Don't draft tic-rich prose and clean
   it up after — write within budget on the first pass.
-- The "Style match pass" and "Quality self-check" steps explicitly count
-  instances of patterns 1, 7, 10, 13 (the zero / near-zero budgets) and the
-  high-density patterns (2, 4+5, 12) per 1,000 words before saving.
+- The "Style match pass" and "Quality self-check" steps count every pattern,
+  with dedicated attention to the zero / near-zero budget patterns and the
+  per-1,000-words density patterns — both identifiable from the budget table
+  below, so this list never needs updating when patterns are added.
 - If a constitution waiver is in effect, name it in the run report so the
   author sees which budget was bypassed.
 
@@ -247,3 +365,10 @@ the voice"). Otherwise the budgets apply.
 | 11 | Polysyndeton "and…and…and" | 1 per chapter |
 | 12 | "small / thin / quiet" qualifiers | 5 per 1,000 words combined |
 | 13 | Negation-correction two-beat | 2 per chapter |
+| 14 | "Something" vague interiority | 2 per chapter; "couldn't name" variants 0 |
+| 15 | Stock somatic beats | 3 per 1,000 words; breath-holding cliché 0 |
+| 16 | Appositive thematic tail | 2 per chapter, non-consecutive paragraphs |
+| 17 | Triadic litany / abstract third slot | 1 litany per chapter; 2 abstract-third lists |
+| 18 | Personified atmosphere | 2 per 1,000 words; no repeated noun-verb pair |
+| 19 | Epiphany cadence closer | "for the first time" 1 per chapter; ≤2 consecutive coda endings |
+| 20 | Em-dash interruptions | 4 per 1,000 words, max 2 per paragraph |

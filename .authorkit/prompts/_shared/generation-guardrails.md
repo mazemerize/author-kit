@@ -73,5 +73,6 @@ Status markers `[ ]`, `[P]`, `[D]`, `[R]`, `[X]` appearing in `chapters.md` are 
   - Compare to the catalog's budgets. For any pattern over budget, either
     rewrite to comply or — if a constitution waiver applies — note the waiver
     in the run report.
-  - Zero-budget patterns (3, 7) and high-signal patterns (10, 13) get a
-    dedicated pre-output sweep before saving.
+  - Zero-budget patterns (3, 7, and the named zero-budget variants of 14
+    and 15) and high-signal patterns (10, 13, 16) get a dedicated pre-output
+    sweep before saving.

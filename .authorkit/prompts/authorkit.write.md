@@ -263,7 +263,7 @@ h. **Closing**: end with the planned closing beat. Leave the reader wanting to t
 
 - Compare new content against constitution + `book/style-anchor.md`.
 - Also check that new content is consistent in voice with any existing author-written content in the draft.
-- Run the literary tic audit from `.authorkit/prompts/_shared/literary-tic-catalog.md`: count instances per pattern (and per 1,000 words for density patterns 2, 4+5, 12), compare to budgets, and check `.authorkit/memory/constitution.md` + style anchor for explicit waivers before flagging anything. Rewrite any over-budget pattern in place before saving rather than emitting tic-rich prose and post-flagging. If a waiver is in effect, name it in the run report.
+- Run the literary tic audit from `.authorkit/prompts/_shared/literary-tic-catalog.md`: count instances per pattern (and per 1,000 words for the density patterns marked per-1,000-words in the catalog's budget table), compare to budgets, and check `.authorkit/memory/constitution.md` + style anchor for explicit waivers before flagging anything. Rewrite any over-budget pattern in place before saving rather than emitting tic-rich prose and post-flagging. If a waiver is in effect, name it in the run report.
 - Correct drift before saving.
 - If new numeric facts were introduced, verify each has rationale. If multiple values were plausible, the selected value should be context-bounded and not a repetitive default.
 
