@@ -10,7 +10,7 @@
 - `[ ]` Pending - not started
 - `[P]` Planned - chapter plan exists
 - `[D]` Drafted - first draft written
-- `[R]` Reviewed - review completed
+- `[R]` Reviewed - review completed, needs revision
 - `[X]` Approved - ready for final manuscript
 
 ## Format: `[Status] CHNN [Part?] Title - Summary`
