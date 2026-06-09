@@ -326,7 +326,7 @@ Targeted, scalpel-level refinement of a specific passage. Detected when input in
    - "opening" → first 1-3 paragraphs; "closing" → last 1-3 paragraphs
    - Can't find it → ask for clarification
 
-4. **Deliver help by mode** — same shapes as the legacy chapter.help command:
+4. **Deliver help by mode**:
    - **alternatives**: present original (quoted), then 2-3 options with one-line rationales. Each option takes a meaningfully different approach, not word swaps.
    - **improve**: analyze for clarity, impact, voice consistency, show vs tell, pacing, rhythm, character distinctiveness. Specific actionable suggestions with exact text and replacement.
    - **stuck / continue**: read draft up to where the author indicates they're stuck. Summarize what the plan expects next (if a plan exists). Write 2-3 paragraphs of continuation. Match voice and style. Offer: *"Does this direction feel right? For a full next scene, run /authorkit.write [N] continue."*
