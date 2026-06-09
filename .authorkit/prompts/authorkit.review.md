@@ -474,6 +474,7 @@ Output a Markdown report (no file write unless the author asks to save):
 - If CRITICAL issues exist: recommend resolving before drafting more chapters.
 - Provide specific `/authorkit.write [N] revise: <issue>` suggestions for the top issues.
 - If world-building issues dominate: recommend the author run `/authorkit.write [last-drafted-N]` whose Reconcile pass deepens world extraction and rebuilds the index.
+- If a recurring AI-flavoured pattern shows up that is NOT in the tic catalog: recommend adding it to the constitution via `/authorkit.discuss` (Constitution mode) so drafting and review both enforce it going forward. Do not park it in the style anchor's **Avoid** section — the anchor is regenerated from the constitution on every refresh, so hand-added entries there are overwritten.
 - If mostly clean: suggest continuing with `/authorkit.write next` or moving to final polish.
 
 ## Mode: Range Review

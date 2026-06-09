@@ -219,12 +219,12 @@ Examples:
 - Compare against the budgets. Patterns over budget become findings under the
   **LLM Tic Audit** dimension.
 - Cite specific line references (or paragraph-anchored quotes) for every flag.
-- Severity: **HIGH** for patterns 7, 13 over budget; **MEDIUM** for the rest;
-  **LOW** if exactly one instance over budget and the chapter is otherwise
-  clean.
+- Severity triage lives in the review prompt, not here: this catalog owns the
+  patterns and budgets; the consuming command maps overages onto its own
+  severity ladder.
 - Manuscript-wide drift: track cumulative density across drafted chapters —
-  a pattern at budget per chapter but at 5x baseline cross-chapter is a
-  voice-drift finding.
+  a pattern can sit at budget in every chapter and still mark voice drift in
+  aggregate. The cross-chapter threshold is defined in the review prompt.
 
 **Constitution waivers must be explicit.** A vague "literary register" line in
 the constitution does not waive a pattern. The constitution must name the

@@ -403,6 +403,7 @@ Update the book constitution at `.authorkit/memory/constitution.md`. This is the
    - **Audience**: target reader, assumed knowledge, accessibility
    - **Prose Standards**: show vs tell, dialogue rules, description density, sentence rhythm
    - **Naming & Numbers**: naming originality, numeric-specificity policy (rationale-first numbers, uncertainty handling when precision is unsupported)
+   - **Tic Budget Overrides**: waivers or tightenings of the literary-tic budgets in `.authorkit/prompts/_shared/literary-tic-catalog.md` — each must name the pattern explicitly (by number, example, or description); vague register language is not a waiver
    - **Content Boundaries**: sensitivity guidelines, research accuracy, content warnings
    - **Structural Rules**: chapter length targets, scene transitions, cliffhanger policy
 6. Each principle must be **actionable and testable** during chapter review. Include DO/DON'T examples where useful. The author may need fewer or more principles than the template provides — adjust accordingly.
