@@ -319,11 +319,72 @@ which is exactly what the constitution waiver mechanism is for.
 **Budget:** at most **four per 1,000 words**, no more than **two in a single
 paragraph**, unless the constitution names the em-dash as a voice choice.
 
+### 21. Composure beats and trailing minimizers — the "let it go" family
+
+Narration that closes a beat by performing the character's (or the narrator's
+own) self-possession, or by measuring how little was said, needed, or given.
+
+Examples — composure form:
+- "she named it for what it was and let it go"
+- "he let that sit" / "filing it somewhere behind his eyes"
+- "she took it as no more than her due"
+- "whatever she was reckoning she kept behind her teeth"
+
+Examples — trailing-minimizer form:
+- "…and left it there" / "…and left it at that"
+- "and that was the whole of it" / "and that was all" / "and nothing more"
+- "all the answer she was going to get"
+- "and not one gesture more"
+
+**Why it fails:** Each instance is defensible; as a recurring closer it reads
+as poise instead of feeling — prose commenting on its own restraint. It is one
+of the highest-signal AI tells in literary fiction precisely because it
+survives line-level review: every sentence is grammatical, economical, and
+"good." High-signal pattern.
+
+**Fix:** close beats on an action, a line of speech, or a plain statement.
+Character-voiced terseness in dialogue ("Your call. The whole of it.") is
+exempt — the ban is on narration measuring itself.
+**Budget:** at most **one per chapter** as a narration beat-closer, never the
+same phrasing twice in a manuscript.
+
+### 22. Decoder narration — POV-as-analyst
+
+The viewpoint character continuously converting observation into filed
+conclusions.
+
+Examples:
+- "she understood X as Y" / "Zoe understood the silence as practice"
+- "she came to understand that…"
+- "she read the room as…" / "the look of a woman moving a token from one
+  string to another"
+
+**Why it fails:** Each decode is plausible characterization; in density the
+POV stops experiencing the scene and starts annotating it, and every
+observation arrives pre-interpreted. The reader is handed conclusions instead
+of evidence.
+
+**Fix:** let the character observe, feel, wonder, guess, or *ask* — move the
+interpretation into dialogue, a named emotion, or an open question.
+**Budget:** at most **two per chapter**.
+
 ## How to Apply
 
 **At generation time** (`/authorkit.write` draft / revise / passage help):
 - Internalize the budgets before writing. Don't draft tic-rich prose and clean
   it up after — write within budget on the first pass.
+- **Calibrate against the project's own corpus, not just this catalog.** The
+  budgets catch known patterns; they do not certify fidelity. If the project
+  has pre-existing prose (earlier chapters, the author's prior work), read it
+  before drafting and match how *that hand* delivers description, dialogue
+  attribution, interiority, and exposition. A chapter can pass every budget
+  here and still read as AI-authored against the corpus — typically through
+  poised low-affect cadence, silent POV analysis where the corpus uses
+  conversation, or restraint-measuring closers (patterns 21–22). When a
+  recurring corpus-vs-draft mismatch is found, name it in the book's
+  constitution so it binds future drafting; fidelity to the corpus outranks
+  polish. *(Lesson from the Ab Imo Pectore CH13–CH15 fidelity passes,
+  2026-06-11.)*
 - The "Style match pass" and "Quality self-check" steps count every pattern,
   with dedicated attention to the zero / near-zero budget patterns and the
   per-1,000-words density patterns — both identifiable from the budget table
@@ -372,3 +433,5 @@ the voice"). Otherwise the budgets apply.
 | 18 | Personified atmosphere | 2 per 1,000 words; no repeated noun-verb pair |
 | 19 | Epiphany cadence closer | "for the first time" 1 per chapter; ≤2 consecutive coda endings |
 | 20 | Em-dash interruptions | 4 per 1,000 words, max 2 per paragraph |
+| 21 | Composure beats / trailing minimizers | 1 per chapter as narration closer; dialogue exempt; high-signal |
+| 22 | Decoder narration ("understood X as Y") | 2 per chapter |
