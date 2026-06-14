@@ -2,6 +2,12 @@
 
 ## Voice & Style
 
+<!-- Literary tic budgets: .authorkit/prompts/_shared/literary-tic-catalog.md
+     defines default budgets for AI-typical prose patterns. To waive or tighten
+     one for this book, name the pattern explicitly in a principle below — by
+     number, by example, or by description (e.g. "polysyndeton is part of the
+     voice"). Vague wording like "literary register" is not a waiver. -->
+
 ### [PRINCIPLE_1_NAME]
 <!-- Example: I. Narrative Voice -->
 [PRINCIPLE_1_DESCRIPTION]

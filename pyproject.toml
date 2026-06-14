@@ -1,14 +1,14 @@
 [project]
 name = "authorkit-cli"
-version = "0.3.3"
+version = "0.5.0"
 description = "Author Kit CLI installer and updater"
 requires-python = ">=3.11"
 dependencies = [
-    "typer",
-    "rich",
-    "openai",
-    "python-dotenv",
-    "mutagen",
+    "typer>=0.12",
+    "rich>=13",
+    "openai>=1.0",
+    "python-dotenv>=1.0",
+    "mutagen>=1.45",
 ]
 
 [project.scripts]

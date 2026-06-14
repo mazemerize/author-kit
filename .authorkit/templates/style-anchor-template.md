@@ -33,6 +33,6 @@
 
 ## Provenance
 
-- **Constitution**: `/memory/constitution.md`
+- **Constitution**: `.authorkit/memory/constitution.md`
 - **Approved Chapter Sources**: [CHXX, CHYY or N/A]
 - **Method**: Derived from constitution + last two approved chapter drafts before the target chapter

@@ -5,7 +5,6 @@
 AUTHORKIT_BOOK_DIR="book"
 AUTHORKIT_WORLD_DIR="world"
 AUTHORKIT_CHAPTERS_DIR="chapters"
-AUTHORKIT_CHECKLISTS_DIR="checklists"
 AUTHORKIT_DIST_DIR="dist"
 
 get_repo_root() {
@@ -30,11 +29,6 @@ get_current_branch() {
 
 test_has_git() {
   git rev-parse --show-toplevel >/dev/null 2>&1
-}
-
-test_book_branch() {
-  # Deprecated no-op retained for compatibility with older scripts.
-  return 0
 }
 
 get_book_paths() {
@@ -63,7 +57,6 @@ RESEARCH='$book_dir/research.md'
 CHARACTERS='$book_dir/characters.md'
 WORLD_DIR='$book_dir/$AUTHORKIT_WORLD_DIR'
 CHAPTERS_DIR='$book_dir/$AUTHORKIT_CHAPTERS_DIR'
-CHECKLISTS_DIR='$book_dir/$AUTHORKIT_CHECKLISTS_DIR'
 DIST_DIR='$book_dir/$AUTHORKIT_DIST_DIR'
 EOF
 }
