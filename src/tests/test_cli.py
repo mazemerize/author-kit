@@ -1980,3 +1980,90 @@ def test_init_drop_ai_confirmation_declined_keeps_existing_install():
         assert not Path(".claude/commands/authorkit.write.md").exists()
         manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
         assert manifest["ais"] == ["codex"]
+
+
+def test_book_audio_surfaces_runtime_error_cleanly(monkeypatch):
+    """A RuntimeError from generate_audiobook (TTS synthesis / ffmpeg concat
+    failure) must produce a clean non-zero exit with an actionable message,
+    mirroring `build`, instead of a bare traceback.
+    """
+    with isolated_filesystem():
+        _seed_book_tree()
+
+        def boom(**kwargs):
+            raise RuntimeError("CH01: OpenAI TTS synthesis failed on chunk 1/2: upstream 500")
+
+        monkeypatch.setattr(book_commands, "generate_audiobook", boom)
+        result = runner.invoke(cli.app, ["book", "audio", "--yes"])
+
+        assert result.exit_code == 1, result.output
+        assert "Audio generation failed" in result.output
+        assert "upstream 500" in result.output
+
+
+def test_status_tolerates_unreadable_parked_and_world_files(tmp_path, monkeypatch):
+    """`authorkit status` must honor its "missing files never raise" contract
+    even when parked-decisions.md / world/_index.md exist but can't be read.
+
+    We force the unreadable case portably by creating those paths as
+    directories: ``_exists`` is True but ``read_text`` raises an OSError
+    subclass (IsADirectoryError on POSIX, PermissionError on Windows), which
+    the guards in book_status must swallow.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    book_dir.mkdir()
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (book_dir / "chapters.md").write_text("- [X] CH01 Title - summary\n", encoding="utf-8")
+    (book_dir / "parked-decisions.md").mkdir()
+    (book_dir / "world").mkdir()
+    (book_dir / "world" / "_index.md").mkdir()
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["status"])
+
+    assert result.exit_code == 0, result.output
+    assert "Chapters:" in result.output
+
+
+def test_check_prerequisites_counts_only_numeric_chapter_dirs():
+    """check-prerequisites must report `chapters/` present only when a
+    pure-numeric chapter folder exists (book/chapters/NN/), matching the CLI's
+    discover_chapter_drafts convention — not for stray dirs like a `notes/`
+    sibling or a `01-old/` backup.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("bash"):
+        return  # bash regression test; skip where bash isn't available
+
+    repo_root = Path(__file__).resolve().parents[2]
+    common_sh = repo_root / ".authorkit" / "scripts" / "bash" / "common.sh"
+    prereq_sh = repo_root / ".authorkit" / "scripts" / "bash" / "check-prerequisites.sh"
+
+    def available_docs(chapter_subdir: str) -> list:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+            dst = tmp_path / ".authorkit" / "scripts" / "bash"
+            dst.mkdir(parents=True)
+            shutil.copy(common_sh, dst / "common.sh")
+            shutil.copy(prereq_sh, dst / "check-prerequisites.sh")
+            book = tmp_path / "book"
+            (book / "chapters" / chapter_subdir).mkdir(parents=True)
+            (book / "outline.md").write_text("# Outline\n", encoding="utf-8")
+            result = subprocess.run(
+                ["bash", str(dst / "check-prerequisites.sh"), "--json"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+            )
+            assert result.returncode == 0, result.stderr
+            return json.loads(result.stdout.strip())["AVAILABLE_DOCS"]
+
+    assert "chapters/" in available_docs("01")
+    assert "chapters/" not in available_docs("notes")
+    assert "chapters/" not in available_docs("01-old")
