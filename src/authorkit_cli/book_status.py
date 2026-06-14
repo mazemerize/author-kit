@@ -75,11 +75,12 @@ def _count_open_parked(
     if not _exists(parked_path):
         return 0, 0, None
 
-    # Tolerant by design (see collect_status): an existing-but-unreadable file
-    # must not crash the dashboard.
+    # Tolerant by design (see collect_status): an existing-but-unreadable or
+    # mis-encoded file must not crash the dashboard. UnicodeDecodeError is a
+    # ValueError, not an OSError, so it must be caught explicitly.
     try:
         text = parked_path.read_text(encoding="utf-8-sig")
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return 0, 0, None
     open_count = 0
     overdue_count = 0
@@ -126,11 +127,12 @@ def _count_world_index_stats(world_index_path: Path) -> tuple[int | None, int | 
     if not _exists(world_index_path):
         return None, None, None
 
-    # Tolerant by design (see collect_status): an existing-but-unreadable file
-    # must not crash the dashboard.
+    # Tolerant by design (see collect_status): an existing-but-unreadable or
+    # mis-encoded file must not crash the dashboard. UnicodeDecodeError is a
+    # ValueError, not an OSError, so it must be caught explicitly.
     try:
         text = world_index_path.read_text(encoding="utf-8-sig")
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None, None, None
     entities = re.search(r"\*\*Total entities\*\*:\s*(\d+)", text)
     aliases = re.search(r"\*\*Total aliases\*\*:\s*(\d+)", text)

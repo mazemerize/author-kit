@@ -98,12 +98,17 @@ function Test-FileExists {
 }
 
 function Test-DirHasChapterSubdirs {
-    # Only pure-numeric chapter folders (e.g. 01, 02) count as drafted chapters,
-    # mirroring the CLI's discover_chapter_drafts convention (book/chapters/NN/)
-    # so backups like `01-old/` don't make the dir look populated when
-    # build/stats/status would find nothing.
+    # Only pure-numeric chapter folders (e.g. 01, 02) that contain a draft.md
+    # count as drafted chapters, mirroring the CLI's discover_chapter_drafts
+    # convention (book/chapters/NN/draft.md) so backups like `01-old/` or an
+    # empty `01/` don't make the dir look populated when build/stats/status
+    # would find nothing. The ASCII [0-9] class matches the bash flavor (.NET
+    # \d would also accept non-ASCII Unicode digits).
     param([string]$Path)
     if (-not (Test-Path -Path $Path -PathType Container)) { return $false }
     return [bool](Get-ChildItem -Path $Path -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^\d+$' } | Select-Object -First 1)
+        Where-Object {
+            $_.Name -match '^[0-9]+$' -and
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'draft.md') -PathType Leaf)
+        } | Select-Object -First 1)
 }

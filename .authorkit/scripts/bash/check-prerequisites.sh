@@ -70,16 +70,18 @@ if $REQUIRE_CHAPTERS && [[ ! -f "$CHAPTERS" ]]; then
 fi
 
 dir_has_chapter_subdirs() {
-  # Only pure-numeric chapter folders (e.g. 01, 02) count as drafted chapters —
-  # this mirrors the CLI's discover_chapter_drafts convention (book/chapters/NN/)
-  # so backups like `01-old/` or stray dirs don't make the dir look populated
-  # when build/stats/status would find nothing.
+  # Only pure-numeric chapter folders (e.g. 01, 02) that contain a draft.md
+  # count as drafted chapters — this mirrors the CLI's discover_chapter_drafts
+  # convention (book/chapters/NN/draft.md) so backups like `01-old/`, stray
+  # dirs, or an empty `01/` don't make the dir look populated when
+  # build/stats/status would find nothing.
   [[ -d "$1" ]] || return 1
   local entry base
   for entry in "$1"/*/; do
     [[ -d "$entry" ]] || continue
     base=$(basename "$entry")
-    [[ "$base" =~ ^[0-9]+$ ]] && return 0
+    [[ "$base" =~ ^[0-9]+$ ]] || continue
+    [[ -f "${entry}draft.md" ]] && return 0
   done
   return 1
 }

@@ -2001,6 +2001,22 @@ def test_book_audio_surfaces_runtime_error_cleanly(monkeypatch):
         assert "upstream 500" in result.output
 
 
+def test_book_audio_surfaces_value_error_cleanly():
+    """An unsupported audio provider makes generate_audiobook raise ValueError
+    (not RuntimeError). The command must surface it cleanly like `build`, not as
+    a bare traceback. Exercises the real provider-validation path end-to-end
+    rather than monkeypatching the raise, so it also guards generate_audiobook's
+    contract.
+    """
+    with isolated_filesystem():
+        _seed_book_tree()
+        result = runner.invoke(cli.app, ["book", "audio", "--provider", "bogus", "--yes"])
+
+        assert result.exit_code == 1, result.output
+        assert "Audio generation failed" in result.output
+        assert "Unsupported audio provider" in result.output
+
+
 def test_status_tolerates_unreadable_parked_and_world_files(tmp_path, monkeypatch):
     """`authorkit status` must honor its "missing files never raise" contract
     even when parked-decisions.md / world/_index.md exist but can't be read.
@@ -2027,11 +2043,37 @@ def test_status_tolerates_unreadable_parked_and_world_files(tmp_path, monkeypatc
     assert "Chapters:" in result.output
 
 
+def test_status_tolerates_misencoded_parked_and_world_files(tmp_path, monkeypatch):
+    """`authorkit status` must also survive parked-decisions.md / world/_index.md
+    that exist but hold non-UTF-8 bytes (e.g. saved as cp1252/UTF-16). read_text
+    raises UnicodeDecodeError — a ValueError subclass, NOT an OSError — so the
+    guards must catch it explicitly or the dashboard crashes.
+    """
+    repo_root = tmp_path
+    (repo_root / ".authorkit").mkdir()
+    book_dir = repo_root / "book"
+    book_dir.mkdir()
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (book_dir / "chapters.md").write_text("- [X] CH01 Title - summary\n", encoding="utf-8")
+    # 0x97 is a lone continuation byte: invalid UTF-8 but legal cp1252 (em dash).
+    (book_dir / "parked-decisions.md").write_bytes(
+        b"## PD-001: thing\n**Status**: OPEN\n**Deadline**: Before CH12 \x97 soon\n"
+    )
+    (book_dir / "world").mkdir()
+    (book_dir / "world" / "_index.md").write_bytes(b"- **Total entities**: 5 \x97\n")
+
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(cli.app, ["status"])
+
+    assert result.exit_code == 0, result.output
+    assert "Chapters:" in result.output
+
+
 def test_check_prerequisites_counts_only_numeric_chapter_dirs():
-    """check-prerequisites must report `chapters/` present only when a
-    pure-numeric chapter folder exists (book/chapters/NN/), matching the CLI's
-    discover_chapter_drafts convention — not for stray dirs like a `notes/`
-    sibling or a `01-old/` backup.
+    """check-prerequisites must report `chapters/` present only for a pure-numeric
+    chapter folder that actually contains a draft.md (book/chapters/NN/draft.md),
+    matching the CLI's discover_chapter_drafts convention — not for stray dirs
+    like a `notes/` sibling, a `01-old/` backup, or an empty `01/` with no draft.
     """
     import shutil
     import subprocess
@@ -2042,13 +2084,13 @@ def test_check_prerequisites_counts_only_numeric_chapter_dirs():
     # distro" message and exits non-zero. _bash_with_working_python_available
     # actually executes bash and confirms it works before we depend on it.
     if not _bash_with_working_python_available():
-        return
+        pytest.skip("working bash + python not available on this host")
 
     repo_root = Path(__file__).resolve().parents[2]
     common_sh = repo_root / ".authorkit" / "scripts" / "bash" / "common.sh"
     prereq_sh = repo_root / ".authorkit" / "scripts" / "bash" / "check-prerequisites.sh"
 
-    def available_docs(chapter_subdir: str) -> list:
+    def available_docs(chapter_subdir: str, *, with_draft: bool = True) -> list:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
@@ -2057,7 +2099,10 @@ def test_check_prerequisites_counts_only_numeric_chapter_dirs():
             shutil.copy(common_sh, dst / "common.sh")
             shutil.copy(prereq_sh, dst / "check-prerequisites.sh")
             book = tmp_path / "book"
-            (book / "chapters" / chapter_subdir).mkdir(parents=True)
+            chapter_dir = book / "chapters" / chapter_subdir
+            chapter_dir.mkdir(parents=True)
+            if with_draft:
+                (chapter_dir / "draft.md").write_text("# Draft\n", encoding="utf-8")
             (book / "outline.md").write_text("# Outline\n", encoding="utf-8")
             result = subprocess.run(
                 ["bash", str(dst / "check-prerequisites.sh"), "--json"],
@@ -2071,12 +2116,16 @@ def test_check_prerequisites_counts_only_numeric_chapter_dirs():
     assert "chapters/" in available_docs("01")
     assert "chapters/" not in available_docs("notes")
     assert "chapters/" not in available_docs("01-old")
+    # A numeric folder with no draft.md must not count — discover_chapter_drafts
+    # requires the draft, so the prereq check must too.
+    assert "chapters/" not in available_docs("01", with_draft=False)
 
 
 def test_check_prerequisites_powershell_counts_only_numeric_chapter_dirs():
     """PowerShell parity for the numeric chapter-dir rule: check-prerequisites.ps1
-    must report `chapters/` only for pure-numeric folders, matching the bash
-    flavor and the CLI. Skips when no PowerShell runtime is available.
+    must report `chapters/` only for a pure-numeric folder that contains a
+    draft.md, matching the bash flavor and the CLI. Skips when no PowerShell
+    runtime is available.
     """
     import shutil
     import subprocess
@@ -2084,14 +2133,14 @@ def test_check_prerequisites_powershell_counts_only_numeric_chapter_dirs():
 
     pwsh_available = shutil.which("pwsh") or shutil.which("powershell")
     if not pwsh_available:
-        return  # PowerShell required; skip on hosts without it (e.g. plain Linux)
+        pytest.skip("PowerShell runtime not available on this host")
 
     ps_exe = "pwsh" if shutil.which("pwsh") else "powershell"
     repo_root = Path(__file__).resolve().parents[2]
     common_ps = repo_root / ".authorkit" / "scripts" / "powershell" / "common.ps1"
     prereq_ps = repo_root / ".authorkit" / "scripts" / "powershell" / "check-prerequisites.ps1"
 
-    def available_docs(chapter_subdir: str) -> list:
+    def available_docs(chapter_subdir: str, *, with_draft: bool = True) -> list:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
@@ -2100,7 +2149,10 @@ def test_check_prerequisites_powershell_counts_only_numeric_chapter_dirs():
             shutil.copy(common_ps, dst / "common.ps1")
             shutil.copy(prereq_ps, dst / "check-prerequisites.ps1")
             book = tmp_path / "book"
-            (book / "chapters" / chapter_subdir).mkdir(parents=True)
+            chapter_dir = book / "chapters" / chapter_subdir
+            chapter_dir.mkdir(parents=True)
+            if with_draft:
+                (chapter_dir / "draft.md").write_text("# Draft\n", encoding="utf-8")
             (book / "outline.md").write_text("# Outline\n", encoding="utf-8")
             result = subprocess.run(
                 [ps_exe, "-NoProfile", "-ExecutionPolicy", "Bypass",
@@ -2120,3 +2172,6 @@ def test_check_prerequisites_powershell_counts_only_numeric_chapter_dirs():
     assert "chapters/" in available_docs("01")
     assert "chapters/" not in available_docs("notes")
     assert "chapters/" not in available_docs("01-old")
+    # A numeric folder with no draft.md must not count — parity with the bash
+    # flavor and discover_chapter_drafts.
+    assert "chapters/" not in available_docs("01", with_draft=False)

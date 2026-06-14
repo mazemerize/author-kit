@@ -281,7 +281,7 @@ def parse_chapter_statuses(book_dir: Path) -> dict[int, str]:
     pattern = re.compile(r"^\s*-\s*\[(.)\]\s*CH(\d+)\b", re.IGNORECASE)
     try:
         text = chapters_path.read_text(encoding="utf-8-sig")
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return {}
 
     for line in text.splitlines():

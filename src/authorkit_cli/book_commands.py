@@ -215,10 +215,11 @@ def audio(
             dotenv_search_roots=[book_dir, repo_root],
             book_dir=book_dir,
         )
-    except RuntimeError as exc:
-        # generate_audiobook raises RuntimeError on TTS synthesis or ffmpeg
-        # concat failures. Mirror `build`'s clean exit + actionable hint rather
-        # than surfacing a traceback.
+    except (RuntimeError, ValueError) as exc:
+        # generate_audiobook raises ValueError on an unsupported provider and
+        # RuntimeError on a missing API key or TTS/ffmpeg failure. Mirror
+        # `build`'s clean exit + actionable hint rather than surfacing a
+        # traceback.
         console.print(f"[red]Audio generation failed:[/red] {exc}")
         console.print("[dim]Run `authorkit check` to verify ffmpeg is installed, and confirm your TTS API key is set.[/dim]")
         raise typer.Exit(code=1) from exc
