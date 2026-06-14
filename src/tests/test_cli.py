@@ -2067,3 +2067,52 @@ def test_check_prerequisites_counts_only_numeric_chapter_dirs():
     assert "chapters/" in available_docs("01")
     assert "chapters/" not in available_docs("notes")
     assert "chapters/" not in available_docs("01-old")
+
+
+def test_check_prerequisites_powershell_counts_only_numeric_chapter_dirs():
+    """PowerShell parity for the numeric chapter-dir rule: check-prerequisites.ps1
+    must report `chapters/` only for pure-numeric folders, matching the bash
+    flavor and the CLI. Skips when no PowerShell runtime is available.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    pwsh_available = shutil.which("pwsh") or shutil.which("powershell")
+    if not pwsh_available:
+        return  # PowerShell required; skip on hosts without it (e.g. plain Linux)
+
+    ps_exe = "pwsh" if shutil.which("pwsh") else "powershell"
+    repo_root = Path(__file__).resolve().parents[2]
+    common_ps = repo_root / ".authorkit" / "scripts" / "powershell" / "common.ps1"
+    prereq_ps = repo_root / ".authorkit" / "scripts" / "powershell" / "check-prerequisites.ps1"
+
+    def available_docs(chapter_subdir: str) -> list:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+            dst = tmp_path / ".authorkit" / "scripts" / "powershell"
+            dst.mkdir(parents=True)
+            shutil.copy(common_ps, dst / "common.ps1")
+            shutil.copy(prereq_ps, dst / "check-prerequisites.ps1")
+            book = tmp_path / "book"
+            (book / "chapters" / chapter_subdir).mkdir(parents=True)
+            (book / "outline.md").write_text("# Outline\n", encoding="utf-8")
+            result = subprocess.run(
+                [ps_exe, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", str(dst / "check-prerequisites.ps1"), "-Json"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+            )
+            assert result.returncode == 0, result.stderr
+            docs = json.loads(result.stdout.strip()).get("AVAILABLE_DOCS")
+            # ConvertTo-Json unwraps a single-element array to a scalar and an
+            # empty array to null — normalize both back to a list.
+            if docs is None:
+                return []
+            return [docs] if isinstance(docs, str) else docs
+
+    assert "chapters/" in available_docs("01")
+    assert "chapters/" not in available_docs("notes")
+    assert "chapters/" not in available_docs("01-old")
