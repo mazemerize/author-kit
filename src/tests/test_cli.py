@@ -1939,3 +1939,44 @@ def test_status_legend_is_printed_when_chapters_tracked(tmp_path, monkeypatch):
     flattened = " ".join(result.output.split())
     assert "legend:" in flattened
     assert "[X] approved" in flattened
+
+
+def test_init_drop_ai_confirmation_declined_keeps_existing_install():
+    """Re-running init with a narrower --ai set (and no --force) must warn that
+    dropping a flavor removes files, and abort cleanly when the user declines —
+    leaving the previous install untouched.
+
+    Then accepting the prompt must proceed with the swap. This exercises the
+    interactive confirmation branch that the --force rerun tests bypass.
+    """
+    base_args = [
+        "init",
+        ".",
+        "--script",
+        "sh",
+        "--here",
+        "--ignore-agent-tools",
+        "--no-git",
+    ]
+    with isolated_filesystem():
+        first = runner.invoke(cli.app, [*base_args, "--ai", "claude,copilot", "--force"])
+        assert first.exit_code == 0, first.output
+
+        # Without --force, init first confirms the merge into a non-empty dir
+        # ("y"), then the new drop-AI swap warning. Decline the swap ("n"): exit
+        # is clean (0) and nothing changes.
+        declined = runner.invoke(cli.app, [*base_args, "--ai", "codex"], input="y\nn\n")
+        assert declined.exit_code == 0, declined.output
+        assert "Switching AI flavors" in declined.output
+        assert Path(".claude/commands/authorkit.write.md").exists()
+        assert not Path(".codex/AGENTS.md").exists()
+        manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
+        assert manifest["ais"] == ["claude", "copilot"]
+
+        # Accept both prompts: the previous flavors are removed and codex installed.
+        accepted = runner.invoke(cli.app, [*base_args, "--ai", "codex"], input="y\ny\n")
+        assert accepted.exit_code == 0, accepted.output
+        assert Path(".codex/AGENTS.md").exists()
+        assert not Path(".claude/commands/authorkit.write.md").exists()
+        manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
+        assert manifest["ais"] == ["codex"]

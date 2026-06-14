@@ -75,7 +75,12 @@ def _count_open_parked(
     if not _exists(parked_path):
         return 0, 0, None
 
-    text = parked_path.read_text(encoding="utf-8-sig")
+    # Tolerant by design (see collect_status): an existing-but-unreadable file
+    # must not crash the dashboard.
+    try:
+        text = parked_path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return 0, 0, None
     open_count = 0
     overdue_count = 0
     nearest_deadline: str | None = None
@@ -121,7 +126,12 @@ def _count_world_index_stats(world_index_path: Path) -> tuple[int | None, int | 
     if not _exists(world_index_path):
         return None, None, None
 
-    text = world_index_path.read_text(encoding="utf-8-sig")
+    # Tolerant by design (see collect_status): an existing-but-unreadable file
+    # must not crash the dashboard.
+    try:
+        text = world_index_path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return None, None, None
     entities = re.search(r"\*\*Total entities\*\*:\s*(\d+)", text)
     aliases = re.search(r"\*\*Total aliases\*\*:\s*(\d+)", text)
 
