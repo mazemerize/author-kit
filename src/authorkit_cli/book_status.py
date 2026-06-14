@@ -75,7 +75,13 @@ def _count_open_parked(
     if not _exists(parked_path):
         return 0, 0, None
 
-    text = parked_path.read_text(encoding="utf-8-sig")
+    # Tolerant by design (see collect_status): an existing-but-unreadable or
+    # mis-encoded file must not crash the dashboard. UnicodeDecodeError is a
+    # ValueError, not an OSError, so it must be caught explicitly.
+    try:
+        text = parked_path.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        return 0, 0, None
     open_count = 0
     overdue_count = 0
     nearest_deadline: str | None = None
@@ -121,7 +127,13 @@ def _count_world_index_stats(world_index_path: Path) -> tuple[int | None, int | 
     if not _exists(world_index_path):
         return None, None, None
 
-    text = world_index_path.read_text(encoding="utf-8-sig")
+    # Tolerant by design (see collect_status): an existing-but-unreadable or
+    # mis-encoded file must not crash the dashboard. UnicodeDecodeError is a
+    # ValueError, not an OSError, so it must be caught explicitly.
+    try:
+        text = world_index_path.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError):
+        return None, None, None
     entities = re.search(r"\*\*Total entities\*\*:\s*(\d+)", text)
     aliases = re.search(r"\*\*Total aliases\*\*:\s*(\d+)", text)
 
@@ -213,8 +225,9 @@ def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
 def format_status_lines(report: StatusReport) -> list[str]:
     """Render the status report as a list of plain-text lines for the console.
 
-    Plain-text (no Rich markup) so that `--output text` and the default Rich
-    print path stay structurally identical — easier to test, easier to pipe.
+    Plain-text with no Rich markup: the caller prints each line with
+    ``markup=False`` so literal markers like ``[X]`` survive — and the output
+    stays easy to test and pipe.
     """
     lines: list[str] = []
     lines.append(f"Book: {report.book_dir.name} ({report.book_dir})")

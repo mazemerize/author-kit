@@ -98,8 +98,8 @@ $docs = @()
 if (Test-Path $paths.RESEARCH) { $docs += 'research.md' }
 if (Test-Path $paths.CHARACTERS) { $docs += 'characters.md' }
 
-# Check chapters directory (only if it exists and has subdirectories)
-if ((Test-Path $paths.CHAPTERS_DIR) -and (Get-ChildItem -Path $paths.CHAPTERS_DIR -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+# Check chapters directory (only if it has numeric chapter subdirectories)
+if (Test-DirHasChapterSubdirs $paths.CHAPTERS_DIR) {
     $docs += 'chapters/'
 }
 
@@ -122,7 +122,11 @@ if ($Json) {
 
     Test-FileExists -Path $paths.RESEARCH -Description 'research.md' | Out-Null
     Test-FileExists -Path $paths.CHARACTERS -Description 'characters.md' | Out-Null
-    Test-DirHasFiles -Path $paths.CHAPTERS_DIR -Description 'chapters/' | Out-Null
+    if (Test-DirHasChapterSubdirs $paths.CHAPTERS_DIR) {
+        Write-Output "  + chapters/"
+    } else {
+        Write-Output "  - chapters/"
+    }
 
     if ($IncludeChapters) {
         Test-FileExists -Path $paths.CHAPTERS -Description 'chapters.md' | Out-Null

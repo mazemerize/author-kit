@@ -204,16 +204,25 @@ def audio(
 
     audio_dir = Path(output_dir).resolve() if output_dir else (book_dir / DIST_DIR_NAME / "audio")
 
-    result = generate_audiobook(
-        drafts=drafts,
-        config=config,
-        audio_dir=audio_dir,
-        merge_output=merge,
-        force=force,
-        yes=yes,
-        dotenv_search_roots=[book_dir, repo_root],
-        book_dir=book_dir,
-    )
+    try:
+        result = generate_audiobook(
+            drafts=drafts,
+            config=config,
+            audio_dir=audio_dir,
+            merge_output=merge,
+            force=force,
+            yes=yes,
+            dotenv_search_roots=[book_dir, repo_root],
+            book_dir=book_dir,
+        )
+    except (RuntimeError, ValueError) as exc:
+        # generate_audiobook raises ValueError on an unsupported provider and
+        # RuntimeError on a missing API key or TTS/ffmpeg failure. Mirror
+        # `build`'s clean exit + actionable hint rather than surfacing a
+        # traceback.
+        console.print(f"[red]Audio generation failed:[/red] {exc}")
+        console.print("[dim]Run `authorkit check` to verify ffmpeg is installed, and confirm your TTS API key is set.[/dim]")
+        raise typer.Exit(code=1) from exc
 
     if not quiet:
         console.print(f"Audio directory: {audio_dir}")

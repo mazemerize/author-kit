@@ -69,14 +69,27 @@ if $REQUIRE_CHAPTERS && [[ ! -f "$CHAPTERS" ]]; then
   exit 1
 fi
 
-dir_has_subdirs() {
-  [[ -d "$1" ]] && find "$1" -mindepth 1 -maxdepth 1 -type d | head -n 1 | grep -q .
+dir_has_chapter_subdirs() {
+  # Only pure-numeric chapter folders (e.g. 01, 02) that contain a draft.md
+  # count as drafted chapters — this mirrors the CLI's discover_chapter_drafts
+  # convention (book/chapters/NN/draft.md) so backups like `01-old/`, stray
+  # dirs, or an empty `01/` don't make the dir look populated when
+  # build/stats/status would find nothing.
+  [[ -d "$1" ]] || return 1
+  local entry base
+  for entry in "$1"/*/; do
+    [[ -d "$entry" ]] || continue
+    base=$(basename "$entry")
+    [[ "$base" =~ ^[0-9]+$ ]] || continue
+    [[ -f "${entry}draft.md" ]] && return 0
+  done
+  return 1
 }
 
 docs=()
 [[ -f "$RESEARCH" ]] && docs+=("research.md")
 [[ -f "$CHARACTERS" ]] && docs+=("characters.md")
-if dir_has_subdirs "$CHAPTERS_DIR"; then
+if dir_has_chapter_subdirs "$CHAPTERS_DIR"; then
   docs+=("chapters/")
 fi
 if $INCLUDE_CHAPTERS && [[ -f "$CHAPTERS" ]]; then
@@ -100,7 +113,7 @@ else
   # the side effect with `|| true` so we keep printing the full doc list.
   check_file "$RESEARCH" "research.md" || true
   check_file "$CHARACTERS" "characters.md" || true
-  if dir_has_subdirs "$CHAPTERS_DIR"; then
+  if dir_has_chapter_subdirs "$CHAPTERS_DIR"; then
     echo "  + chapters/"
   else
     echo "  - chapters/"
