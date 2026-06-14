@@ -2037,8 +2037,12 @@ def test_check_prerequisites_counts_only_numeric_chapter_dirs():
     import subprocess
     import tempfile
 
-    if not shutil.which("bash"):
-        return  # bash regression test; skip where bash isn't available
+    # Use the round-tripping guard, not a bare which("bash"): on Windows runners
+    # `bash` resolves to the WSL launcher stub, which prints a UTF-16 "install a
+    # distro" message and exits non-zero. _bash_with_working_python_available
+    # actually executes bash and confirms it works before we depend on it.
+    if not _bash_with_working_python_available():
+        return
 
     repo_root = Path(__file__).resolve().parents[2]
     common_sh = repo_root / ".authorkit" / "scripts" / "bash" / "common.sh"
