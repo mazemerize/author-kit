@@ -97,17 +97,6 @@ function Test-FileExists {
     }
 }
 
-function Test-DirHasFiles {
-    param([string]$Path, [string]$Description)
-    if ((Test-Path -Path $Path -PathType Container) -and (Get-ChildItem -Path $Path -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer } | Select-Object -First 1)) {
-        Write-Output "  + $Description"
-        return $true
-    } else {
-        Write-Output "  - $Description"
-        return $false
-    }
-}
-
 function Test-DirHasChapterSubdirs {
     # Only pure-numeric chapter folders (e.g. 01, 02) count as drafted chapters,
     # mirroring the CLI's discover_chapter_drafts convention (book/chapters/NN/)

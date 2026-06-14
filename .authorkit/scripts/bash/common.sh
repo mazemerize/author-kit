@@ -80,13 +80,3 @@ check_file() {
   echo "  - $desc"
   return 1
 }
-
-check_dir_has_files() {
-  local path="$1" desc="$2"
-  if [[ -d "$path" ]] && find "$path" -type f | head -n 1 | grep -q .; then
-    echo "  + $desc"
-    return 0
-  fi
-  echo "  - $desc"
-  return 1
-}

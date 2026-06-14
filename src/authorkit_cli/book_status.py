@@ -223,8 +223,9 @@ def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
 def format_status_lines(report: StatusReport) -> list[str]:
     """Render the status report as a list of plain-text lines for the console.
 
-    Plain-text (no Rich markup) so that `--output text` and the default Rich
-    print path stay structurally identical — easier to test, easier to pipe.
+    Plain-text with no Rich markup: the caller prints each line with
+    ``markup=False`` so literal markers like ``[X]`` survive — and the output
+    stays easy to test and pipe.
     """
     lines: list[str] = []
     lines.append(f"Book: {report.book_dir.name} ({report.book_dir})")
