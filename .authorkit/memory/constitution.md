@@ -38,6 +38,22 @@
 [PRINCIPLE_6_DESCRIPTION]
 <!-- Example: New names must be distinctive and setting-appropriate; avoid stock defaults and repeated name patterns. New numeric facts require rationale (logistical, historical, or narrative). If exact values are uncertain, use bounded ranges or explicit uncertainty. -->
 
+## Voice Origin
+
+<!-- The fixed reference that book/style-anchor.md is built from and that reviews
+     grade voice against, so drift is measured from a point that does not move.
+     DEFAULT (leave empty): the earliest approved ([X]) chapter(s). Override only
+     to fix an unrepresentative opening (e.g. a prologue in a different register)
+     or to record a deliberate voice shift at a stage of the book. Re-pinning is a
+     sanctioned voice evolution — record it here; the style anchor and reviews must
+     never switch the voice bar silently per run. Continuity/arc references (the
+     last time we saw a character, where an arc stands) are chosen dynamically and
+     are NOT governed by this pin.
+     Format (optional, stage-scoped by chapter number):
+       - From CH01: CH02      # CH01 is a prologue in a different register
+       - From CH40: CH38      # sanctioned darker voice after the timeskip
+-->
+
 ## [SECTION_2_NAME]
 <!-- Example: Content & Thematic Boundaries, Research Standards, Sensitivity Guidelines, etc. -->
 

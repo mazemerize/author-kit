@@ -864,6 +864,10 @@ def test_write_prompt_enforces_style_anchor_workflow():
         assert "fixed origin" in write_prompt
         assert "earliest" in write_prompt
         assert "last two approved chapters" not in write_prompt
+        # The origin is overridable via a recorded constitution pin, defaulting
+        # to earliest — so an unrepresentative opening or a sanctioned voice
+        # shift can be pinned without letting the bar drift silently.
+        assert "Voice Origin" in write_prompt
         assert "templates/style-anchor-template.md" in write_prompt
 
 

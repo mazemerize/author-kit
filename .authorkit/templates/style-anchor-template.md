@@ -35,4 +35,4 @@
 
 - **Constitution**: `.authorkit/memory/constitution.md`
 - **Origin Chapter Sources**: [earliest approved CHs, or N/A]
-- **Method**: Derived from the fixed origin — constitution + concept voice/tone + the earliest approved chapter drafts. Does not follow recent chapters.
+- **Method**: Derived from the fixed origin — constitution + concept voice/tone + the origin chapter(s) (a constitution `## Voice Origin` pin if set, else the earliest approved). Does not follow recent chapters.

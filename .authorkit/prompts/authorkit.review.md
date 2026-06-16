@@ -54,7 +54,7 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 3. **Load core context** (used by both modes). Load the fixed references *first* and hold them as the bar **before** reading the chapter under review, so the standard is set in advance rather than calibrated to the prose in front of you:
    - `.authorkit/memory/constitution.md` — all writing principles (the fixed bar)
    - `concept.md` — premise, themes, characters/subjects, voice & tone, scope
-   - **Origin reference (the fixed drift baseline)** — identify the lowest-numbered approved (`[X]`) chapters in `chapters.md` and load 1–2 of their drafts as a concrete exemplar of the book's established voice. If fewer than two chapters are approved yet, the origin is the constitution plus the concept's voice & tone section alone. This origin does **not** move as the book grows.
+   - **Origin reference (the fixed drift baseline)** — resolve the voice origin: if the constitution has a `## Voice Origin` pin covering this chapter's stage, load the chapter(s) it names; otherwise default to the lowest-numbered approved (`[X]`) chapters (load 1–2 drafts). If fewer than two chapters are approved yet, the origin is the constitution plus the concept's voice & tone section alone. This origin does **not** move as the book grows. If you judge a different chapter to be a better voice exemplar (e.g. the opening is an atypical prologue), *propose* pinning it via `/authorkit.discuss` (Constitution mode) — never silently switch the bar, which would let drift hide behind a convenient anchor.
    - `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` — cadence, diction/register, imagery density, dialogue profile, drift flags. Use it as a continuity aid, but remember it is only a *derived* view of the origin (and may be stale or hand-edited): where it disagrees with the constitution or the origin, the constitution and origin win.
 
 4. **Report** at the end with a clear summary and concrete next-command suggestions.
@@ -77,7 +77,7 @@ For a single chapter number `N`.
 - **Recommended**: `outline.md` (chapter's role in overall structure)
 - **Optional**: `research.md` and relevant `research/` topic files (recursive — scope `general` and `chapter CHNN`) for accuracy checks
 - **Recommended**: `world/` files — load entity files across all categories for entities appearing in or relevant to this chapter. If `world/_index.md` exists, scan the draft for entity names and resolve them via the Alias Lookup (catches variants like "Captain Iri" ↔ "Iria Calder"); use the Chapter Manifest to identify entities tagged for this chapter; load only matched files.
-- **Optional**: Previous and next chapter drafts (continuity)
+- **Recommended — continuity & arc references**: choose by *relevance*, not just `N±1` — the adjacent drafts, plus the most recent chapter(s) featuring this chapter's POV/focus characters and the chapter that last advanced an arc converging here (use the `world/_index.md` Chapter Manifest + Alias Lookup). Read widely here for continuity; this is separate from the fixed voice origin you grade voice against.
 - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)
 
 ### Assess across dimensions

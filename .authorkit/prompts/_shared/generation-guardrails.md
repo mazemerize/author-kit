@@ -23,7 +23,8 @@
 
 - Constitution is the primary style authority.
 - For prose continuity, also ground style decisions in `book/style-anchor.md`.
-- Build or refresh `book/style-anchor.md` from the **fixed origin** — the constitution, the concept's voice & tone, and the *earliest* approved (`[X]`) chapters (lowest chapter numbers), never the most recent ones. The origin is a stable bar that does not follow drift; continuity with recent chapters comes from loading the previous chapter draft, not from the anchor.
+- Resolve the **voice origin** (the fixed reference the anchor grades against): if the constitution has a `## Voice Origin` pin covering the target chapter's stage, use the chapter(s) it names; otherwise default to the *earliest* approved (`[X]`) chapters (lowest numbers). The pin is a recorded, author-sanctioned override — propose it via `/authorkit.discuss` (Constitution mode); never switch the voice bar silently per run.
+- Build or refresh `book/style-anchor.md` from that **fixed origin** — constitution + concept voice/tone + the resolved origin chapter(s), never the most recent ones. The origin is a stable bar that does not follow drift; continuity with recent chapters comes from loading the previous chapter draft (chosen by relevance — same characters / converging arcs), not from the anchor.
   - Earliest approved chapters available: constitution + concept voice/tone + the earliest one or two approved drafts.
   - One approved chapter available: constitution + concept voice/tone + that draft.
   - None approved: constitution + concept voice/tone only.
