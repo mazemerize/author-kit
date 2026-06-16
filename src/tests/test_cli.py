@@ -834,7 +834,9 @@ def test_write_prompt_enforces_style_anchor_workflow():
     Style continuity was previously enforced across chapter.plan / chapter.draft /
     chapter.review; in v0.5.0 it all lives in /authorkit.write, which runs plan +
     draft + revise + reconcile and refreshes the anchor before every prose-producing
-    mode.
+    mode. The anchor is sourced from the *fixed origin* (constitution + concept
+    voice/tone + the earliest approved chapters), not a trailing window of recent
+    approvals — so the voice bar resists drift instead of following it.
     """
     with isolated_filesystem():
         result = runner.invoke(
@@ -857,7 +859,11 @@ def test_write_prompt_enforces_style_anchor_workflow():
         write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
 
         assert "STYLE_ANCHOR" in write_prompt
-        assert "last two approved chapters" in write_prompt
+        # Anchor sources from the fixed origin (earliest approved chapters),
+        # not a trailing "last two approved" window that follows drift.
+        assert "fixed origin" in write_prompt
+        assert "earliest" in write_prompt
+        assert "last two approved chapters" not in write_prompt
         assert "templates/style-anchor-template.md" in write_prompt
 
 

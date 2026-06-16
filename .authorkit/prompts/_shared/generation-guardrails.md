@@ -23,10 +23,10 @@
 
 - Constitution is the primary style authority.
 - For prose continuity, also ground style decisions in `book/style-anchor.md`.
-- Build or refresh `book/style-anchor.md` from the last two approved chapters before the target chapter:
-  - Two approved chapters available: constitution + last two approved drafts.
-  - One approved chapter available: constitution + that draft.
-  - None approved: constitution only.
+- Build or refresh `book/style-anchor.md` from the **fixed origin** — the constitution, the concept's voice & tone, and the *earliest* approved (`[X]`) chapters (lowest chapter numbers), never the most recent ones. The origin is a stable bar that does not follow drift; continuity with recent chapters comes from loading the previous chapter draft, not from the anchor.
+  - Earliest approved chapters available: constitution + concept voice/tone + the earliest one or two approved drafts.
+  - One approved chapter available: constitution + concept voice/tone + that draft.
+  - None approved: constitution + concept voice/tone only.
 - Keep prose aligned on POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behavior defined by the style anchor.
 
 ### Literary Tic Avoidance
