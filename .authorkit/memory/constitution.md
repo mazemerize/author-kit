@@ -49,6 +49,10 @@
      never switch the voice bar silently per run. Continuity/arc references (the
      last time we saw a character, where an arc stands) are chosen dynamically and
      are NOT governed by this pin.
+     To ACTIVATE a pin, write its `From CHnn: ...` line(s) as real text directly
+     under the `## Voice Origin` heading, OUTSIDE this comment — write/review read
+     only active content, not this commented example. Empty (comment only) = the
+     default earliest-approved origin.
      Format (optional, stage-scoped by chapter number) — each line reads
      "From CHnn: <exemplar chapter(s)>", meaning chapters numbered >= nn grade
      against the named exemplar(s). When several lines are present, the one with
