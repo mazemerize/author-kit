@@ -49,9 +49,14 @@
      never switch the voice bar silently per run. Continuity/arc references (the
      last time we saw a character, where an arc stands) are chosen dynamically and
      are NOT governed by this pin.
-     Format (optional, stage-scoped by chapter number):
-       - From CH01: CH02      # CH01 is a prologue in a different register
-       - From CH40: CH38      # sanctioned darker voice after the timeskip
+     Format (optional, stage-scoped by chapter number) — each line reads
+     "From CHnn: <exemplar chapter(s)>", meaning chapters numbered >= nn grade
+     against the named exemplar(s). When several lines are present, the one with
+     the highest "From CHnn" at or below the target chapter applies. Name an
+     exemplar at or after the stage boundary (a chapter that already embodies the
+     new voice), never an earlier one:
+       - From CH01: CH02      # CH01 is an atypical prologue; grade everything against CH02
+       - From CH40: CH41      # sanctioned darker voice from the timeskip; CH41 is the first approved chapter in it
 -->
 
 ## [SECTION_2_NAME]
