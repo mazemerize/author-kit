@@ -42,6 +42,8 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 - **Drift remediation is gated.** After presenting drift findings, you MAY offer to update upstream planning documents (concept, outline, chapters.md, world/). **Never** modify chapter drafts under any circumstance. Wait for explicit user approval before any write. Decline / skip = command stays fully read-only.
 - **Constitution Authority.** The book constitution (`.authorkit/memory/constitution.md`) is the authoritative style guide. Constitution violations are automatically CRITICAL.
 - **Style Continuity Anchor.** `book/style-anchor.md` is the continuity baseline across model switches. Style-anchor drift is at least MEDIUM severity.
+- **Fixed voice origin is the drift baseline — not the anchor, not the neighbors.** The constitution is the *fixed* bar. Establish a **fixed origin**: the constitution, plus the concept's voice & tone section, plus the resolved origin chapters (the `## Voice Origin` pin if set, else the *earliest* approved (`[X]`) chapters). Grade *global* voice against that origin; match character/scene *texture* to the earliest relevant approved chapter (it may add to the origin, never lower it). `book/style-anchor.md` is only a derived continuity aid — `/authorkit.write` regenerates it from that same origin, but a stale or hand-edited anchor can lag, so never treat the anchor (or the immediately adjacent chapters) as the standard for what "good" sounds like. A chapter that matches its recently-drifted neighbors but has slipped from the origin **is** drifting, and that is a finding — not a defense.
+- **Hunt for drift; default to flagging it.** Assume the manuscript is gradually slipping from its origin and look for where. "Consistent with recent chapters" is the *mechanism* of drift, not an excuse for it. The only sanctioned voice change is evolution the constitution (or a recorded act-boundary note) explicitly calls for; treat everything else as unsanctioned drift. When unsure whether a shift is intentional, flag it and let the author decide.
 
 ## Always-on Behavior
 
@@ -49,10 +51,11 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 
 2. **Determine scope** from user input as above. Normalize chapter numbers to two-digit (`01`, `02`, …).
 
-3. **Load core context** (used by both modes):
+3. **Load core context** (used by both modes). Load the fixed references *first* and hold them as the bar **before** reading the chapter under review, so the standard is set in advance rather than calibrated to the prose in front of you:
+   - `.authorkit/memory/constitution.md` — all writing principles (the fixed bar)
    - `concept.md` — premise, themes, characters/subjects, voice & tone, scope
-   - `.authorkit/memory/constitution.md` — all writing principles
-   - `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` — cadence, diction/register, imagery density, dialogue profile, drift flags
+   - **Origin reference (the fixed drift baseline — global voice)** — resolve the voice origin: if the constitution has a `## Voice Origin` pin covering this chapter's stage, load the chapter(s) it names; otherwise default to the *earliest* (lowest-numbered) approved (`[X]`) chapters. Two or more approved: load the earliest one or two drafts; exactly one approved: load that one draft; none approved: the origin is the constitution plus the concept's voice & tone section alone. This origin governs *global* voice and does **not** move as the book grows. If you judge a different chapter to be a better voice exemplar (e.g. the opening is an atypical prologue), *propose* pinning it via `/authorkit.discuss` (Constitution mode) — never silently switch the bar, which would let drift hide behind a convenient anchor.
+   - `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` — cadence, diction/register, imagery density, dialogue profile, drift flags. Use it as a continuity aid, but remember it is only a *derived* view of the origin (and may be stale or hand-edited): where it disagrees with the constitution or the origin, the constitution and origin win.
 
 4. **Report** at the end with a clear summary and concrete next-command suggestions.
 
@@ -74,7 +77,8 @@ For a single chapter number `N`.
 - **Recommended**: `outline.md` (chapter's role in overall structure)
 - **Optional**: `research.md` and relevant `research/` topic files (recursive — scope `general` and `chapter CHNN`) for accuracy checks
 - **Recommended**: `world/` files — load entity files across all categories for entities appearing in or relevant to this chapter. If `world/_index.md` exists, scan the draft for entity names and resolve them via the Alias Lookup (catches variants like "Captain Iri" ↔ "Iria Calder"); use the Chapter Manifest to identify entities tagged for this chapter; load only matched files.
-- **Optional**: Previous and next chapter drafts (continuity)
+- **Recommended — voice texture exemplar**: for character/scene/arc voice the origin leaves open, load the **earliest *relevant* approved chapter** — the lowest-numbered `[X]` draft featuring this chapter's POV/focus characters or the same arc register (use the `world/_index.md` Chapter Manifest + Alias Lookup). It is the bar for *texture* (this character's cadence, this arc's register), but it may only *add* to the fixed origin, never lower it. Pick the *earliest* relevant draft, not the most recent.
+- **Recommended — continuity & arc references**: for plot/thread/state, choose by *relevance*, not just `N±1` — the adjacent drafts, plus the **most recent** chapter(s) featuring this chapter's POV/focus characters and the chapter that last advanced an arc converging here. This is current-state context for *what happens*; voice is still graded against the fixed origin (global) and matched to the earliest-relevant exemplar (texture), never against a drifted neighbour.
 - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)
 
 ### Assess across dimensions
@@ -95,6 +99,7 @@ For a single chapter number `N`.
 - Does the prose style match the constitution's standards?
 - Are any constitution principles violated?
 - Does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile?
+- **Voice fidelity vs origin (global)**: compare the chapter's *global* voice — POV, narrative distance, sentence rhythm, diction/register, imagery — against the **fixed origin** (constitution + concept voice/tone + the resolved origin chapters: the `## Voice Origin` pin if one covers this stage, else the earliest approved chapters), not merely against the style anchor or the previous chapter. Flag drift from the origin even when the chapter reads as locally consistent with its neighbors. Character/scene/arc *texture* (a POV character's cadence, an arc's register) is matched against the earliest-relevant exemplar and assessed under Continuity (E), not here. Distinguish *unsanctioned* drift (a finding, at least Important; Critical if it is also a constitution violation) from *constitution-sanctioned* evolution (not a finding). Quote the specific lines that diverge.
 
 #### B1. LLM Literary Tic Audit
 
@@ -147,7 +152,7 @@ For each contradiction found, cite the specific `world/` file, the tagged entry,
 
 - Does this chapter flow naturally from the previous one?
 - Any contradictions with earlier chapters?
-- Is voice/energy consistent across chapters?
+- Does this chapter's character/scene/arc voice *texture* match the earliest **relevant** approved chapter (same POV/focus character or arc register), not just whatever chapter came before it? (Global voice drift is graded separately under B / Voice Fidelity vs Origin — being "consistent with a recent chapter" does not excuse drift from the origin.)
 - Are ongoing threads properly continued?
 - **Backstory verification**: for every factual claim this chapter makes about events from prior chapters (flashbacks, references, "he had done X in CH03"), grep the actual draft text of that chapter and verify the claim is accurate. Do not trust the plan or outline — verify against the drafted prose. Flag any claim that contradicts what was written. Especially important for arrival details, exact lines of dialogue, and who instructed whom.
 
@@ -195,6 +200,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 |-----------|-------|-------|
 | Plan Adherence | [A/B/C/D] | [Brief note] |
 | Constitution Compliance | [A/B/C/D] | [Brief note] |
+| Voice Fidelity (vs Origin) | [A/B/C/D] | [Global-voice drift from the origin (pin / earliest [X]); note if sanctioned] |
 | Style Anchor Compliance | [A/B/C/D] | [Brief note] |
 | LLM Tic Audit | [A/B/C/D] | [Patterns over budget; active waivers, if any] |
 | Craft Quality | [A/B/C/D] | [Brief note] |
@@ -353,6 +359,17 @@ Focus on high-signal findings. Limit to 50 total findings (excluding drift findi
 - Drift from `book/style-anchor.md` profile
 - **LLM tic density across chapters**: load `.authorkit/prompts/_shared/literary-tic-catalog.md` and aggregate pattern counts across all drafted chapters in scope. Honor any constitution waivers (skip the corresponding patterns). Flag any pattern whose cross-chapter density is ≥2× the per-chapter budget on average, even if no single chapter is over budget on its own — this catches voice drift toward AI-flavoured prose that any single chapter could plausibly defend. Also check pattern 19's consecutive-chapter component here: three or more chapters in a row ending on the same zoom-out coda cadence is a voice-drift finding no single chapter can trip. Severity: HIGH for patterns 7 and 13; MEDIUM for the rest.
 
+#### E1. Drift Trajectory (slope vs origin)
+
+Per-chapter checks catch absolute violations but miss *gradual* drift where every chapter is individually defensible yet the book has slid a long way from where it started. Establish the **fixed origin** (constitution + concept voice/tone + the resolved origin chapters — the `## Voice Origin` pin if set, else the earliest approved) and trace the *direction* of change across the chapter sequence, not just per-chapter compliance:
+
+- Read the chapters in order and track the trend of: average and variance of sentence length, paragraph shape, dialogue ratio, diction/register, and tic density.
+- Flag a **monotonic slope away from the origin** even when no single chapter breaches a budget — e.g. sentence length creeping up act over act, dialogue steadily thinning, register drifting more (or less) literary, the same epiphany-coda cadence recurring across runs of chapters.
+- **Origin jump test**: compare the latest chapters directly against the origin chapters (the `## Voice Origin` pin if set, else the earliest approved). If a reader started at the origin and jumped to the latest chapter, would it read as the same book, same narrator, same voice? Quote the divergence.
+- **Calibration sanity check**: re-read the *resolved origin* chapter (the `## Voice Origin` pin if set, else the earliest approved) against the *current* constitution and style anchor. If that origin chapter would no longer pass today's bar, the **bar has drifted** — e.g. a stale or hand-edited style anchor, or a voice evolution that was never recorded in the constitution. (If a pin already excludes an atypical opening, grade against the pinned exemplar — do not re-flag the excluded chapter.) Flag it and recommend re-grounding the anchor via `/authorkit.write` (which regenerates it from the origin), or recording the shift in `## Voice Origin`.
+
+Severity: HIGH if the trajectory crosses a budget or a constitution principle by the latest chapters; MEDIUM for a clear unsanctioned slope still within budget. Distinguish constitution-sanctioned evolution from unsanctioned drift; when ambiguous, surface it for the author to judge.
+
 #### F. Argument Coherence (Non-Fiction)
 - Claims made without support
 - Contradictory statements across chapters
@@ -447,6 +464,18 @@ Output a Markdown report (no file write unless the author asks to save):
 | [Tense] | FAIL | CH04, CH09 |
 | [Style Anchor] | [PASS/FAIL] | [chapters] |
 
+### Drift Trajectory (vs Origin)
+
+| Metric | Origin (pin / earliest [X]) | Latest | Direction | Verdict |
+|--------|----------------------|--------|-----------|---------|
+| Avg sentence length | [n] | [n] | [rising/flat/falling] | [OK/Watch/Flag] |
+| Dialogue ratio | [n] | [n] | [rising/flat/falling] | [OK/Watch/Flag] |
+| Tic density (per 1k) | [n] | [n] | [rising/flat/falling] | [OK/Watch/Flag] |
+| Register / diction | [origin feel] | [latest feel] | [drift direction] | [OK/Watch/Flag] |
+
+*Origin jump test*: [does the latest chapter still read as the same book as the origin? quote any divergence]
+*Bar calibration*: [does the resolved origin chapter (pin if set, else earliest [X]) still pass today's constitution + style anchor? if not, the anchor has drifted — recommend re-grounding]
+
 ### World Consistency (if world/ exists)
 
 | Category | Entries Checked | Conflicts Found | Details |
@@ -494,10 +523,11 @@ For an input like `5-10` or `chapters 5-10`:
 
 - **Be constructive**: every criticism comes with a specific suggestion.
 - **Be specific**: quote the draft, reference line locations, give concrete examples.
-- **Respect the author's voice**: don't try to rewrite in a different style — evaluate against the constitution.
+- **Respect the author's voice**: don't try to rewrite in a different style — evaluate against the constitution and the origin, never against your own taste.
+- **Anchor to the origin, not the neighbors**: grade *global* voice against the fixed origin (constitution + concept voice/tone + the pinned-or-earliest approved chapters); match *character/scene texture* to the earliest **relevant** approved chapter. "Consistent with the last chapter" never establishes that something is correct — recent chapters may already have drifted.
 - **Prioritize ruthlessly**: one critical + three minor issues → critical first.
 - **Grade fairly**: A = exceptional, B = solid, C = adequate, D = needs significant work.
-- **PASS threshold**: no critical issues, no more than 2 important issues, constitution compliance is B or above.
+- **PASS threshold**: no critical issues, no more than 2 important issues, constitution compliance is B or above, and Voice Fidelity (vs Origin) is B or above (no significant *unsanctioned* drift from the origin).
 - **Reviews are gated**: a chapter review writes only `chapters/NN/review.md` and updates the chapter row in `chapters.md`. A manuscript drift run writes nothing unless the author approves drift fixes — and those fixes touch only upstream planning artifacts (concept / outline / chapters.md / world), never chapter drafts. Consolidation fixes (1e/1f) additionally write a pre-consolidate snapshot before applying.
 - **Cap manuscript findings at 50** to keep reports actionable.
 - **Use absolute paths.**

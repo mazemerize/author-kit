@@ -834,7 +834,13 @@ def test_write_prompt_enforces_style_anchor_workflow():
     Style continuity was previously enforced across chapter.plan / chapter.draft /
     chapter.review; in v0.5.0 it all lives in /authorkit.write, which runs plan +
     draft + revise + reconcile and refreshes the anchor before every prose-producing
-    mode.
+    mode. The anchor is sourced from the *fixed origin* (constitution + concept
+    voice/tone + the earliest approved chapters), not a trailing window of recent
+    approvals — so the voice bar resists drift instead of following it. Voice is
+    two-layered: the fixed origin is the global drift bar, while character/scene
+    texture is matched against the earliest *relevant* approved chapter — an
+    intelligent choice that still resists drift because it anchors to the earliest
+    match, not a trailing one.
     """
     with isolated_filesystem():
         result = runner.invoke(
@@ -857,7 +863,21 @@ def test_write_prompt_enforces_style_anchor_workflow():
         write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
 
         assert "STYLE_ANCHOR" in write_prompt
-        assert "last two approved chapters" in write_prompt
+        # Anchor sources from the fixed origin (earliest approved chapters),
+        # not a trailing "last two approved" window that follows drift.
+        assert "fixed origin" in write_prompt
+        assert "earliest" in write_prompt
+        assert "last two approved chapters" not in write_prompt
+        # The origin is overridable via a recorded constitution pin, defaulting
+        # to earliest — so an unrepresentative opening or a sanctioned voice
+        # shift can be pinned without letting the bar drift silently.
+        assert "Voice Origin" in write_prompt
+        # Two-layer voice model: global voice holds to the fixed origin, while
+        # character/scene/arc *texture* matches the earliest *relevant* approved
+        # chapter (intelligent selection that still anchors to the earliest match,
+        # not a trailing one).
+        assert "texture exemplar" in write_prompt
+        assert "earliest *relevant*" in write_prompt
         assert "templates/style-anchor-template.md" in write_prompt
 
 
