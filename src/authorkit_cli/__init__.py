@@ -23,6 +23,7 @@ import typer
 from rich.console import Console
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
+from .autopilot_commands import autopilot_app
 from .book_commands import book_app
 from .book_core import find_repo_root, resolve_book_dir, to_json
 from .book_status import collect_status, format_status_lines, status_report_to_obj
@@ -31,6 +32,7 @@ from .book_status import collect_status, format_status_lines, status_report_to_o
 console = Console()
 app = typer.Typer(add_completion=False, help="Author Kit project installer")
 app.add_typer(book_app, name="book")
+app.add_typer(autopilot_app, name="autopilot")
 
 # CLI banner (ASCII only).
 BANNER = r"""

@@ -18,6 +18,9 @@ import authorkit_cli.book_core as book_core
 import authorkit_cli.book_commands as book_commands
 import authorkit_cli.book_audio as book_audio
 import authorkit_cli.book_render as book_render
+import authorkit_cli.autopilot_core as autopilot_core
+import authorkit_cli.autopilot_runner as autopilot_runner
+import authorkit_cli.autopilot_commands as autopilot_commands
 from typer.testing import CliRunner
 
 
@@ -2216,3 +2219,318 @@ def test_check_prerequisites_powershell_counts_only_numeric_chapter_dirs():
     # A numeric folder with no draft.md must not count — parity with the bash
     # flavor and discover_chapter_drafts.
     assert "chapters/" not in available_docs("01", with_draft=False)
+
+
+# --- AutoPilot (authorkit autopilot) -----------------------------------------
+
+
+def _seed_autopilot_book(tmp_path, *, chapters_md=None, constitution_filled=True):
+    """Seed a tmp repo good enough for chapters-mode preflight.
+
+    Creates `.authorkit/` (so find_repo_root resolves here) with a filled (or
+    template) constitution, plus book/{concept,outline,chapters}.md.
+    """
+    book_dir = tmp_path / "book"
+    book_dir.mkdir(parents=True, exist_ok=True)
+    (book_dir / "concept.md").write_text("# Concept\n\nPremise.\n", encoding="utf-8")
+    (book_dir / "outline.md").write_text("# Outline\n\nCH01 ...\n", encoding="utf-8")
+    if chapters_md is None:
+        chapters_md = (
+            "# Chapters\n\n"
+            "- [D] CH01 The Arrival - First chapter\n"
+            "- [P] CH02 The Catalogue - Second chapter\n"
+        )
+    (book_dir / "chapters.md").write_text(chapters_md, encoding="utf-8")
+
+    mem = tmp_path / ".authorkit" / "memory"
+    mem.mkdir(parents=True, exist_ok=True)
+    if constitution_filled:
+        constitution = "# My Book Constitution\n\n## Voice & Style\n\n### I. Voice\n\nThird person limited, past tense.\n"
+    else:
+        constitution = "# [BOOK_TITLE] Constitution\n\n### [PRINCIPLE_1_NAME]\n\n[PRINCIPLE_1_DESCRIPTION]\n"
+    (mem / "constitution.md").write_text(constitution, encoding="utf-8")
+    return book_dir
+
+
+def test_parse_directive_variants():
+    """parse_directive accepts dicts and fenced JSON, and rejects malformed replies."""
+    drafted = autopilot_core.parse_directive(
+        {"action": "draft", "chapter": 3, "command": "/authorkit.write 3", "reason": "x"}
+    )
+    assert drafted.action == "draft" and drafted.chapter == 3 and drafted.command == "/authorkit.write 3"
+
+    fenced = autopilot_core.parse_directive('prose...\n```json\n{"action": "done", "reason": "all set"}\n```\n')
+    assert fenced.action == "done"
+
+    with pytest.raises(autopilot_core.DirectiveError):
+        autopilot_core.parse_directive({"action": "frobnicate"})
+    with pytest.raises(autopilot_core.DirectiveError):
+        autopilot_core.parse_directive({"action": "review"})  # act action needs a command
+    with pytest.raises(autopilot_core.DirectiveError):
+        autopilot_core.parse_directive({"action": "escalate", "escalation": {}})  # needs decision_needed
+    with pytest.raises(autopilot_core.DirectiveError):
+        autopilot_core.parse_directive("not json at all")
+
+
+def test_next_escalation_id_sequences(tmp_path):
+    """next_escalation_id returns ESC-001 when empty and increments past the max."""
+    escalations = tmp_path / "escalations"
+    escalations.mkdir()
+    assert autopilot_core.next_escalation_id(escalations) == "ESC-001"
+    (escalations / "2026-01-01-ESC-001-a.md").write_text("# ESC-001\n", encoding="utf-8")
+    (escalations / "2026-01-02-ESC-007-b.md").write_text("# ESC-007\n", encoding="utf-8")
+    assert autopilot_core.next_escalation_id(escalations) == "ESC-008"
+
+
+def test_autopilot_preflight_refuses_without_concept(tmp_path, monkeypatch):
+    """`autopilot chapters` refuses (exit 2) when the seed (concept.md) is missing."""
+    (tmp_path / ".authorkit").mkdir()
+    (tmp_path / "book").mkdir()
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2"])
+    assert result.exit_code == 2, result.output
+    assert "preflight failed" in result.output
+    assert "concept.md" in result.output
+    assert "/authorkit.discuss" in result.output
+
+
+def test_autopilot_chapters_preflight_requires_outline(tmp_path, monkeypatch):
+    """chapters mode requires outline.md even when concept + constitution exist."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir(parents=True)
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    mem = tmp_path / ".authorkit" / "memory"
+    mem.mkdir(parents=True)
+    (mem / "constitution.md").write_text("# Filled\n\nThird person past tense.\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2"])
+    assert result.exit_code == 2, result.output
+    assert "outline.md" in result.output
+
+
+def test_autopilot_chapters_preflight_flags_template_constitution(tmp_path, monkeypatch):
+    """A still-templated constitution is treated as not seeded for chapters mode."""
+    _seed_autopilot_book(tmp_path, constitution_filled=False)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2"])
+    assert result.exit_code == 2, result.output
+    assert "constitution" in result.output.lower()
+
+
+def test_autopilot_dry_run_prints_directive_without_acting(tmp_path, monkeypatch):
+    """--dry-run prints the planner's next directive and dispatches nothing."""
+    _seed_autopilot_book(tmp_path)
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="draft", chapter=2, command="/authorkit.write 2", reason="next")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["mode"] == "chapters"
+    assert payload["directive"]["action"] == "draft"
+    assert payload["directive"]["command"] == "/authorkit.write 2"
+    assert fake.dispatched == []
+
+
+def test_autopilot_step_dispatches_one_command(tmp_path, monkeypatch):
+    """--step runs exactly one tick: dispatch the chosen command, then stop."""
+    _seed_autopilot_book(tmp_path)
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="review CH1")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched == ["/authorkit.review 1"]
+    assert "--step" in result.output
+
+
+def test_autopilot_escalate_writes_record_and_halts(tmp_path, monkeypatch):
+    """An escalate directive writes an OPEN ESC-NNN record and halts; nothing dispatched."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    esc = {"type": "story-fork", "decision_needed": "Should the keeper survive act 3?", "options": ["yes", "no"]}
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="escalate", reason="need direction", escalation=esc)]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2"])
+    assert result.exit_code == 0, result.output
+
+    records = list((book_dir / "escalations").glob("*.md"))
+    assert len(records) == 1
+    text = records[0].read_text(encoding="utf-8")
+    assert "**Status**: OPEN" in text
+    assert "ESC-001" in text
+    assert "Should the keeper survive act 3?" in text
+    assert fake.dispatched == []
+
+
+def test_autopilot_refuses_when_open_escalation_exists(tmp_path, monkeypatch):
+    """The loop halts immediately when an OPEN escalation is present."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    esc_dir = book_dir / "escalations"
+    esc_dir.mkdir()
+    (esc_dir / "2026-06-18-ESC-001-open.md").write_text("# ESC-001: X\n\n**Status**: OPEN\n", encoding="utf-8")
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2"])
+    assert result.exit_code == 0, result.output
+    assert "open escalation" in result.output.lower()
+    assert fake.dispatched == []
+
+
+def test_autopilot_chapters_loop_completes_range(tmp_path, monkeypatch):
+    """The loop reviews the chapter, observes [D]->[X], then reports done."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 The Arrival - First\n")
+
+    def on_command(_cmd):
+        path = book_dir / "chapters.md"
+        path.write_text(path.read_text(encoding="utf-8").replace("[D] CH01", "[X] CH01"), encoding="utf-8")
+
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="review CH1")],
+        on_command=on_command,
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched == ["/authorkit.review 1"]
+    assert "done" in result.output.lower()
+    assert "[X] CH01" in (book_dir / "chapters.md").read_text(encoding="utf-8")
+
+
+def test_autopilot_loop_health_oscillation_escalates(tmp_path, monkeypatch):
+    """Repeating the same command with no status change trips a loop-health escalation."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 X - first\n")
+    same = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="stuck")
+    fake = autopilot_runner.FakeRunner([same, same, same, same, same])  # on_command=None: no status change
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "loop-health" in result.output.lower() or "no progress" in result.output.lower()
+
+    records = list((book_dir / "escalations").glob("*.md"))
+    assert len(records) == 1
+    assert "loop-health" in records[0].read_text(encoding="utf-8")
+
+
+def test_autopilot_kill_switch_halts(tmp_path, monkeypatch):
+    """A book/runs/STOP sentinel halts the loop before any dispatch."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    runs = book_dir / "runs"
+    runs.mkdir()
+    (runs / "STOP").write_text("", encoding="utf-8")
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2"])
+    assert result.exit_code == 0, result.output
+    assert "kill switch" in result.output.lower()
+    assert fake.dispatched == []
+
+
+def test_autopilot_plot_dry_run_needs_only_concept(tmp_path, monkeypatch):
+    """plot mode preflight needs only concept.md; --dry-run previews the directive."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir(parents=True)
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (tmp_path / ".authorkit").mkdir()
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="research", command="/authorkit.research observatory architecture", reason="ground it")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "plot", "--max-iters", "3", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["mode"] == "plot"
+    assert payload["directive"]["action"] == "research"
+    assert fake.dispatched == []
+
+
+def test_autopilot_plot_respects_max_iters(tmp_path, monkeypatch):
+    """plot mode stops after --max-iters ticks."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir(parents=True)
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (tmp_path / ".authorkit").mkdir()
+    directives = [
+        autopilot_core.Directive(action="research", command=f"/authorkit.research topic{i}", reason="r")
+        for i in range(5)
+    ]
+    fake = autopilot_runner.FakeRunner(directives)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "plot", "--max-iters", "2"])
+    assert result.exit_code == 0, result.output
+    assert len(fake.dispatched) == 2
+    assert "max-iters" in result.output.lower()
+
+
+def test_detect_flavor_reads_manifest(tmp_path):
+    """detect_flavor returns the first installed AI, defaulting to claude when absent."""
+    (tmp_path / ".authorkit").mkdir()
+    (tmp_path / ".authorkit" / "install-manifest.json").write_text(
+        json.dumps({"ais": ["codex", "claude"]}), encoding="utf-8"
+    )
+    assert autopilot_runner.detect_flavor(tmp_path) == "codex"
+    assert autopilot_runner.detect_flavor(tmp_path / "missing") == "claude"
+
+
+def test_claude_runner_builds_argv_and_parses_envelope(tmp_path, monkeypatch):
+    """ClaudeRunner builds a `claude -p ... --output-format json` planner call and
+    unwraps the JSON envelope's `result` into a Directive."""
+    captured = {}
+
+    class FakeProc:
+        returncode = 0
+        stdout = json.dumps({"type": "result", "result": '{"action": "done", "reason": "ok"}'})
+        stderr = ""
+
+    def fake_run(argv, **kwargs):
+        captured["planner_argv"] = argv
+        return FakeProc()
+
+    monkeypatch.setattr(autopilot_runner.subprocess, "run", fake_run)
+    claude = autopilot_runner.ClaudeRunner(tmp_path)
+    directive = claude.run_planner("PROMPT", "{}", "brief")
+    assert captured["planner_argv"][0] == "claude"
+    assert "--output-format" in captured["planner_argv"]
+    assert directive.action == "done"
+
+    class OkProc:
+        returncode = 0
+        stdout = "did it"
+        stderr = ""
+
+    def fake_run_cmd(argv, **kwargs):
+        captured["cmd_argv"] = argv
+        return OkProc()
+
+    monkeypatch.setattr(autopilot_runner.subprocess, "run", fake_run_cmd)
+    res = claude.run_command("/authorkit.write 3")
+    assert res.ok is True
+    assert captured["cmd_argv"] == ["claude", "-p", "/authorkit.write 3"]
+
+
+def test_init_renders_autopilot_planner_prompt():
+    """init renders the AutoPilot planner prompt for each selected AI flavor."""
+    with isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            ["init", ".", "--ai", "claude,codex", "--script", "sh", "--here", "--force", "--ignore-agent-tools", "--no-git"],
+        )
+        assert result.exit_code == 0, result.output
+        assert Path(".claude/commands/authorkit.autopilot-plan.md").exists()
+        assert Path(".codex/prompts/authorkit.autopilot-plan.md").exists()

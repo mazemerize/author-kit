@@ -57,6 +57,7 @@ If the user input is genuinely ambiguous, ask one clarifying question — do not
    - `.authorkit/memory/constitution.md`
    - `world/` and `world/_index.md` (use the Alias Lookup and Chapter Manifest for targeted entity loading when present)
    - `parked-decisions.md`
+   - `escalations/*.md` — open AutoPilot escalations (loop-raised stop points; resolve like parked decisions — see Park mode)
    - `research.md` and relevant `research/` topic files (recursively)
    - The last 2-3 drafted chapters under `chapters/NN/draft.md`
    - `BOOK_DIR/notes/discuss-*.md` (prior discussion notes — distinct from `world/notes/`)
@@ -266,6 +267,15 @@ If user input is "list", "show", "status", "what's parked": present a summary ta
 | New world-building | World seed sub-mode below |
 | Update to existing world detail | World entry edit via Clarify routing |
 | Affects upcoming unplanned chapter | `/authorkit.write N` |
+
+### Resolve escalation (user said "resolve ESC-NNN: <decision>", or an AutoPilot escalation is open)
+
+AutoPilot writes loop-raised stop points to `BOOK_DIR/escalations/*.md` (schema: `.authorkit/templates/escalation-template.md`) — the same OPEN/RESOLVED + Resolution shape as parked decisions, but they **block the loop** until resolved. Treat them like `resolve PD-NNN`:
+
+1. Read the named record (or list all OPEN escalations if the user didn't name one).
+2. Resolve the underlying decision in the right mode — usually **Clarify**, **Cross-cutting change**, or **Restructure** here in `/authorkit.discuss`; a quality-stall escalation is usually `/authorkit.write N revise: <issue>` and a grounding gap is `/authorkit.research <topic>`.
+3. After the decision lands (writes proposed, approved, applied), set the record's **Status** to `RESOLVED` and fill its **Resolution** block (Resolved date, Decision, Files changed, Amendment/Snapshot). This unblocks the next `authorkit autopilot` run.
+4. Never mark an escalation resolved without addressing the blocking condition — AutoPilot re-detects an unresolved blocker and re-escalates.
 
 ## Mode: Restructure
 
