@@ -11,7 +11,7 @@ Author:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -50,6 +50,8 @@ class StatusReport:
     world_index_modified: str | None
     snapshot_count: int
     amendment_count: int
+    open_escalations: int
+    escalation_ids: list[str]
 
 
 def _exists(path: Path) -> bool:
@@ -151,6 +153,37 @@ def _count_world_index_stats(world_index_path: Path) -> tuple[int | None, int | 
     )
 
 
+def _count_open_escalations(escalations_dir: Path) -> tuple[int, list[str]]:
+    """Count OPEN escalation records in ``book/escalations/`` and return their ids.
+
+    Escalations are loop-raised stop points written by AutoPilot. Each is a
+    markdown file carrying a ``**Status**: OPEN`` / ``RESOLVED`` marker and an
+    ``ESC-NNN`` id in its heading (mirrors the parked-decisions schema). Tolerant
+    by design (see ``collect_status``): a missing directory or an unreadable /
+    mis-encoded file is simply skipped, never raised.
+    """
+    if not _exists(escalations_dir):
+        return 0, []
+
+    open_count = 0
+    ids: list[str] = []
+    id_pattern = re.compile(r"ESC-\d+", re.IGNORECASE)
+    for path in sorted(escalations_dir.glob("*.md")):
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeDecodeError):
+            continue
+        status_match = re.search(r"\*\*Status\*\*:\s*(\w+)", text)
+        if not status_match or status_match.group(1).upper() != "OPEN":
+            continue
+        open_count += 1
+        id_match = id_pattern.search(text)
+        ids.append(id_match.group(0).upper() if id_match else path.stem)
+    return open_count, ids
+
+
 def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
     """Gather the data needed to render `authorkit status`.
 
@@ -168,6 +201,7 @@ def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
     world_index = world_dir / "_index.md"
     snapshots_dir = book_dir / "snapshots"
     amendments_dir = book_dir / "amendments"
+    escalations_dir = book_dir / "escalations"
 
     drafts = discover_chapter_drafts(book_dir)
     drafted_dirs = [draft.chapter_number for draft in drafts]
@@ -199,6 +233,7 @@ def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
         if _exists(amendments_dir)
         else 0
     )
+    open_escalations, escalation_ids = _count_open_escalations(escalations_dir)
 
     return StatusReport(
         book_dir=book_dir,
@@ -219,6 +254,8 @@ def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
         world_index_modified=world_index_modified,
         snapshot_count=snapshot_count,
         amendment_count=amendment_count,
+        open_escalations=open_escalations,
+        escalation_ids=escalation_ids,
     )
 
 
@@ -282,6 +319,13 @@ def format_status_lines(report: StatusReport) -> list[str]:
             lines.append(f"  - nearest deadline: {report.nearest_parked_deadline}")
         lines.append("")
 
+    if report.open_escalations:
+        lines.append("Escalations:")
+        lines.append(f"  - open: {report.open_escalations}")
+        if report.escalation_ids:
+            lines.append(f"  - ids: {', '.join(report.escalation_ids)}")
+        lines.append("")
+
     if report.world_entities is not None:
         lines.append("World:")
         lines.append(f"  - entities: {report.world_entities}")
@@ -300,3 +344,14 @@ def format_status_lines(report: StatusReport) -> list[str]:
         lines.append("")
 
     return lines
+
+
+def status_report_to_obj(report: StatusReport) -> dict:
+    """Serialize a ``StatusReport`` to a JSON-ready dict (``Path`` -> ``str``).
+
+    Used by ``authorkit status --json`` — the machine-readable status the
+    AutoPilot planner consumes and the loop uses for hard-stop checks.
+    """
+    data = asdict(report)
+    data["book_dir"] = str(report.book_dir)
+    return data

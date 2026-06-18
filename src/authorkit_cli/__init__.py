@@ -24,8 +24,8 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
 from .book_commands import book_app
-from .book_core import find_repo_root, resolve_book_dir
-from .book_status import collect_status, format_status_lines
+from .book_core import find_repo_root, resolve_book_dir, to_json
+from .book_status import collect_status, format_status_lines, status_report_to_obj
 
 # Shared Rich console for terminal output.
 console = Console()
@@ -804,12 +804,19 @@ def version() -> None:
 
 
 @app.command()
-def status() -> None:
+def status(
+    json_output: bool = typer.Option(
+        False, "--json", help="Emit machine-readable JSON (consumed by AutoPilot)."
+    ),
+) -> None:
     """Print a project health dashboard for the current book.
 
     Aggregates chapter status (pending/planned/drafted/review/approved),
-    parked-decision counts, world-entity totals, and drift between chapters.md
-    and the chapters/ directory. Run from the project root.
+    parked-decision counts, world-entity totals, open escalations, and drift
+    between chapters.md and the chapters/ directory. Run from the project root.
+
+    Pass --json for a machine-readable dump — the AutoPilot planner's input and
+    the loop's hard-stop signal.
     """
     repo_root = find_repo_root()
     try:
@@ -820,6 +827,18 @@ def status() -> None:
         raise typer.Exit(code=1) from exc
 
     report = collect_status(book_dir, repo_root)
+
+    if json_output:
+        # Raw JSON to stdout: markup/highlight off and soft_wrap on so the
+        # payload parses cleanly (no Rich style tags, ANSI, or wrap newlines).
+        console.print(
+            to_json(status_report_to_obj(report)),
+            markup=False,
+            highlight=False,
+            soft_wrap=True,
+        )
+        return
+
     # markup=False so Rich does not consume the literal `[X]`, `[P]`,
     # `[unwritten]`, etc. brackets as style tags. The status formatter emits
     # plain text on purpose; markup interpretation would silently strip them.

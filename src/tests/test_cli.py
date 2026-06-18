@@ -1455,6 +1455,47 @@ def test_status_command_reports_chapter_breakdown(tmp_path, monkeypatch):
     assert "Before CH12" in out
 
 
+def test_status_json_output_includes_escalations_and_chapters(tmp_path, monkeypatch):
+    """`authorkit status --json` emits a machine-readable dashboard for the
+    AutoPilot planner: parseable JSON carrying the chapter-status breakdown and
+    a count of OPEN escalation records in book/escalations/ (RESOLVED ones are
+    not counted).
+    """
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (book_dir / "outline.md").write_text("# Outline\n", encoding="utf-8")
+    (book_dir / "chapters.md").write_text(
+        "# Chapters\n\n"
+        "- [X] CH01 The Arrival - First chapter\n"
+        "- [D] CH02 The Catalogue - Second chapter\n",
+        encoding="utf-8",
+    )
+    (book_dir / "chapters" / "01").mkdir(parents=True)
+    (book_dir / "chapters" / "01" / "draft.md").write_text("# Chapter 1\n", encoding="utf-8")
+
+    escalations_dir = book_dir / "escalations"
+    escalations_dir.mkdir()
+    (escalations_dir / "2026-06-18-ESC-001-villain-fate.md").write_text(
+        "# ESC-001: Fate of the villain\n\n**Status**: OPEN\n",
+        encoding="utf-8",
+    )
+    (escalations_dir / "2026-06-17-ESC-000-resolved.md").write_text(
+        "# ESC-000: Already handled\n\n**Status**: RESOLVED\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["status", "--json"])
+    assert result.exit_code == 0, result.output
+
+    payload = json.loads(result.output)
+    assert payload["open_escalations"] == 1
+    assert payload["escalation_ids"] == ["ESC-001"]
+    assert payload["chapter_status_counts"] == {"approved": 1, "drafted": 1}
+    assert payload["book_dir"].endswith("book")
+
+
 def test_status_command_errors_when_no_book_workspace(tmp_path, monkeypatch):
     """`authorkit status` should fail loudly with actionable guidance when
     no book/ workspace exists, rather than silently emitting empty stats.
