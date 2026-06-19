@@ -1496,6 +1496,8 @@ def test_status_json_output_includes_escalations_and_chapters(tmp_path, monkeypa
     assert payload["open_escalations"] == 1
     assert payload["escalation_ids"] == ["ESC-001"]
     assert payload["chapter_status_counts"] == {"approved": 1, "drafted": 1}
+    # Per-chapter map (JSON object keys are strings) — the chapters planner needs this.
+    assert payload["chapter_statuses"] == {"1": "approved", "2": "drafted"}
     assert payload["book_dir"].endswith("book")
 
 
@@ -2636,3 +2638,63 @@ def test_autopilot_permission_default_and_override(tmp_path, monkeypatch):
     assert "--dangerously-skip-permissions" not in result2.output
     assert captured.get("skip_permissions") is False
     assert captured.get("permission_mode") == "acceptEdits"
+
+
+def test_autopilot_plot_planner_receives_plan_layer_context(tmp_path, monkeypatch):
+    """In plot mode the planner is handed the read-only book-level files so it can
+    judge what the story still needs (vs. status-only)."""
+    book = tmp_path / "book"
+    (book / "world").mkdir(parents=True)
+    (book / "concept.md").write_text("# Concept\n\nA lighthouse mystery.\n", encoding="utf-8")
+    (book / "outline.md").write_text("# Outline\n\nPart 1 ...\n", encoding="utf-8")
+    (book / "world" / "_index.md").write_text(
+        "# World Index\n\n## Statistics\n- Total entities: 3\n", encoding="utf-8"
+    )
+    (book / "research.md").write_text("# Research Index\n\n- lighthouse optics\n", encoding="utf-8")
+    (tmp_path / ".authorkit").mkdir()
+
+    fake = autopilot_runner.FakeRunner([autopilot_core.Directive(action="done", reason="solid")])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "plot", "--max-iters", "3", "--dry-run"])
+    assert result.exit_code == 0, result.output
+
+    ctx = fake.planner_inputs[0]["context"]
+    assert "lighthouse mystery" in ctx       # concept.md
+    assert "### outline.md" in ctx
+    assert "Total entities: 3" in ctx        # world/_index.md
+    assert "lighthouse optics" in ctx        # research.md
+
+
+def test_autopilot_chapters_planner_is_status_only(tmp_path, monkeypatch):
+    """Chapters mode passes no plan-layer context — the planner stays status-only."""
+    _seed_autopilot_book(tmp_path)
+    fake = autopilot_runner.FakeRunner([autopilot_core.Directive(action="done", reason="x")])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert fake.planner_inputs[0]["context"] == ""
+
+
+def test_autopilot_plot_done_suggests_chapters(tmp_path, monkeypatch):
+    """When plot finishes, the loop hands off to the chapters loop."""
+    book = tmp_path / "book"
+    book.mkdir(parents=True)
+    (book / "concept.md").write_text("# Concept\n", encoding="utf-8")
+    (tmp_path / ".authorkit").mkdir()
+    fake = autopilot_runner.FakeRunner([autopilot_core.Directive(action="done", reason="plan solid")])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "plot", "--max-iters", "3"])
+    assert result.exit_code == 0, result.output
+    assert "autopilot chapters" in result.output
+
+
+def test_write_prompt_has_plan_only_dispatch():
+    """The write prompt routes the `plan` keyword to a plan-only mode, so plot stays
+    out of drafting and chapters can plan as its own tick."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    assert "Plan (only)" in write
+    assert "do **not** draft" in write

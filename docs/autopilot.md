@@ -115,12 +115,15 @@ authorkit autopilot plot      --max-iters N [--dry-run]
 
 | Mode | Planner works on… | Stitches these commands | Bound | Terminates when… |
 |---|---|---|---|---|
-| `chapters` | drafting the in-range chapters | per chapter: `write N` (plans+drafts+reconciles) → `review N` → `write N revise` if it came back `[R]`; occasional grouped/manuscript `review`; `research N` when a chapter needs grounding | `--range` (finite set) | every in-range chapter is `[X]`, or escalation, or a loop-health stop |
-| `plot` | the plan/plot layer — outline, world depth, chapter plans, grounding | `discuss` (plan/world/clarify), `write outline`, `write N plan`, `research` | `--max-iters` (open-ended work) | planner judges the plan solid, or `--max-iters` hit, or escalation, or a loop-health stop |
+| `chapters` | per-chapter execution — owns `chapters/NN/` only, never scaffolding | status ladder for the lowest in-range chapter: `[ ]`→`write N plan`, `[P]`→`write N` (draft), `[D]`→`review N`, `[R]`→`write N revise`; occasional range `review A-B`; `research` for chapter grounding | `--range` (finite set) | every in-range chapter is `[X]`, or escalation, or a loop-health stop |
+| `plot` | book-level scaffolding only (outline, `world/`, `research/`) — never touches `chapters/NN/` | `write outline`, `discuss` (fold research / build world), `research` | `--max-iters` (open-ended work) | planner judges outline + world solid, or `--max-iters` hit, or escalation, or a loop-health stop |
 
-The `chapters` loop is just today's manual rhythm, automated: `write N` leaves `[D]`,
-`review N` flips it to `[X]` or `[R]` (unchanged), the planner reads the new status
-next tick and either advances or sends the `[R]` chapter back through `revise`.
+The two loops split by artifact: **plot** writes book-level scaffolding (`outline.md`,
+the chapter list, `world/`, `research/`) and **chapters** owns everything under
+`chapters/NN/`. Each is just today's manual rhythm automated — `write N plan` → `[P]`,
+`write N` → `[D]`, `review N` → `[X]`/`[R]`, `write N revise` → `[D]` — and when one
+layer surfaces a problem in the other (a draft contradicts canon, the outline is wrong),
+the loop escalates rather than crossing the boundary.
 
 The modes chain: run `plot` until the plan is solid → escalate for author sign-off →
 run `chapters`. A combined "plot-then-chapters" default can be added later; `either/or`
@@ -130,9 +133,10 @@ is the primary surface.
 
 A single new prompt under `.authorkit/prompts/`, rendered per AI flavor like the others.
 
-- **Reads:** `authorkit status --json` (+ only the latest `review.md` or the open
-  escalation when relevant). **Not** whole drafts — keeps the planner cheap and out
-  of the creative work.
+- **Reads:** `authorkit status --json`, including the per-chapter `chapter_statuses` map.
+  In **plot** mode it additionally reads the small book-level files — `concept.md`,
+  `outline.md`, `world/_index.md`, `research.md` — so it can judge what the story still
+  needs (unused research, a thin world); **chapters** mode stays status-only. Never whole drafts.
 - **Emits one directive:**
 
   ```json

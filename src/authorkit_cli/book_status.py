@@ -37,6 +37,7 @@ class StatusReport:
     has_outline: bool
     has_constitution: bool
     chapter_status_counts: dict[str, int]
+    chapter_statuses: dict[int, str]
     chapter_total: int
     drafted_dirs: list[int]
     chapters_md_entries: list[int]
@@ -241,6 +242,7 @@ def collect_status(book_dir: Path, repo_root: Path) -> StatusReport:
         has_outline=_exists(book_dir / "outline.md"),
         has_constitution=_exists(repo_root / CONSTITUTION_RELATIVE_PATH),
         chapter_status_counts=counts,
+        chapter_statuses=statuses,
         chapter_total=chapter_total,
         drafted_dirs=drafted_dirs,
         chapters_md_entries=chapters_md_entries,

@@ -38,6 +38,7 @@ State the mode you're entering in one short opening line. Multiple modes may cha
 | No `outline.md` exists, user input mentions a chapter | **Outline first** | Generate or extend `outline.md` (then proceed to chapters / plan) |
 | `outline.md` exists, no `chapters.md`, user input mentions a chapter | **Chapters first** | Generate `chapters.md` from outline (then proceed to plan) |
 | User input includes "outline" or "outline N-M" | **Outline (explicit)** | Full / partial / extend outline workflow |
+| User input adds "plan" (e.g. `7 plan`) | **Plan (only)** | Plan the chapter and stop — do **not** draft. Produces `chapters/NN/plan.md`, sets status `[P]` |
 | User input is a chapter number with no plan yet | **Plan + draft** | Plan the chapter, then draft it (full mode) |
 | User input is a chapter number with an existing plan, no draft | **Draft** | Draft the chapter; reconcile after |
 | User input adds "interactive" / "scene N" / "continue" / "from scene N" | **Draft (partial mode)** | Per-scene drafting with progress marker |

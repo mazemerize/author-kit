@@ -90,15 +90,16 @@ def _mode_brief(mode: str, chapter_range: tuple[int, int] | None, max_iters: int
     if mode == "chapters" and chapter_range is not None:
         lo, hi = chapter_range
         return (
-            f"chapters — draft and review chapters CH{lo:02d}-CH{hi:02d}. Choose the single next action "
-            "(plan / draft / review / revise / research) for the lowest unfinished chapter in range, or "
-            "escalate when a creative or structural decision is required. Never touch chapters outside the "
-            "range or approved [X] chapters."
+            f"chapters — execute chapters CH{lo:02d}-CH{hi:02d} per the status ladder, for the lowest in-range "
+            "chapter not yet [X]: [ ] -> /authorkit.write N plan; [P] -> /authorkit.write N (draft); "
+            "[D] -> /authorkit.review N; [R] -> /authorkit.write N revise: <issues>. Own chapters/NN/ only — "
+            "never edit the outline or world (escalate if scaffolding must change); never touch chapters outside "
+            "the range or approved [X] chapters. done when all in-range chapters are [X]."
         )
     return (
-        f"plot — develop the plan layer (outline, world, chapter plans, grounding) for up to {max_iters} ticks. "
-        "Choose the single next action (typically a write-outline / write-plan / research / discuss-style command), "
-        "return action 'done' when the plan is solid, or escalate when a story-direction decision is required."
+        f"plot — book-level scaffolding only (outline, world, research), up to {max_iters} ticks; never touch "
+        "chapters/NN/. Ladder: generate the outline if missing; fold existing research into world/ and the outline; "
+        "deepen a thin world; then 'done' when outline + world are solid. Escalate on story-direction forks."
     )
 
 
@@ -134,6 +135,36 @@ def _load_planner_prompt(repo_root: Path) -> str:
     return ""
 
 
+def _plan_layer_context(book_dir: Path, repo_root: Path, *, cap: int = 6000) -> str:
+    """Read-only book-level scaffolding for the plot planner.
+
+    Lets the planner judge what the story still needs — unused research, a thin
+    world — without reading drafts. Each file is capped so the planner input stays
+    bounded on long books. Chapters mode does not use this (it is status-only).
+    """
+    sources = [
+        ("concept.md", book_dir / "concept.md"),
+        ("outline.md", book_dir / "outline.md"),
+        ("world/_index.md", book_dir / "world" / "_index.md"),
+        ("research.md", book_dir / "research.md"),
+    ]
+    blocks: list[str] = []
+    for label, path in sources:
+        text = ""
+        if path.is_file():
+            try:
+                text = path.read_text(encoding="utf-8-sig").strip()
+            except (OSError, UnicodeDecodeError):
+                text = ""
+        if not text:
+            blocks.append(f"### {label}\n\n(absent or empty)")
+            continue
+        if len(text) > cap:
+            text = text[:cap] + "\n\n[...truncated]"
+        blocks.append(f"### {label}\n\n{text}")
+    return "\n\n".join(blocks)
+
+
 def _progress_key(mode: str, report) -> tuple:
     """A comparable snapshot of "progress" for loop-health checks.
 
@@ -155,10 +186,10 @@ def _completion_check(mode: str, book_dir: Path, chapter_range: tuple[int, int] 
     return None
 
 
-def _plan_once(runner, prompt: str, report, brief: str) -> Directive:
+def _plan_once(runner, prompt: str, report, brief: str, context: str = "") -> Directive:
     """Run the planner against the current status and return its directive."""
     status_json = to_json(status_report_to_obj(report))
-    return runner.run_planner(prompt, status_json, brief)
+    return runner.run_planner(prompt, status_json, brief, context=context)
 
 
 def _today() -> str:
@@ -281,11 +312,16 @@ def _run_autopilot(
     planner_prompt = _load_planner_prompt(repo_root)
     brief = _mode_brief(mode, chapter_range, max_iters)
     run_id = datetime.now().strftime("%Y%m%dT%H%M%S")
+    # The plot planner reads book-level scaffolding so it can judge what the story
+    # still needs (unused research, a thin world); chapters mode stays status-only.
+    context = _plan_layer_context(book_dir, repo_root) if mode == "plot" else ""
 
     # Dry-run: show the next directive (a preview), write nothing, dispatch nothing.
     if dry_run:
         report = collect_status(book_dir, repo_root)
-        directive = _completion_check(mode, book_dir, chapter_range) or _plan_once(runner, planner_prompt, report, brief)
+        directive = _completion_check(mode, book_dir, chapter_range) or _plan_once(
+            runner, planner_prompt, report, brief, context
+        )
         console.print(
             to_json({"mode": mode, "tick": 1, "directive": directive_to_obj(directive)}),
             markup=False,
@@ -326,10 +362,10 @@ def _run_autopilot(
         directive = _completion_check(mode, book_dir, chapter_range)
         if directive is None:
             try:
-                directive = _plan_once(runner, planner_prompt, report, brief)
+                directive = _plan_once(runner, planner_prompt, report, brief, context)
             except (DirectiveError, RuntimeError):
                 try:
-                    directive = _plan_once(runner, planner_prompt, report, brief)
+                    directive = _plan_once(runner, planner_prompt, report, brief, context)
                 except (DirectiveError, RuntimeError) as exc:
                     path = _write_planner_failure_escalation(book_dir, str(exc))
                     console.print(
@@ -340,6 +376,10 @@ def _run_autopilot(
         # Terminal directives.
         if directive.action == "done":
             console.print(f"[green]AutoPilot done[/green] ({mode}): {directive.reason or 'nothing left in scope.'}")
+            if mode == "plot":
+                console.print(
+                    "[dim]Next: run `authorkit autopilot chapters --range A-B` to plan, draft, and review chapters.[/dim]"
+                )
             raise typer.Exit(code=0)
         if directive.action == "escalate":
             path = _write_planner_escalation(book_dir, directive)

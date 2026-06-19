@@ -50,23 +50,39 @@ Return **only** a JSON object (no prose, fences optional):
 
 ## Outline
 
-1. Read the status JSON: chapter-status breakdown, drift flags, open parked decisions,
-   open escalations, world counts, and the mode brief.
-2. **chapters mode** — operate only within the given range; never touch approved `[X]`
-   chapters. Pick the lowest unfinished chapter and its next step:
-   - `[R]` (needs revision) → `revise` (`/authorkit.write N revise: <issue>`).
-   - `[D]` (drafted, not yet reviewed) → `review` (`/authorkit.review N`).
-   - `[P]` (planned, no draft) → `draft` (`/authorkit.write N`).
-   - `[ ]` (pending, no plan) → `plan` (`/authorkit.write N`); use `research` first only
-     when the chapter clearly needs grounding you don't have.
-   - All in-range chapters approved → `done`.
-3. **plot mode** — develop the plan layer: extend/refine the outline, deepen `world/`,
-   plan upcoming chapters, or ground a topic with `research`. Return `done` when the plan
-   is solid for the intended scope.
-4. **Escalate** instead of acting when: the story's direction is unsettled or the outline
-   is exhausted; a draft contradicts a `(CONCEPT)` / `(CHxx)` fact; a structural change
-   (split / merge / reorder) is needed; a parked decision is past its deadline; a chapter
-   keeps failing review; or grounding the writer flagged is missing and material.
+1. Read the inputs: the mode brief, the status JSON (the `chapter_statuses` map, drift flags,
+   open parked decisions, open escalations, world counts), and — in plot mode — the read-only
+   plan-layer context (concept, outline, world index, research index).
+
+2. **plot mode** — book-level scaffolding only; **never touch `chapters/NN/`** (no chapter
+   plans, no drafts — that is chapters mode). Pick the highest applicable step:
+   - No `outline.md` → `/authorkit.write outline` (generates the outline and chapter list).
+   - Research in `research/` not yet reflected in `world/` or the outline →
+     `/authorkit.discuss "fold the research findings into world/ and the outline"`.
+   - The world is too thin for what the concept/outline needs (e.g. only the main characters
+     exist; places / organizations / systems the story relies on have no entry) →
+     `/authorkit.discuss "build out the world: <the missing categories or entities>"`. Keep
+     going until the named elements exist.
+   - Outline and world are solid for the intended scope → `done` (the author then runs
+     `authorkit autopilot chapters`).
+
+3. **chapters mode** — execute per chapter within the range; **own `chapters/NN/` only, never
+   edit the outline or world** (if a chapter reveals a scaffolding problem, escalate). Never
+   touch chapters outside the range or approved `[X]` chapters. Using the `chapter_statuses`
+   map, take the next step for the lowest in-range chapter not yet `[X]`:
+   - `[ ]` pending, no plan → `/authorkit.write N plan` (plan only). Use `research` first only
+     when the chapter needs grounding you lack (`/authorkit.research "for chapter N, ..."`).
+   - `[P]` planned, no draft → `/authorkit.write N` (draft).
+   - `[D]` drafted → `/authorkit.review N`.
+   - `[R]` needs revision → `/authorkit.write N revise: <the review's issues>`.
+   - All in-range chapters `[X]` → `done`. Periodically (a part finished, or several chapters
+     approved) prefer a range review first: `/authorkit.review A-B` for cross-chapter drift.
+
+4. **Escalate** instead of acting when a decision is the author's: the story's direction is
+   unsettled or the outline is exhausted; a draft contradicts a `(CONCEPT)` / `(CHxx)` fact;
+   a structural change (split / merge / reorder) is needed; a parked decision is past its
+   deadline; a chapter keeps failing review; or material grounding is missing.
+
 5. Emit exactly one directive.
 
 ## Key Rules
@@ -76,6 +92,9 @@ Return **only** a JSON object (no prose, fences optional):
   escalation — those are the harness's and the author's job.
 - **Stay in scope.** In chapters mode, never act on chapters outside the range or on
   approved `[X]` chapters.
+- **Respect the loop boundary.** plot writes only book-level artifacts (outline, chapter
+  list, `world/`, `research/`); chapters writes only `chapters/NN/`. Never cross over — if
+  the other layer needs changing, escalate.
 - **Escalate creative and structural forks.** When the right move is a judgment call the
   author should make, return `escalate` with a precise `decision_needed`.
 - **Prefer the obvious next step.** Follow the chapter-status ladder; don't invent work.

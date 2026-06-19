@@ -33,8 +33,13 @@ class RunResult:
 class AgentRunner(Protocol):
     """Runs the planner and dispatches worker commands in clean sessions."""
 
-    def run_planner(self, prompt: str, status_json: str, mode_brief: str) -> Directive:
-        """Return the planner's single next-action Directive."""
+    def run_planner(self, prompt: str, status_json: str, mode_brief: str, context: str = "") -> Directive:
+        """Return the planner's single next-action Directive.
+
+        ``context`` is optional read-only material (plot mode passes the concept,
+        outline, world index, and research index so the planner can judge what is
+        missing; chapters mode leaves it empty and stays status-only).
+        """
         ...
 
     def run_command(self, command: str) -> RunResult:
@@ -53,14 +58,17 @@ def detect_flavor(repo_root: Path) -> str:
     return ais[0] if ais else "claude"
 
 
-def _compose_planner_input(prompt: str, status_json: str, mode_brief: str) -> str:
-    """Assemble the planner's full input: prompt + mode brief + status JSON."""
-    return (
-        f"{prompt}\n\n"
-        f"## AutoPilot mode\n\n{mode_brief}\n\n"
-        f"## Current `authorkit status --json`\n\n```json\n{status_json}\n```\n\n"
-        "Respond with ONLY the JSON directive described above — no prose, no fences required."
-    )
+def _compose_planner_input(prompt: str, status_json: str, mode_brief: str, context: str = "") -> str:
+    """Assemble the planner's full input: prompt + mode brief + optional context + status JSON."""
+    parts = [prompt, "", f"## AutoPilot mode\n\n{mode_brief}", ""]
+    if context:
+        parts += [f"## Plan-layer context (read-only)\n\n{context}", ""]
+    parts += [
+        f"## Current `authorkit status --json`\n\n```json\n{status_json}\n```",
+        "",
+        "Respond with ONLY the JSON directive described above — no prose, no fences required.",
+    ]
+    return "\n".join(parts)
 
 
 class _SubprocessRunner:
@@ -92,8 +100,8 @@ class _SubprocessRunner:
         """Pull the assistant's text out of the CLI's stdout envelope."""
         return stdout
 
-    def run_planner(self, prompt: str, status_json: str, mode_brief: str) -> Directive:
-        full = _compose_planner_input(prompt, status_json, mode_brief)
+    def run_planner(self, prompt: str, status_json: str, mode_brief: str, context: str = "") -> Directive:
+        full = _compose_planner_input(prompt, status_json, mode_brief, context)
         proc = subprocess.run(
             self._planner_argv(full),
             cwd=str(self.cwd),
@@ -220,10 +228,14 @@ class FakeRunner:
         self._directives = list(directives)
         self.dispatched: list[str] = []
         self.planner_calls = 0
+        self.planner_inputs: list[dict] = []
         self._on_command = on_command
 
-    def run_planner(self, prompt: str, status_json: str, mode_brief: str) -> Directive:
+    def run_planner(self, prompt: str, status_json: str, mode_brief: str, context: str = "") -> Directive:
         self.planner_calls += 1
+        self.planner_inputs.append(
+            {"prompt": prompt, "status_json": status_json, "mode_brief": mode_brief, "context": context}
+        )
         if not self._directives:
             return Directive(action="done", reason="no more scripted directives")
         nxt = self._directives.pop(0)
