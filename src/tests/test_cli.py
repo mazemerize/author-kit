@@ -2606,25 +2606,33 @@ def test_escalation_record_title_and_slug_are_concise(tmp_path):
     assert explicit.read_text(encoding="utf-8").splitlines()[0] == "# ESC-002: AutoPilot stalled (loop-health)"
 
 
-def test_autopilot_permission_warning(tmp_path, monkeypatch):
-    """Without a permission flag the loop warns it may stall; the flag silences it."""
+def test_autopilot_permission_default_and_override(tmp_path, monkeypatch):
+    """Workers default to skip-permissions (warned); --permission-mode restricts
+    and silences the warning. The chosen posture flows into get_runner."""
     _seed_autopilot_book(tmp_path)
     monkeypatch.chdir(tmp_path)
 
-    fake = autopilot_runner.FakeRunner(
-        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1")]
-    )
-    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    captured: dict = {}
+
+    def fake_get_runner(repo_root, **kwargs):
+        captured.clear()
+        captured.update(kwargs)
+        return autopilot_runner.FakeRunner(
+            [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1")]
+        )
+
+    monkeypatch.setattr(autopilot_commands, "get_runner", fake_get_runner)
+
     result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2", "--step"])
     assert result.exit_code == 0, result.output
-    assert "default permissions" in result.output
+    assert "--dangerously-skip-permissions" in result.output
+    assert captured.get("skip_permissions") is True
+    assert captured.get("permission_mode") is None
 
-    fake2 = autopilot_runner.FakeRunner(
-        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1")]
-    )
-    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake2)
     result2 = runner.invoke(
-        cli.app, ["autopilot", "chapters", "--range", "1-2", "--step", "--dangerously-skip-permissions"]
+        cli.app, ["autopilot", "chapters", "--range", "1-2", "--step", "--permission-mode", "acceptEdits"]
     )
     assert result2.exit_code == 0, result2.output
-    assert "default permissions" not in result2.output
+    assert "--dangerously-skip-permissions" not in result2.output
+    assert captured.get("skip_permissions") is False
+    assert captured.get("permission_mode") == "acceptEdits"

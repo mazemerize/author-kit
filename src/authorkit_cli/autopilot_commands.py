@@ -246,7 +246,6 @@ def _run_autopilot(
     step: bool,
     commit: bool,
     permission_mode: str | None = None,
-    skip_permissions: bool = False,
 ) -> None:
     """Shared driver for both autopilot modes."""
     repo_root = find_repo_root()
@@ -261,13 +260,22 @@ def _run_autopilot(
         console.print("[dim]Seed the book first, then re-run.[/dim]")
         raise typer.Exit(code=2)
 
-    if not dry_run and not skip_permissions and not permission_mode:
-        console.print(
-            "[yellow]Note:[/yellow] workers run with the agent's default permissions and may be "
-            "unable to write files or run scripts (the loop will then stall on no progress). Pass "
-            "[bold]--dangerously-skip-permissions[/bold] for full autonomy, or "
-            "[bold]--permission-mode acceptEdits[/bold] to auto-accept edits."
-        )
+    # Autonomy requires the worker to use tools without prompts: a headless agent
+    # under default permissions cannot write files or run the setup/world-index
+    # scripts, so the loop would make no progress. Default to skipping permission
+    # checks (the only posture in which the loop actually works unattended) unless
+    # the user restricts it with --permission-mode.
+    skip_permissions = permission_mode is None
+    if not dry_run:
+        if skip_permissions:
+            console.print(
+                "[yellow]Heads-up:[/yellow] AutoPilot runs each worker with "
+                "[bold]--dangerously-skip-permissions[/bold] (full tool access, no prompts) so it can "
+                "write files and run scripts unattended. Pass [bold]--permission-mode <mode>[/bold] "
+                "(e.g. acceptEdits, default) to restrict — note tighter modes may stall on scripts."
+            )
+        else:
+            console.print(f"[dim]Workers run with --permission-mode {permission_mode}.[/dim]")
 
     runner = get_runner(repo_root, permission_mode=permission_mode, skip_permissions=skip_permissions)
     planner_prompt = _load_planner_prompt(repo_root)
@@ -380,8 +388,7 @@ def chapters_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the planner's next directive; act on nothing."),
     step: bool = typer.Option(False, "--step", help="Run a single tick, then stop."),
     commit: bool = typer.Option(False, "--commit", help="git commit after each accepted tick."),
-    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Worker agent permission mode (e.g. acceptEdits, bypassPermissions)."),
-    skip_permissions: bool = typer.Option(False, "--dangerously-skip-permissions", help="Let workers use all tools without prompts (needed for full autonomy)."),
+    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Restrict worker tool access to this mode (e.g. acceptEdits, default). Default: full access via --dangerously-skip-permissions."),
 ) -> None:
     """Autonomously plan/draft/review chapters across a range, escalating on decisions."""
     _run_autopilot(
@@ -392,7 +399,6 @@ def chapters_cmd(
         step=step,
         commit=commit,
         permission_mode=permission_mode,
-        skip_permissions=skip_permissions,
     )
 
 
@@ -402,8 +408,7 @@ def plot_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the planner's next directive; act on nothing."),
     step: bool = typer.Option(False, "--step", help="Run a single tick, then stop."),
     commit: bool = typer.Option(False, "--commit", help="git commit after each accepted tick."),
-    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Worker agent permission mode (e.g. acceptEdits, bypassPermissions)."),
-    skip_permissions: bool = typer.Option(False, "--dangerously-skip-permissions", help="Let workers use all tools without prompts (needed for full autonomy)."),
+    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Restrict worker tool access to this mode (e.g. acceptEdits, default). Default: full access via --dangerously-skip-permissions."),
 ) -> None:
     """Autonomously develop the plan layer (outline, world, plans), escalating on direction."""
     if max_iters < 1:
@@ -416,5 +421,4 @@ def plot_cmd(
         step=step,
         commit=commit,
         permission_mode=permission_mode,
-        skip_permissions=skip_permissions,
     )
