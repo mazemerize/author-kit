@@ -68,9 +68,18 @@ class _SubprocessRunner:
 
     flavor = "claude"
 
-    def __init__(self, cwd: Path, *, timeout: int = 1800):
+    def __init__(
+        self,
+        cwd: Path,
+        *,
+        timeout: int = 1800,
+        permission_mode: str | None = None,
+        skip_permissions: bool = False,
+    ):
         self.cwd = cwd
         self.timeout = timeout
+        self.permission_mode = permission_mode
+        self.skip_permissions = skip_permissions
 
     # Per-flavor command construction — overridden by subclasses.
     def _planner_argv(self, full_prompt: str) -> list[str]:
@@ -90,6 +99,8 @@ class _SubprocessRunner:
             cwd=str(self.cwd),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=self.timeout,
         )
         if proc.returncode != 0:
@@ -103,6 +114,8 @@ class _SubprocessRunner:
             cwd=str(self.cwd),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=self.timeout,
         )
         ok = proc.returncode == 0
@@ -122,7 +135,15 @@ class ClaudeRunner(_SubprocessRunner):
         return ["claude", "-p", full_prompt, "--output-format", "json"]
 
     def _command_argv(self, command: str) -> list[str]:
-        return ["claude", "-p", command]
+        argv = ["claude", "-p", command]
+        # A headless worker must be allowed to use tools (write files, run the
+        # setup/world-index scripts) or it makes no progress. Default claude
+        # permissions block this; the caller opts into a posture.
+        if self.skip_permissions:
+            argv.append("--dangerously-skip-permissions")
+        elif self.permission_mode:
+            argv += ["--permission-mode", self.permission_mode]
+        return argv
 
     def _extract_text(self, stdout: str) -> str:
         # `claude -p --output-format json` wraps the reply in a JSON envelope
@@ -167,11 +188,23 @@ _RUNNERS: dict[str, type[_SubprocessRunner]] = {
 }
 
 
-def get_runner(repo_root: Path, *, flavor: str | None = None, timeout: int = 1800) -> AgentRunner:
+def get_runner(
+    repo_root: Path,
+    *,
+    flavor: str | None = None,
+    timeout: int = 1800,
+    permission_mode: str | None = None,
+    skip_permissions: bool = False,
+) -> AgentRunner:
     """Construct the AgentRunner for the repo's installed flavor."""
     resolved = flavor or detect_flavor(repo_root)
     runner_cls = _RUNNERS.get(resolved, ClaudeRunner)
-    return runner_cls(repo_root, timeout=timeout)
+    return runner_cls(
+        repo_root,
+        timeout=timeout,
+        permission_mode=permission_mode,
+        skip_permissions=skip_permissions,
+    )
 
 
 class FakeRunner:

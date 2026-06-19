@@ -2534,3 +2534,97 @@ def test_init_renders_autopilot_planner_prompt():
         assert result.exit_code == 0, result.output
         assert Path(".claude/commands/authorkit.autopilot-plan.md").exists()
         assert Path(".codex/prompts/authorkit.autopilot-plan.md").exists()
+
+
+def test_claude_runner_uses_utf8_decoding(tmp_path, monkeypatch):
+    """ClaudeRunner decodes subprocess output as UTF-8 (errors=replace), not the OS
+    default — Windows cp1252 otherwise crashes on the smart quotes / em-dashes that
+    Author Kit prose emits (the reader-thread UnicodeDecodeError from the live run)."""
+    captured = {}
+
+    class OkProc:
+        returncode = 0
+        stdout = "ran it"
+        stderr = ""
+
+    def fake_run(argv, **kwargs):
+        captured["kwargs"] = kwargs
+        return OkProc()
+
+    monkeypatch.setattr(autopilot_runner.subprocess, "run", fake_run)
+    autopilot_runner.ClaudeRunner(tmp_path).run_command("/authorkit.write 1")
+    assert captured["kwargs"].get("encoding") == "utf-8"
+    assert captured["kwargs"].get("errors") == "replace"
+
+
+def test_claude_runner_permission_flags(tmp_path):
+    """Permission posture flows into the worker argv (and is off by default)."""
+    base = autopilot_runner.ClaudeRunner(tmp_path)._command_argv("/authorkit.write 1")
+    assert "--dangerously-skip-permissions" not in base
+    assert "--permission-mode" not in base
+
+    skip = autopilot_runner.ClaudeRunner(tmp_path, skip_permissions=True)._command_argv("/authorkit.write 1")
+    assert "--dangerously-skip-permissions" in skip
+
+    mode = autopilot_runner.ClaudeRunner(tmp_path, permission_mode="acceptEdits")._command_argv("/authorkit.write 1")
+    assert mode[-2:] == ["--permission-mode", "acceptEdits"]
+
+
+def test_escalation_record_title_and_slug_are_concise(tmp_path):
+    """A long decision yields a word-boundary title (ellipsis) + short slug;
+    explicit title/slug override the derivation."""
+    long_decision = (
+        "AutoPilot stalled and could not determine whether the protagonist should "
+        "betray the guild before the third act climax or hold the secret"
+    )
+    path = autopilot_core.write_escalation(
+        tmp_path / "book",
+        esc_type="story-fork",
+        trigger="t",
+        decision_needed=long_decision,
+        today="2026-06-18",
+    )
+    first_line = path.read_text(encoding="utf-8").splitlines()[0]
+    assert first_line.startswith("# ESC-001: ")
+    title = first_line[len("# ESC-001: ") :]
+    assert title.endswith("…")
+    assert len(title) <= 60
+    assert not title[:-1].endswith(" ")  # trimmed at a word boundary
+    slug = path.stem.split("ESC-001-", 1)[1]
+    assert 0 < len(slug) <= 40
+
+    explicit = autopilot_core.write_escalation(
+        tmp_path / "book",
+        esc_type="loop-health",
+        trigger="t",
+        decision_needed=long_decision,
+        today="2026-06-18",
+        title="AutoPilot stalled (loop-health)",
+        slug="autopilot-stalled",
+    )
+    assert explicit.name.endswith("ESC-002-autopilot-stalled.md")
+    assert explicit.read_text(encoding="utf-8").splitlines()[0] == "# ESC-002: AutoPilot stalled (loop-health)"
+
+
+def test_autopilot_permission_warning(tmp_path, monkeypatch):
+    """Without a permission flag the loop warns it may stall; the flag silences it."""
+    _seed_autopilot_book(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2", "--step"])
+    assert result.exit_code == 0, result.output
+    assert "default permissions" in result.output
+
+    fake2 = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake2)
+    result2 = runner.invoke(
+        cli.app, ["autopilot", "chapters", "--range", "1-2", "--step", "--dangerously-skip-permissions"]
+    )
+    assert result2.exit_code == 0, result2.output
+    assert "default permissions" not in result2.output

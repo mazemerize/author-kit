@@ -196,6 +196,8 @@ def _write_health_escalation(book_dir: Path) -> Path:
         ),
         today=_today(),
         recommended_command='/authorkit.discuss "resolve <ESC-ID>: <decision>"',
+        title="AutoPilot stalled (loop-health)",
+        slug="autopilot-stalled",
     )
 
 
@@ -208,6 +210,8 @@ def _write_planner_failure_escalation(book_dir: Path, detail: str) -> Path:
         decision_needed="The planning agent did not return a parseable directive — inspect the planner prompt / agent CLI.",
         today=_today(),
         recommended_command="",
+        title="Planner returned no valid directive",
+        slug="planner-failure",
     )
 
 
@@ -215,8 +219,8 @@ def _git_checkpoint(repo_root: Path, directive: Directive, tick: int) -> None:
     """Best-effort ``git add -A && git commit`` after an accepted tick (--commit)."""
     message = f"autopilot: {directive.action} {directive.command or ''} (tick {tick})".strip()
     try:
-        subprocess.run(["git", "add", "-A"], cwd=str(repo_root), check=True, capture_output=True, text=True)
-        proc = subprocess.run(["git", "commit", "-m", message], cwd=str(repo_root), capture_output=True, text=True)
+        subprocess.run(["git", "add", "-A"], cwd=str(repo_root), check=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(["git", "commit", "-m", message], cwd=str(repo_root), capture_output=True, text=True, encoding="utf-8", errors="replace")
         if proc.returncode != 0 and "nothing to commit" not in (proc.stdout + proc.stderr).lower():
             console.print(f"[yellow]Checkpoint commit skipped:[/yellow] {(proc.stderr or proc.stdout).strip()[:160]}")
     except (OSError, subprocess.SubprocessError) as exc:
@@ -241,6 +245,8 @@ def _run_autopilot(
     dry_run: bool,
     step: bool,
     commit: bool,
+    permission_mode: str | None = None,
+    skip_permissions: bool = False,
 ) -> None:
     """Shared driver for both autopilot modes."""
     repo_root = find_repo_root()
@@ -255,9 +261,18 @@ def _run_autopilot(
         console.print("[dim]Seed the book first, then re-run.[/dim]")
         raise typer.Exit(code=2)
 
-    runner = get_runner(repo_root)
+    if not dry_run and not skip_permissions and not permission_mode:
+        console.print(
+            "[yellow]Note:[/yellow] workers run with the agent's default permissions and may be "
+            "unable to write files or run scripts (the loop will then stall on no progress). Pass "
+            "[bold]--dangerously-skip-permissions[/bold] for full autonomy, or "
+            "[bold]--permission-mode acceptEdits[/bold] to auto-accept edits."
+        )
+
+    runner = get_runner(repo_root, permission_mode=permission_mode, skip_permissions=skip_permissions)
     planner_prompt = _load_planner_prompt(repo_root)
     brief = _mode_brief(mode, chapter_range, max_iters)
+    run_id = datetime.now().strftime("%Y%m%dT%H%M%S")
 
     # Dry-run: show the next directive (a preview), write nothing, dispatch nothing.
     if dry_run:
@@ -346,7 +361,7 @@ def _run_autopilot(
             entry["error"] = result.error[:500]
             console.print(f"[yellow]Command reported failure:[/yellow] {result.error[:200]}")
         history.append(entry)
-        log_tick(book_dir, entry)
+        log_tick(book_dir, {"run": run_id, **entry})
 
         if commit:
             _git_checkpoint(repo_root, directive, tick)
@@ -365,9 +380,20 @@ def chapters_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the planner's next directive; act on nothing."),
     step: bool = typer.Option(False, "--step", help="Run a single tick, then stop."),
     commit: bool = typer.Option(False, "--commit", help="git commit after each accepted tick."),
+    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Worker agent permission mode (e.g. acceptEdits, bypassPermissions)."),
+    skip_permissions: bool = typer.Option(False, "--dangerously-skip-permissions", help="Let workers use all tools without prompts (needed for full autonomy)."),
 ) -> None:
     """Autonomously plan/draft/review chapters across a range, escalating on decisions."""
-    _run_autopilot("chapters", range_=range_, max_iters=MAX_TICKS, dry_run=dry_run, step=step, commit=commit)
+    _run_autopilot(
+        "chapters",
+        range_=range_,
+        max_iters=MAX_TICKS,
+        dry_run=dry_run,
+        step=step,
+        commit=commit,
+        permission_mode=permission_mode,
+        skip_permissions=skip_permissions,
+    )
 
 
 @autopilot_app.command("plot")
@@ -376,8 +402,19 @@ def plot_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the planner's next directive; act on nothing."),
     step: bool = typer.Option(False, "--step", help="Run a single tick, then stop."),
     commit: bool = typer.Option(False, "--commit", help="git commit after each accepted tick."),
+    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Worker agent permission mode (e.g. acceptEdits, bypassPermissions)."),
+    skip_permissions: bool = typer.Option(False, "--dangerously-skip-permissions", help="Let workers use all tools without prompts (needed for full autonomy)."),
 ) -> None:
     """Autonomously develop the plan layer (outline, world, plans), escalating on direction."""
     if max_iters < 1:
         raise typer.BadParameter("--max-iters must be >= 1.")
-    _run_autopilot("plot", range_=None, max_iters=max_iters, dry_run=dry_run, step=step, commit=commit)
+    _run_autopilot(
+        "plot",
+        range_=None,
+        max_iters=max_iters,
+        dry_run=dry_run,
+        step=step,
+        commit=commit,
+        permission_mode=permission_mode,
+        skip_permissions=skip_permissions,
+    )

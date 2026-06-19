@@ -215,10 +215,21 @@ def preflight(
     return PreflightResult(ok=not errors, errors=errors)
 
 
-def _slugify(value: str) -> str:
-    """Filesystem-safe lowercase slug for escalation filenames."""
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip().lower()).strip("-")
-    return (slug or "escalation")[:50]
+def _slugify(value: str, maxlen: int = 40) -> str:
+    """Filesystem-safe lowercase slug, trimmed at a word (hyphen) boundary."""
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", (value or "").strip().lower()).strip("-")
+    if len(slug) > maxlen:
+        slug = slug[:maxlen].rsplit("-", 1)[0].strip("-")
+    return slug or "escalation"
+
+
+def _short_title(text: str, limit: int = 56) -> str:
+    """One-line title trimmed at a word boundary (adds an ellipsis when cut)."""
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:-—")
+    return f"{cut}…" if cut else text[:limit]
 
 
 def next_escalation_id(escalations_dir: Path) -> str:
@@ -248,9 +259,10 @@ def render_escalation(
     options: str = "",
     recommended_command: str = "",
     raised_by: str = "AutoPilot",
+    title: str | None = None,
 ) -> str:
     """Render an OPEN escalation record (mirrors the parked-decisions schema)."""
-    title = (decision_needed or esc_type).strip().splitlines()[0][:60] if (decision_needed or esc_type) else esc_type
+    title = title or _short_title(decision_needed or esc_type)
     lines = [
         f"# {esc_id}: {title}",
         "",
@@ -289,16 +301,21 @@ def write_escalation(
     options: str = "",
     recommended_command: str = "",
     raised_by: str = "AutoPilot",
+    title: str | None = None,
+    slug: str | None = None,
 ) -> Path:
     """Write an OPEN escalation record to ``book/escalations/`` and return its path.
 
     ``today`` (``YYYY-MM-DD``) is injected by the caller so this stays pure and
-    testable.
+    testable. ``title``/``slug`` override the (word-boundary-trimmed) defaults
+    derived from ``decision_needed`` — callers pass a concise pair for
+    machine-raised escalations (loop-health, planner failure).
     """
     escalations_dir = book_dir / "escalations"
     escalations_dir.mkdir(parents=True, exist_ok=True)
     esc_id = next_escalation_id(escalations_dir)
-    slug = _slugify(decision_needed or esc_type)
+    title = title or _short_title(decision_needed or esc_type)
+    slug = slug or _slugify(title)
     path = escalations_dir / f"{today}-{esc_id}-{slug}.md"
     path.write_text(
         render_escalation(
@@ -311,6 +328,7 @@ def write_escalation(
             options=options,
             recommended_command=recommended_command,
             raised_by=raised_by,
+            title=title,
         ),
         encoding="utf-8",
     )
