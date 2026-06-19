@@ -2698,3 +2698,25 @@ def test_write_prompt_has_plan_only_dispatch():
     write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
     assert "Plan (only)" in write
     assert "do **not** draft" in write
+
+
+def test_guardrails_state_reader_only_sees_chapters():
+    """The shared guardrails must tell every prose command that the finished reader
+    sees only the drafted chapters — world/outline/research are internal scaffolding."""
+    repo_root = Path(__file__).resolve().parents[2]
+    guardrails = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"
+    ).read_text(encoding="utf-8")
+    assert "Reader-Facing Surface" in guardrails
+    assert "only the drafted chapters" in guardrails
+    assert "internal scaffolding" in guardrails
+
+    # And it must reach a rendered generation prompt (guardrails are injected into write).
+    with isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            ["init", ".", "--ai", "codex", "--script", "sh", "--here", "--force", "--ignore-agent-tools", "--no-git"],
+        )
+        assert result.exit_code == 0, result.output
+        write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
+        assert "Reader-Facing Surface" in write_prompt

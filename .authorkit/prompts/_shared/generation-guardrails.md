@@ -1,3 +1,11 @@
+### Reader-Facing Surface
+
+- The reader of the finished book sees **only the drafted chapters** (the manuscript exported by `authorkit book build`). Every other artifact — `concept.md`, `outline.md`, `chapters.md`, `world/`, `research/`, chapter plans, reviews, and the constitution — is **internal scaffolding that never ships**.
+- Write so the prose **stands on its own**: anything the reader needs to follow the story must be established *in the chapters themselves*. Never assume the reader can consult a world entry, the outline, or a research note — they cannot.
+- Scaffolding is an **input, not content**. Do not transcribe the world bible or research into the prose; surface only what the scene needs, dramatized, and leave the rest as background pressure. No exposition dumps, "as you know" briefings, or encyclopedia voice sourced from `world/`.
+- The converse holds too: do not withhold something load-bearing because "it's already in the world file." If the reader needs it to understand the scene, it must appear in the prose.
+- `world/` and the outline exist to keep the chapters **consistent for the reader**, not to be read by the reader. When reviewing, check that each chapter is self-sufficient for someone with no access to the scaffolding, and flag anything that only parses if you have read the bible or outline.
+
 ### Name Originality Protocol
 
 - Do not reuse generic stock names or repeated defaults from prior runs.
