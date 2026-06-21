@@ -165,7 +165,7 @@ For cross-model prose continuity, `/authorkit.write` also maintains `book/style-
 
 ### 4. Review what you wrote
 
-`/authorkit.review` does two jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`). Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep (continuity, threads, pacing, voice/style, world-building, overdue parked decisions). Pass a range for both.
+`/authorkit.review` does a few jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`); the craft review now **leads with a gating style-fidelity pass** (voice vs the fixed origin + the literary-tic audit), so a chapter that has drifted from the book's voice is not approved. Pass `N style` for that **style pass alone** (→ `chapters/NN/style-review.md`) — a fast, explicit voice check right after writing. Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep. Pass a range for both.
 
 ```bash
 /authorkit.review 1                # Craft review of chapter 1
@@ -280,7 +280,7 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 |---------|-------------|--------|---------|
 | `/authorkit.discuss` | Talk through brainstorming, clarification, cross-cutting changes, restructuring, what-if branches, voice/tone updates, parking, and initial world seeding. Read-only by default; every write proposed and confirmed. | Free-form topic, question, change description, or sub-mode keyword | Depends on mode — concept.md, world/, outline.md, characters.md, chapters.md, parked-decisions.md, snapshots/, amendments/, whatif/* branch, constitution, or notes/discuss-*.md |
 | `/authorkit.write` | Plan + draft + reconcile manuscript prose. Generates the outline and chapter list when missing. Supports full/interactive/scene/continue/from-scene drafting plus revise and passage help. | Chapter number, range, or `next`; optional sub-mode keyword (`outline`, `interactive`, `scene N`, `continue`, `from scene N`, `revise`, `help`) | `outline.md`, `chapters.md`, `chapters/NN/plan.md`, `chapters/NN/draft.md`, world/ updates, `world/_index.md`, status changes in `chapters.md` |
-| `/authorkit.review` | Per-chapter craft review and/or manuscript-wide drift sweep. Drafts are never modified. | Chapter number, range, empty (= manuscript) | `chapters/NN/review.md` for chapter scope; structured drift report for manuscript scope; status changes in `chapters.md` |
+| `/authorkit.review` | Per-chapter craft review (leads with a gating style-fidelity pass), focused `N style` style pass, and/or manuscript-wide drift sweep. Drafts are never modified. | Chapter number, `N style`, range, empty (= manuscript) | `chapters/NN/review.md`; `chapters/NN/style-review.md` for `N style`; structured drift report for manuscript scope; status changes in `chapters.md` |
 | `/authorkit.research` | Grounded research with optional world sync (always gated). | Free-form topic + optional `scope:`, `sources:`, `folder:` overrides | `research.md`, `research/**/*.md`, optional `world/notes/...` after explicit approval |
 
 ### Installer CLI Commands (`authorkit`)

@@ -61,6 +61,19 @@
      new voice), never an earlier one:
        - From CH01: CH02      # CH01 is an atypical prologue; grade everything against CH02
        - From CH40: CH41      # sanctioned darker voice from the timeskip; CH41 is the first approved chapter in it
+
+     EXCERPTS (author voice samples) — when the target voice exists but few or no
+     chapters are approved yet (e.g. at the very start, or captured during the
+     original constitution building), pin short prose exemplars instead of, or
+     alongside, chapter references. Write them as a `### Voice Exemplars`
+     subsection under this heading, OUTSIDE this comment — each a short passage
+     (a paragraph or two) embodying the target voice, optionally stage-scoped with
+     the same `From CHnn:` prefix. write/review fold excerpts into the fixed
+     origin: excerpts and earliest-approved chapters are used together when both
+     exist, and excerpts ARE the concrete voice bar when no chapter is approved.
+     Example (real text goes outside this comment):
+       ### Voice Exemplars
+       - [a short passage, a paragraph or two, in the book's target voice]
 -->
 
 ## [SECTION_2_NAME]

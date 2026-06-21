@@ -2740,3 +2740,35 @@ def test_guardrails_state_reader_only_sees_chapters():
         assert result.exit_code == 0, result.output
         write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
         assert "Reader-Facing Surface" in write_prompt
+
+
+def test_review_prompt_has_explicit_style_fidelity_pass():
+    """The review command leads with an explicit, gating Style Fidelity pass and
+    exposes a focused `N style` mode that writes chapters/NN/style-review.md."""
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    assert "Style Fidelity (gating" in review
+    assert "## Mode: Style Fidelity" in review
+    assert "chapters/NN/style-review.md" in review
+    assert "7 style" in review  # focused style-only scope keyword
+    assert "automatically NEEDS REVISION" in review  # the gate
+
+
+def test_voice_origin_supports_author_excerpts():
+    """The fixed voice origin can be author excerpts (`### Voice Exemplars`), not
+    just chapter pins — threaded through the constitution and every origin-resolving
+    prompt (write, review, guardrails, discuss)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    akit = repo_root / ".authorkit"
+    constitution = (akit / "memory" / "constitution.md").read_text(encoding="utf-8")
+    assert "Voice Exemplars" in constitution
+
+    origin_resolvers = [
+        akit / "prompts" / "authorkit.write.md",
+        akit / "prompts" / "authorkit.review.md",
+        akit / "prompts" / "_shared" / "generation-guardrails.md",
+        akit / "prompts" / "authorkit.discuss.md",
+    ]
+    for path in origin_resolvers:
+        text = path.read_text(encoding="utf-8")
+        assert "Voice Exemplars" in text, f"{path.name} must reference Voice Exemplars excerpts in origin resolution"
