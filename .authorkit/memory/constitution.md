@@ -38,6 +38,31 @@
 [PRINCIPLE_6_DESCRIPTION]
 <!-- Example: New names must be distinctive and setting-appropriate; avoid stock defaults and repeated name patterns. New numeric facts require rationale (logistical, historical, or narrative). If exact values are uncertain, use bounded ranges or explicit uncertainty. -->
 
+## Voice Origin
+
+<!-- The fixed reference that book/style-anchor.md is built from and that reviews
+     grade voice against, so drift is measured from a point that does not move.
+     DEFAULT (leave empty): the earliest approved ([X]) chapter(s). Override only
+     to fix an unrepresentative opening (e.g. a prologue in a different register)
+     or to record a deliberate voice shift at a stage of the book. Re-pinning is a
+     sanctioned voice evolution — record it here; the style anchor and reviews must
+     never switch the voice bar silently per run. Continuity/arc references (the
+     last time we saw a character, where an arc stands) are chosen dynamically and
+     are NOT governed by this pin.
+     To ACTIVATE a pin, write its `From CHnn: ...` line(s) as real text directly
+     under the `## Voice Origin` heading, OUTSIDE this comment — write/review read
+     only active content, not this commented example. Empty (comment only) = the
+     default earliest-approved origin.
+     Format (optional, stage-scoped by chapter number) — each line reads
+     "From CHnn: <exemplar chapter(s)>", meaning chapters numbered >= nn grade
+     against the named exemplar(s). When several lines are present, the one with
+     the highest "From CHnn" at or below the target chapter applies. Name an
+     exemplar at or after the stage boundary (a chapter that already embodies the
+     new voice), never an earlier one:
+       - From CH01: CH02      # CH01 is an atypical prologue; grade everything against CH02
+       - From CH40: CH41      # sanctioned darker voice from the timeskip; CH41 is the first approved chapter in it
+-->
+
 ## [SECTION_2_NAME]
 <!-- Example: Content & Thematic Boundaries, Research Standards, Sensitivity Guidelines, etc. -->
 

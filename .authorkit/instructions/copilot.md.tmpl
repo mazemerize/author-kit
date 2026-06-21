@@ -29,7 +29,7 @@ Author Kit exposes **four slash commands** under `{{COMMAND_SOURCE}}`. They map 
 - `book/research.md`, `book/research/**/*.md` — grounded research index and topic notes
 - `book/parked-decisions.md` — deferred decisions with deadlines (`Before CHNN` / `Before final draft` / `No deadline`)
 - `book/chapters/NN/{plan.md, draft.md, review.md}` — per-chapter plan, prose draft, craft review
-- `book/style-anchor.md` — prose continuity anchor (constitution + last two approved chapters), refreshed before drafting/revising
+- `book/style-anchor.md` — prose continuity anchor (constitution + concept voice/tone + earliest approved chapters, the fixed origin), refreshed before drafting/revising
 - `book/snapshots/YYYY-MM-DD-<slug>.md` — narrative bookmarks (paired with `snapshot/*` git tags) created before risky operations
 - `book/amendments/YYYY-MM-DD-<slug>.md` — change logs for cross-cutting amendments
 - `book/whatif-active.md` — present only while a what-if experimental branch is in flight
@@ -39,7 +39,7 @@ Author Kit exposes **four slash commands** under `{{COMMAND_SOURCE}}`. They map 
 
 - Use absolute paths when operating on files.
 - World files use YAML frontmatter; rebuild `world/_index.md` after any world write (the `/authorkit.write` reconcile pass and `/authorkit.discuss` mode that touches `world/` both do this automatically).
-- Style continuity anchors to `.authorkit/memory/constitution.md` + `book/style-anchor.md` + the last two approved chapter drafts (`[X]`) when available.
+- Style continuity anchors to `.authorkit/memory/constitution.md` + concept voice/tone + `book/style-anchor.md` + the earliest approved chapter drafts (`[X]`, the fixed origin) when available; character/scene *texture* matches the earliest *relevant* approved chapter (never a trailing one).
 - Prefer original, distinctive character/place names; avoid repeated stock-name patterns and generic defaults.
 - Numeric facts in new prose need rationale; when multiple values are plausible, pick a context-bounded varied value, not a repetitive default.
 - Handoff `prompt:` strings may contain bracketed placeholders such as `[N]` (chapter), `[topic]`, `[focus area]`. When forwarding a handoff, substitute the relevant value from the conversation context — never forward the literal bracketed text.

@@ -400,7 +400,7 @@ Try a creative direction on a git branch without committing to it. Four sub-mode
 
 Update the book constitution at `.authorkit/memory/constitution.md`. This is the style bible — used by `/authorkit.write` (drafting) and `/authorkit.review` (review). The file is a template with placeholders in square brackets (`[BOOK_TITLE]`, `[PRINCIPLE_1_NAME]`, etc.).
 
-1. Load the existing constitution. Identify every `[ALL_CAPS_IDENTIFIER]` placeholder.
+1. Load the existing constitution. Identify every `[ALL_CAPS_IDENTIFIER]` placeholder. The `## Voice Origin` section is **not** a placeholder — it is a structured pin block (default: empty comment); handle it per the Voice Origin item in step 5.
 2. Derive values: use user input where it supplies one, otherwise infer from `concept.md`, `outline.md`, prior constitution versions.
 3. `CONSTITUTION_VERSION` bumps semver:
    - MAJOR: fundamental voice/style change
@@ -409,6 +409,7 @@ Update the book constitution at `.authorkit/memory/constitution.md`. This is the
 4. `RATIFICATION_DATE` is the original adoption date (preserve). `LAST_AMENDED_DATE` is today.
 5. Areas to cover (adapt to genre):
    - **Voice**: POV, tense, narrative distance, formality
+   - **Voice Origin pin** (`## Voice Origin` section): the fixed reference `/authorkit.write` builds the style anchor from and `/authorkit.review` grades global-voice drift against. Default empty = the earliest approved (`[X]`) chapter(s). Set or change a pin only to fix an unrepresentative opening (e.g. a prologue in a different register) or to record a **sanctioned** voice shift at a stage boundary. Write it in the documented format — `From CHnn: <exemplar chapter(s)>`, one line per stage, the exemplar at or after the boundary — **as active content directly under the `## Voice Origin` heading, not inside the example comment** (the write/review prompts read only an active pin) — and never switch it silently: re-pinning is a MAJOR (or significant MINOR) voice change, so recommend `/authorkit.review` afterwards to resurface drift against the new origin. (This pins only the *global* voice bar; character/scene texture is still matched dynamically against the earliest relevant chapter.)
    - **Tone**: emotional register, humor policy, darkness/lightness
    - **Audience**: target reader, assumed knowledge, accessibility
    - **Prose Standards**: show vs tell, dialogue rules, description density, sentence rhythm

@@ -29,13 +29,15 @@
 
 ### Style Continuity Protocol
 
-- Constitution is the primary style authority.
-- For prose continuity, also ground style decisions in `book/style-anchor.md`.
-- Build or refresh `book/style-anchor.md` from the last two approved chapters before the target chapter:
-  - Two approved chapters available: constitution + last two approved drafts.
-  - One approved chapter available: constitution + that draft.
-  - None approved: constitution only.
-- Keep prose aligned on POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behavior defined by the style anchor.
+Voice lives at two layers; keep them distinct so intelligent matching never erodes the drift bar.
+
+- **Layer 1 — global voice (the fixed origin / drift bar).** Constitution is the primary style authority. Resolve the **voice origin**: if the constitution has a `## Voice Origin` pin covering the target chapter's stage, use the chapter(s) it names; otherwise default to the *earliest* approved (`[X]`) chapters (lowest numbers). The pin is a recorded, author-sanctioned override — propose it via `/authorkit.discuss` (Constitution mode); never switch the voice bar silently per run. The origin governs POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behaviour, and it does **not** move as the book grows — that fixedness is what makes drift measurable.
+- **Build or refresh `book/style-anchor.md` from that fixed origin** — constitution + concept voice/tone + the resolved origin chapter(s), never the most recent ones:
+  - Two or more approved chapters: constitution + concept voice/tone + the earliest one or two approved drafts.
+  - One approved chapter: constitution + concept voice/tone + that draft.
+  - None approved: constitution + concept voice/tone only.
+- **Layer 2 — character/scene/arc texture (the voice exemplar; matched, never the bar).** For texture the global origin under-specifies — how a given POV character's interiority reads, an arc's tonal colour, a recurring character's dialogue voice — match the **earliest *relevant* approved chapter**: the lowest-numbered approved draft featuring this chapter's POV/focus characters or the same arc register (use the `world/_index.md` Chapter Manifest + Alias Lookup). Pick the *earliest* relevant draft, not the most recent, so the exemplar is a representative instance rather than a trailing (possibly drifted) one. The exemplar may only *add* detail the origin leaves open; where it conflicts with the constitution or the fixed origin, the origin wins and the divergence is drift, not licence. Fall back to the fixed origin when no more-relevant approved chapter exists.
+- Ground prose decisions in `book/style-anchor.md` and keep prose aligned on POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behaviour defined there. (Plot/thread/state continuity — where an arc currently stands — comes from the *most recent* relevant chapter, a reference separate from the earliest-relevant voice exemplar.)
 
 ### Literary Tic Avoidance
 

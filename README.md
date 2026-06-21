@@ -161,7 +161,7 @@ Progress is tracked in `chapters.md` with status markers:
 | `[R]` | Reviewed | Review completed, needs revision |
 | `[X]` | Approved | Chapter passed review, ready for final manuscript |
 
-For cross-model prose continuity, `/authorkit.write` also maintains `book/style-anchor.md`, derived from the constitution plus the last two approved chapters.
+For cross-model prose continuity, `/authorkit.write` also maintains `book/style-anchor.md`, derived from the constitution, the concept's voice & tone, plus the *earliest* approved chapters (a fixed origin, so the voice bar doesn't drift downward with recent output). Character/scene/arc *texture* is matched separately against the earliest *relevant* approved chapter, so it never lowers that bar.
 
 ### 4. Review what you wrote
 
@@ -593,7 +593,7 @@ Created when you first run `/authorkit.discuss` on an empty repo (or when it ent
 ```text
 book/
 |-- concept.md
-|-- style-anchor.md                  # Auto-derived from constitution + last 2 approved chapters; managed by chapter prompts
+|-- style-anchor.md                  # Auto-derived from constitution + concept voice/tone + earliest approved chapters (fixed origin); managed by write prompt
 |-- outline.md
 |-- research.md
 |-- research/
