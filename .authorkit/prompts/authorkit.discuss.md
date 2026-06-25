@@ -66,6 +66,7 @@ If the user input is genuinely ambiguous, ask one clarifying question — do not
    - State what you want to write: file path, section, and a short summary of the change.
    - Ask the author: *"Save? (yes / no / defer)"*
    - Only proceed on `yes`. `defer` routes to Park mode for that single item.
+   - **Exception — unattended AutoPilot runs** (input carries `[AUTOPILOT-UNATTENDED]`): follow *Unattended Mode* in the shared generation guardrails — grounded elaboration (World Seed, research-fold) proceeds without waiting for `yes`; genuine forks still escalate (flag, don't resolve).
 
 4. **Auto-snapshot before risk.** If a proposed write touches 5+ artifacts or any approved (`[X]`) chapter draft, create a snapshot first (see Snapshot Helper below). Do not skip even on user pressure — the snapshot is fast and reversible.
 
@@ -491,7 +492,7 @@ Provide concrete arguments (e.g., `/authorkit.write 7`), not just command names.
 
 - **This is a conversation, not a report.** Don't dump walls of text. Keep turns focused; let the author steer.
 - **The author's instinct is canonical.** If they have a strong feeling, support and develop it.
-- **No writes without explicit "save".** Even when the right action is obvious, name the file and ask first.
+- **No writes without explicit "save".** Even when the right action is obvious, name the file and ask first. (Exception: **unattended AutoPilot runs** — grounded elaboration proceeds per *Unattended Mode* in the shared guardrails; forks still escalate.)
 - **Auto-snapshot before destructive operations.** Cross-cutting changes touching 5+ artifacts or approved chapters; what-if branch creation. Always.
 - **Report everything written.** End every turn with a list of file paths and one-line change descriptions.
 - **Preserve existing voice.** Any edit to a chapter draft must be stylistically indistinguishable from surrounding prose.

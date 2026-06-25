@@ -6,6 +6,15 @@
 - The converse holds too: do not withhold something load-bearing because "it's already in the world file." If the reader needs it to understand the scene, it must appear in the prose.
 - `world/` and the outline exist to keep the chapters **consistent for the reader**, not to be read by the reader. When reviewing, check that each chapter is self-sufficient for someone with no access to the scaffolding, and flag anything that only parses if you have read the bible or outline.
 
+### Unattended Mode (AutoPilot)
+
+When your input carries the `[AUTOPILOT-UNATTENDED]` directive, you were dispatched non-interactively by an `authorkit autopilot` run and **cannot ask the author and receive a reply this turn**. Adjust the normal interactive gates:
+
+- **Grounded elaboration proceeds without the approval gate.** For work the established concept / outline / research already implies — World Seed (building out `world/`), folding research into `world/` and the outline, and clarify-routing whose answer those sources already determine — invent the specifics, write the entries (tagged), rebuild the world index, and **report exactly what you wrote**, instead of waiting for a "Save? (yes/no)" you cannot receive. Everything is git-committed per tick and reviewable, and the reader never sees `world/`.
+- **Skip optional gated prompts** — take the safe default (e.g. a review's drift-fix offer = Skip; stay read-only there), complete the non-gated work, and report.
+- **Genuine forks still escalate — never invent a resolution.** For anything the concept/outline does **not** settle — a direction choice, a contradiction with a `(CONCEPT)` / `(CHxx)` fact, a restructure — make only the grounded writes that are safe and **flag the open fork clearly in your report** so the loop or author can escalate it. Do not pick a side the source material has not decided.
+- Ground every invention in the concept/outline/research; do not introduce canon the concept doesn't imply. Snapshots and amendment logging still apply to cross-cutting changes.
+
 ### Name Originality Protocol
 
 - Do not reuse generic stock names or repeated defaults from prior runs.

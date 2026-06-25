@@ -20,6 +20,20 @@ from typing import Callable, Protocol
 
 from .autopilot_core import Directive, parse_directive
 
+# Appended to every worker command AutoPilot dispatches. Workers run headless
+# (`claude -p`), so they cannot ask the author and get a reply this turn; this
+# directive activates the shared "Unattended Mode" guardrail (grounded elaboration
+# writes proceed, optional gated prompts are skipped, and genuine forks are flagged
+# for escalation rather than resolved).
+UNATTENDED_DIRECTIVE = (
+    "[AUTOPILOT-UNATTENDED] This command was dispatched by an autonomous `authorkit autopilot` run; "
+    'you cannot ask the author and receive a reply this turn. Follow the "Unattended Mode" rules in the '
+    "shared generation guardrails: proceed with writes the concept/outline/research already imply (invent "
+    "the specifics, tag entries, rebuild the world index, and report what you wrote); skip optional gated "
+    "prompts (use the safe default); and for a genuine fork or contradiction the concept does not settle, "
+    "make only the grounded writes and flag the fork in your report instead of inventing a resolution."
+)
+
 
 @dataclass(slots=True)
 class RunResult:
@@ -117,8 +131,9 @@ class _SubprocessRunner:
         return parse_directive(self._extract_text(proc.stdout))
 
     def run_command(self, command: str) -> RunResult:
+        # Workers run headless — signal unattended mode (see UNATTENDED_DIRECTIVE).
         proc = subprocess.run(
-            self._command_argv(command),
+            self._command_argv(f"{command}\n\n{UNATTENDED_DIRECTIVE}"),
             cwd=str(self.cwd),
             capture_output=True,
             text=True,

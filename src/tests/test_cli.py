@@ -2543,7 +2543,10 @@ def test_claude_runner_builds_argv_and_parses_envelope(tmp_path, monkeypatch):
     monkeypatch.setattr(autopilot_runner.subprocess, "run", fake_run_cmd)
     res = claude.run_command("/authorkit.write 3")
     assert res.ok is True
-    assert captured["cmd_argv"] == ["claude", "-p", "/authorkit.write 3"]
+    assert captured["cmd_argv"][:2] == ["claude", "-p"]
+    # The dispatched -p arg carries the command plus the unattended directive.
+    assert captured["cmd_argv"][2].startswith("/authorkit.write 3")
+    assert "AUTOPILOT-UNATTENDED" in captured["cmd_argv"][2]
 
 
 def test_init_renders_autopilot_planner_prompt():
@@ -2772,3 +2775,19 @@ def test_voice_origin_supports_author_excerpts():
     for path in origin_resolvers:
         text = path.read_text(encoding="utf-8")
         assert "Voice Exemplars" in text, f"{path.name} must reference Voice Exemplars excerpts in origin resolution"
+
+
+def test_unattended_mode_wired_into_guardrails_and_discuss():
+    """AutoPilot signals unattended on dispatch, and the shared guardrails + discuss
+    define how a headless worker behaves (grounded elaboration proceeds; forks escalate)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    akit = repo_root / ".authorkit"
+    guardrails = (akit / "prompts" / "_shared" / "generation-guardrails.md").read_text(encoding="utf-8")
+    discuss = (akit / "prompts" / "authorkit.discuss.md").read_text(encoding="utf-8")
+
+    assert "Unattended Mode" in guardrails
+    assert "AUTOPILOT-UNATTENDED" in guardrails
+    assert "Grounded elaboration proceeds" in guardrails
+    assert "AUTOPILOT-UNATTENDED" in discuss
+    # The runtime directive AutoPilot appends keys on the same marker the prompts read.
+    assert "AUTOPILOT-UNATTENDED" in autopilot_runner.UNATTENDED_DIRECTIVE

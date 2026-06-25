@@ -125,6 +125,12 @@ the chapter list, `world/`, `research/`) and **chapters** owns everything under
 layer surfaces a problem in the other (a draft contradicts canon, the outline is wrong),
 the loop escalates rather than crossing the boundary.
 
+Worker commands are dispatched **unattended** (`[AUTOPILOT-UNATTENDED]`), so a headless
+`discuss` *proceeds* with grounded elaboration (build world, fold research) the
+concept/outline/research already imply — inventing the specifics and writing them, all
+git-committed and reviewable — rather than stalling on its interactive approval gate;
+genuine forks still escalate.
+
 The modes chain: run `plot` until the plan is solid → escalate for author sign-off →
 run `chapters`. A combined "plot-then-chapters" default can be added later; `either/or`
 is the primary surface.
