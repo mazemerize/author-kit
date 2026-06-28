@@ -94,7 +94,7 @@ class _SubprocessRunner:
         self,
         cwd: Path,
         *,
-        timeout: int = 1800,
+        timeout: int = 3600,
         permission_mode: str | None = None,
         skip_permissions: bool = False,
     ):
@@ -215,7 +215,7 @@ def get_runner(
     repo_root: Path,
     *,
     flavor: str | None = None,
-    timeout: int = 1800,
+    timeout: int = 3600,
     permission_mode: str | None = None,
     skip_permissions: bool = False,
 ) -> AgentRunner:
