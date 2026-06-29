@@ -57,6 +57,7 @@ If the user input is genuinely ambiguous, ask one clarifying question — do not
    - `.authorkit/memory/constitution.md`
    - `world/` and `world/_index.md` (use the Alias Lookup and Chapter Manifest for targeted entity loading when present)
    - `parked-decisions.md`
+   - `escalations/*.md` — open AutoPilot escalations (loop-raised stop points; resolve like parked decisions — see Park mode)
    - `research.md` and relevant `research/` topic files (recursively)
    - The last 2-3 drafted chapters under `chapters/NN/draft.md`
    - `BOOK_DIR/notes/discuss-*.md` (prior discussion notes — distinct from `world/notes/`)
@@ -65,6 +66,7 @@ If the user input is genuinely ambiguous, ask one clarifying question — do not
    - State what you want to write: file path, section, and a short summary of the change.
    - Ask the author: *"Save? (yes / no / defer)"*
    - Only proceed on `yes`. `defer` routes to Park mode for that single item.
+   - **Exception — unattended AutoPilot runs** (input carries `[AUTOPILOT-UNATTENDED]`): follow *Unattended Mode* in the shared generation guardrails — grounded elaboration (World Seed, research-fold) proceeds without waiting for `yes`; genuine forks still escalate (flag, don't resolve).
 
 4. **Auto-snapshot before risk.** If a proposed write touches 5+ artifacts or any approved (`[X]`) chapter draft, create a snapshot first (see Snapshot Helper below). Do not skip even on user pressure — the snapshot is fast and reversible.
 
@@ -267,6 +269,15 @@ If user input is "list", "show", "status", "what's parked": present a summary ta
 | Update to existing world detail | World entry edit via Clarify routing |
 | Affects upcoming unplanned chapter | `/authorkit.write N` |
 
+### Resolve escalation (user said "resolve ESC-NNN: <decision>", or an AutoPilot escalation is open)
+
+AutoPilot writes loop-raised stop points to `BOOK_DIR/escalations/*.md` (schema: `.authorkit/templates/escalation-template.md`) — the same OPEN/RESOLVED + Resolution shape as parked decisions, but they **block the loop** until resolved. Treat them like `resolve PD-NNN`:
+
+1. Read the named record (or list all OPEN escalations if the user didn't name one).
+2. Resolve the underlying decision in the right mode — usually **Clarify**, **Cross-cutting change**, or **Restructure** here in `/authorkit.discuss`; a quality-stall escalation is usually `/authorkit.write N revise: <issue>` and a grounding gap is `/authorkit.research <topic>`.
+3. After the decision lands (writes proposed, approved, applied), set the record's **Status** to `RESOLVED` and fill its **Resolution** block (Resolved date, Decision, Files changed, Amendment/Snapshot). This unblocks the next `authorkit autopilot` run.
+4. Never mark an escalation resolved without addressing the blocking condition — AutoPilot re-detects an unresolved blocker and re-escalates.
+
 ## Mode: Restructure
 
 Reorder, split, merge, insert, or remove chapters. Renumber files, IDs, cross-references, and world `(CHxx)` tags atomically.
@@ -399,7 +410,7 @@ Update the book constitution at `.authorkit/memory/constitution.md`. This is the
 4. `RATIFICATION_DATE` is the original adoption date (preserve). `LAST_AMENDED_DATE` is today.
 5. Areas to cover (adapt to genre):
    - **Voice**: POV, tense, narrative distance, formality
-   - **Voice Origin pin** (`## Voice Origin` section): the fixed reference `/authorkit.write` builds the style anchor from and `/authorkit.review` grades global-voice drift against. Default empty = the earliest approved (`[X]`) chapter(s). Set or change a pin only to fix an unrepresentative opening (e.g. a prologue in a different register) or to record a **sanctioned** voice shift at a stage boundary. Write it in the documented format — `From CHnn: <exemplar chapter(s)>`, one line per stage, the exemplar at or after the boundary — **as active content directly under the `## Voice Origin` heading, not inside the example comment** (the write/review prompts read only an active pin) — and never switch it silently: re-pinning is a MAJOR (or significant MINOR) voice change, so recommend `/authorkit.review` afterwards to resurface drift against the new origin. (This pins only the *global* voice bar; character/scene texture is still matched dynamically against the earliest relevant chapter.)
+   - **Voice Origin pin** (`## Voice Origin` section): the fixed reference `/authorkit.write` builds the style anchor from and `/authorkit.review` grades global-voice drift against. Default empty = the earliest approved (`[X]`) chapter(s). Set or change a pin only to fix an unrepresentative opening (e.g. a prologue in a different register) or to record a **sanctioned** voice shift at a stage boundary. Write it in the documented format — `From CHnn: <exemplar chapter(s)>`, one line per stage, the exemplar at or after the boundary — **as active content directly under the `## Voice Origin` heading, not inside the example comment** (the write/review prompts read only an active pin) — and never switch it silently: re-pinning is a MAJOR (or significant MINOR) voice change, so recommend `/authorkit.review` afterwards to resurface drift against the new origin. (This pins only the *global* voice bar; character/scene texture is still matched dynamically against the earliest relevant chapter.) **Voice exemplars (excerpts):** when the author has a target voice but few or no approved chapters yet — most useful right now, during the original constitution build — offer to capture short prose samples as a `### Voice Exemplars` subsection under `## Voice Origin`, each a paragraph or two embodying the target voice (optionally stage-scoped with the same `From CHnn:` prefix). write/review fold these into the fixed origin alongside the earliest-approved chapters, and use them *as* the concrete voice bar before any chapter is approved. Propose the excerpts, get approval, then write them as active content under the heading.
    - **Tone**: emotional register, humor policy, darkness/lightness
    - **Audience**: target reader, assumed knowledge, accessibility
    - **Prose Standards**: show vs tell, dialogue rules, description density, sentence rhythm
@@ -481,7 +492,7 @@ Provide concrete arguments (e.g., `/authorkit.write 7`), not just command names.
 
 - **This is a conversation, not a report.** Don't dump walls of text. Keep turns focused; let the author steer.
 - **The author's instinct is canonical.** If they have a strong feeling, support and develop it.
-- **No writes without explicit "save".** Even when the right action is obvious, name the file and ask first.
+- **No writes without explicit "save".** Even when the right action is obvious, name the file and ask first. (Exception: **unattended AutoPilot runs** — grounded elaboration proceeds per *Unattended Mode* in the shared guardrails; forks still escalate.)
 - **Auto-snapshot before destructive operations.** Cross-cutting changes touching 5+ artifacts or approved chapters; what-if branch creation. Always.
 - **Report everything written.** End every turn with a list of file paths and one-line change descriptions.
 - **Preserve existing voice.** Any edit to a chapter draft must be stylistically indistinguishable from surrounding prose.

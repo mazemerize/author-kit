@@ -1,3 +1,20 @@
+### Reader-Facing Surface
+
+- The reader of the finished book sees **only the drafted chapters** (the manuscript exported by `authorkit book build`). Every other artifact — `concept.md`, `outline.md`, `chapters.md`, `world/`, `research/`, chapter plans, reviews, and the constitution — is **internal scaffolding that never ships**.
+- Write so the prose **stands on its own**: anything the reader needs to follow the story must be established *in the chapters themselves*. Never assume the reader can consult a world entry, the outline, or a research note — they cannot.
+- Scaffolding is an **input, not content**. Do not transcribe the world bible or research into the prose; surface only what the scene needs, dramatized, and leave the rest as background pressure. No exposition dumps, "as you know" briefings, or encyclopedia voice sourced from `world/`.
+- The converse holds too: do not withhold something load-bearing because "it's already in the world file." If the reader needs it to understand the scene, it must appear in the prose.
+- `world/` and the outline exist to keep the chapters **consistent for the reader**, not to be read by the reader. When reviewing, check that each chapter is self-sufficient for someone with no access to the scaffolding, and flag anything that only parses if you have read the bible or outline.
+
+### Unattended Mode (AutoPilot)
+
+When your input carries the `[AUTOPILOT-UNATTENDED]` directive, you were dispatched non-interactively by an `authorkit autopilot` run and **cannot ask the author and receive a reply this turn**. Adjust the normal interactive gates:
+
+- **Grounded elaboration proceeds without the approval gate.** For work the established concept / outline / research already implies — World Seed (building out `world/`), folding research into `world/` and the outline, and clarify-routing whose answer those sources already determine — invent the specifics, write the entries (tagged), rebuild the world index, and **report exactly what you wrote**, instead of waiting for a "Save? (yes/no)" you cannot receive. Everything is git-committed per tick and reviewable, and the reader never sees `world/`.
+- **Skip optional gated prompts** — take the safe default (e.g. a review's drift-fix offer = Skip; stay read-only there), complete the non-gated work, and report.
+- **Genuine forks still escalate — never invent a resolution.** For anything the concept/outline does **not** settle — a direction choice, a contradiction with a `(CONCEPT)` / `(CHxx)` fact, a restructure — make only the grounded writes that are safe and **flag the open fork clearly in your report** so the loop or author can escalate it. Do not pick a side the source material has not decided.
+- Ground every invention in the concept/outline/research; do not introduce canon the concept doesn't imply. Snapshots and amendment logging still apply to cross-cutting changes.
+
 ### Name Originality Protocol
 
 - Do not reuse generic stock names or repeated defaults from prior runs.
@@ -23,11 +40,11 @@
 
 Voice lives at two layers; keep them distinct so intelligent matching never erodes the drift bar.
 
-- **Layer 1 — global voice (the fixed origin / drift bar).** Constitution is the primary style authority. Resolve the **voice origin**: if the constitution has a `## Voice Origin` pin covering the target chapter's stage, use the chapter(s) it names; otherwise default to the *earliest* approved (`[X]`) chapters (lowest numbers). The pin is a recorded, author-sanctioned override — propose it via `/authorkit.discuss` (Constitution mode); never switch the voice bar silently per run. The origin governs POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behaviour, and it does **not** move as the book grows — that fixedness is what makes drift measurable.
+- **Layer 1 — global voice (the fixed origin / drift bar).** Constitution is the primary style authority. Resolve the **voice origin**: if the constitution's `## Voice Origin` names exemplar chapter(s) (`From CHnn:`) for the target stage, use them; otherwise default to the *earliest* approved (`[X]`) chapters (lowest numbers). **Always also include any `### Voice Exemplars` excerpts under `## Voice Origin`** — author prose samples that are part of the fixed origin, and the concrete voice bar before any chapter is approved. The pin is a recorded, author-sanctioned override — propose it via `/authorkit.discuss` (Constitution mode); never switch the voice bar silently per run. The origin governs POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behaviour, and it does **not** move as the book grows — that fixedness is what makes drift measurable.
 - **Build or refresh `book/style-anchor.md` from that fixed origin** — constitution + concept voice/tone + the resolved origin chapter(s), never the most recent ones:
   - Two or more approved chapters: constitution + concept voice/tone + the earliest one or two approved drafts.
   - One approved chapter: constitution + concept voice/tone + that draft.
-  - None approved: constitution + concept voice/tone only.
+  - None approved: constitution + concept voice/tone + any `### Voice Exemplars` excerpts.
 - **Layer 2 — character/scene/arc texture (the voice exemplar; matched, never the bar).** For texture the global origin under-specifies — how a given POV character's interiority reads, an arc's tonal colour, a recurring character's dialogue voice — match the **earliest *relevant* approved chapter**: the lowest-numbered approved draft featuring this chapter's POV/focus characters or the same arc register (use the `world/_index.md` Chapter Manifest + Alias Lookup). Pick the *earliest* relevant draft, not the most recent, so the exemplar is a representative instance rather than a trailing (possibly drifted) one. The exemplar may only *add* detail the origin leaves open; where it conflicts with the constitution or the fixed origin, the origin wins and the divergence is drift, not licence. Fall back to the fixed origin when no more-relevant approved chapter exists.
 - Ground prose decisions in `book/style-anchor.md` and keep prose aligned on POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behaviour defined there. (Plot/thread/state continuity — where an arc currently stands — comes from the *most recent* relevant chapter, a reference separate from the earliest-relevant voice exemplar.)
 

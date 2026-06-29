@@ -24,15 +24,17 @@ scripts:
 You **MUST** consider the user input before proceeding (if not empty). The input determines scope:
 
 - A single chapter (`7`, `CH07`, `chapter 7`) → **Chapter craft review**
+- A single chapter with `style` (`7 style`, `style 7`, "check the voice of 7") → **Style Fidelity** (the gating style pass run alone; writes `chapters/NN/style-review.md`)
 - A range (`5-10`, `chapters 5-10`) → **Range review** (per-chapter craft + drift scan scoped to the range)
 - Empty, `all`, `manuscript`, `book`: → **Manuscript drift** (cross-chapter consistency, threads, pacing, voice)
 
 ## Goal
 
-This is the review command. It does two distinct jobs and infers which is needed from scope:
+This is the review command. It does a few distinct jobs and infers which is needed from scope:
 
 1. **Chapter craft review**: assess a single drafted chapter against its plan, the concept, the constitution, the style anchor, the `world/` entries, and adjacent chapters. Output a `review.md` file with strengths, issues by severity, dimension scores, and a verdict.
 2. **Manuscript drift**: cross-chapter analysis for continuity errors, character drift, theme tracking, pacing, voice/style consistency, world-building integrity, overdue parked decisions, and upstream drift (concept/outline/chapters.md/world out of sync with drafts). Output a structured Markdown report; offer upstream drift fixes gated by approval; **never** modify drafts.
+3. **Style Fidelity** (`N style`): runs *only* the gating style pass the craft review leads with — voice vs the fixed origin + the literary-tic audit — and writes `chapters/NN/style-review.md`. A fast, explicit voice check to run right after a chapter is written.
 
 A range invocation runs the chapter craft review on each chapter in the range, then a drift scan limited to that range.
 
@@ -54,10 +56,38 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 3. **Load core context** (used by both modes). Load the fixed references *first* and hold them as the bar **before** reading the chapter under review, so the standard is set in advance rather than calibrated to the prose in front of you:
    - `.authorkit/memory/constitution.md` — all writing principles (the fixed bar)
    - `concept.md` — premise, themes, characters/subjects, voice & tone, scope
-   - **Origin reference (the fixed drift baseline — global voice)** — resolve the voice origin: if the constitution has a `## Voice Origin` pin covering this chapter's stage, load the chapter(s) it names; otherwise default to the *earliest* (lowest-numbered) approved (`[X]`) chapters. Two or more approved: load the earliest one or two drafts; exactly one approved: load that one draft; none approved: the origin is the constitution plus the concept's voice & tone section alone. This origin governs *global* voice and does **not** move as the book grows. If you judge a different chapter to be a better voice exemplar (e.g. the opening is an atypical prologue), *propose* pinning it via `/authorkit.discuss` (Constitution mode) — never silently switch the bar, which would let drift hide behind a convenient anchor.
+   - **Origin reference (the fixed drift baseline — global voice)** — resolve the voice origin: if the constitution's `## Voice Origin` names exemplar chapter(s) (`From CHnn:`) covering this stage, load those, **and load any `### Voice Exemplars` excerpts present there** (author prose samples that are part of the origin); otherwise default to the *earliest* (lowest-numbered) approved (`[X]`) chapters, still folding in any excerpts. Two or more approved: load the earliest one or two drafts; exactly one approved: load that one draft; none approved: the origin is the constitution + the concept's voice & tone section + any `### Voice Exemplars` excerpts (the excerpts are the concrete voice bar before any chapter is approved). This origin governs *global* voice and does **not** move as the book grows. If you judge a different chapter to be a better voice exemplar (e.g. the opening is an atypical prologue), *propose* pinning it via `/authorkit.discuss` (Constitution mode) — never silently switch the bar, which would let drift hide behind a convenient anchor.
    - `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` — cadence, diction/register, imagery density, dialogue profile, drift flags. Use it as a continuity aid, but remember it is only a *derived* view of the origin (and may be stale or hand-edited): where it disagrees with the constitution or the origin, the constitution and origin win.
 
 4. **Report** at the end with a clear summary and concrete next-command suggestions.
+
+## Mode: Style Fidelity (single chapter, style-only)
+
+Triggered by `N style` / `style N` (or a chapter plus "style" / "voice" / "fidelity"). A focused, **read-only** pass that runs **only** the Style Fidelity gate (dimension B + the B1 tic audit) against the **fixed origin** — nothing about plot, world, theme, or pacing. Run it right after a chapter is written for a fast, explicit voice check. (The full craft review runs this same pass first; this mode is it in isolation.)
+
+1. Resolve the **fixed origin** exactly as the craft review does (Always-on step 3 → Origin reference): the `## Voice Origin` pin/excerpts if set, else the earliest approved (`[X]`) chapters, else constitution + concept voice/tone. Load `book/style-anchor.md` as a derived aid only — where it disagrees with the origin, the origin wins.
+2. Run **dimension B (Style Fidelity)** and **B1 (literary-tic audit)** in full — voice vs origin (global), style-anchor alignment, constitution voice rules, tic budgets — quoting the specific lines that diverge.
+3. Write `BOOK_DIR/chapters/NN/style-review.md`:
+
+   ```markdown
+   # Style Fidelity: Chapter [NN] - [Title]
+
+   **Reviewed**: [DATE]
+   **Origin**: [pin/excerpts | earliest [X] chapters | constitution + concept]
+   **Verdict**: [STYLE PASS / NEEDS STYLE REVISION]
+
+   ## Voice vs Origin
+   - [Axis / line ref] — [origin expectation] vs [chapter]; [OK / drift]. **Fix**: [in-voice replacement]
+
+   ## Literary Tics
+   | Pattern | Count | Budget | Over? | Lines |
+
+   ## Verdict
+   **Status**: [STYLE PASS / NEEDS STYLE REVISION]
+   ```
+
+4. **Status & report**: NEEDS STYLE REVISION → set `[D] → [R]` (the revise step addresses voice); STYLE PASS → leave status unchanged (a clean style pass does not approve the chapter — the full craft review does). Report the verdict, the top drift findings, and the next step: PASS → `/authorkit.review N` (full craft) or `/authorkit.write N+1`; NEEDS → `/authorkit.write N revise: <the style fixes>`.
+5. **Read-only except the verdict** — writes only `chapters/NN/style-review.md` and the `[D]→[R]` flip; never edits the draft, and says nothing about plot, world, theme, or pacing.
 
 ## Mode: Chapter Craft Review (single chapter)
 
@@ -91,15 +121,14 @@ For a single chapter number `N`.
 - Did the closing beat create forward momentum?
 - Any significant deviations from the plan? Are they improvements?
 
-#### B. Constitution Compliance
+#### B. Style Fidelity (gating — run this first)
 
-- Does the voice match the constitution's specifications?
-- Is the POV consistent with the stated approach?
-- Is the tense correct throughout?
-- Does the prose style match the constitution's standards?
-- Are any constitution principles violated?
-- Does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile?
-- **Voice fidelity vs origin (global)**: compare the chapter's *global* voice — POV, narrative distance, sentence rhythm, diction/register, imagery — against the **fixed origin** (constitution + concept voice/tone + the resolved origin chapters: the `## Voice Origin` pin if one covers this stage, else the earliest approved chapters), not merely against the style anchor or the previous chapter. Flag drift from the origin even when the chapter reads as locally consistent with its neighbors. Character/scene/arc *texture* (a POV character's cadence, an arc's register) is matched against the earliest-relevant exemplar and assessed under Continuity (E), not here. Distinguish *unsanctioned* drift (a finding, at least Important; Critical if it is also a constitution violation) from *constitution-sanctioned* evolution (not a finding). Quote the specific lines that diverge.
+The dedicated style pass, and the whole of the focused `/authorkit.review N style` mode. **Run it before the other dimensions and gate on it:** a chapter that has drifted from the voice origin, or is over budget on a high-signal tic (patterns 7, 13, 21, 22), is **automatically NEEDS REVISION** — not approved while it is out of voice, however well it scores elsewhere.
+
+- **Voice fidelity vs origin (global)**: compare the chapter's *global* voice — POV, narrative distance, sentence rhythm, diction/register, imagery — against the **fixed origin** (constitution + concept voice/tone + the resolved origin: the `## Voice Origin` pin/excerpts if set, else the earliest approved chapters), not merely against the style anchor or the previous chapter. Flag drift from the origin even when the chapter reads as locally consistent with its neighbors. Character/scene/arc *texture* (a POV character's cadence, an arc's register) is matched against the earliest-relevant exemplar and assessed under Continuity (E), not here. Distinguish *unsanctioned* drift (a finding, at least Important; Critical if it is also a constitution violation) from *constitution-sanctioned* evolution (not a finding). Quote the specific lines that diverge.
+- **Style-anchor alignment**: does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile? The anchor is a derived view of the origin — where they disagree, the origin wins.
+- **Constitution voice rules**: voice matches the constitution's specifications; POV consistent; tense correct throughout; prose style matches the standards; no principle violated.
+- **Literary-tic audit**: run B1 below — it is part of this pass.
 
 #### B1. LLM Literary Tic Audit
 
@@ -220,7 +249,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 
 ### Update chapter status
 
-- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`
+- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`. PASS **requires the Style Fidelity gate (B) to pass** — never approve a chapter that drifted from the voice origin or is over a high-signal tic budget, however well it scores elsewhere.
 - **NEEDS REVISION**: change `[D] → [R]` (reviewed, needs work)
 
 ### Report

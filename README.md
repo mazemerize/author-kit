@@ -165,7 +165,7 @@ For cross-model prose continuity, `/authorkit.write` also maintains `book/style-
 
 ### 4. Review what you wrote
 
-`/authorkit.review` does two jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`). Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep (continuity, threads, pacing, voice/style, world-building, overdue parked decisions). Pass a range for both.
+`/authorkit.review` does a few jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`); the craft review now **leads with a gating style-fidelity pass** (voice vs the fixed origin + the literary-tic audit), so a chapter that has drifted from the book's voice is not approved. Pass `N style` for that **style pass alone** (→ `chapters/NN/style-review.md`) — a fast, explicit voice check right after writing. Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep. Pass a range for both.
 
 ```bash
 /authorkit.review 1                # Craft review of chapter 1
@@ -280,7 +280,7 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 |---------|-------------|--------|---------|
 | `/authorkit.discuss` | Talk through brainstorming, clarification, cross-cutting changes, restructuring, what-if branches, voice/tone updates, parking, and initial world seeding. Read-only by default; every write proposed and confirmed. | Free-form topic, question, change description, or sub-mode keyword | Depends on mode — concept.md, world/, outline.md, characters.md, chapters.md, parked-decisions.md, snapshots/, amendments/, whatif/* branch, constitution, or notes/discuss-*.md |
 | `/authorkit.write` | Plan + draft + reconcile manuscript prose. Generates the outline and chapter list when missing. Supports full/interactive/scene/continue/from-scene drafting plus revise and passage help. | Chapter number, range, or `next`; optional sub-mode keyword (`outline`, `interactive`, `scene N`, `continue`, `from scene N`, `revise`, `help`) | `outline.md`, `chapters.md`, `chapters/NN/plan.md`, `chapters/NN/draft.md`, world/ updates, `world/_index.md`, status changes in `chapters.md` |
-| `/authorkit.review` | Per-chapter craft review and/or manuscript-wide drift sweep. Drafts are never modified. | Chapter number, range, empty (= manuscript) | `chapters/NN/review.md` for chapter scope; structured drift report for manuscript scope; status changes in `chapters.md` |
+| `/authorkit.review` | Per-chapter craft review (leads with a gating style-fidelity pass), focused `N style` style pass, and/or manuscript-wide drift sweep. Drafts are never modified. | Chapter number, `N style`, range, empty (= manuscript) | `chapters/NN/review.md`; `chapters/NN/style-review.md` for `N style`; structured drift report for manuscript scope; status changes in `chapters.md` |
 | `/authorkit.research` | Grounded research with optional world sync (always gated). | Free-form topic + optional `scope:`, `sources:`, `folder:` overrides | `research.md`, `research/**/*.md`, optional `world/notes/...` after explicit approval |
 
 ### Installer CLI Commands (`authorkit`)
@@ -290,10 +290,31 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 | `authorkit init` | Install/update Author Kit assets for selected AI(s). Re-init preserves `constitution.md` and removes files no longer managed by the new selection. | Target dir, `--ai`, `--script`, `--force`, `--here`, `--no-git`, `--ignore-agent-tools` | `.authorkit/`, AI prompt folders, manifest |
 | `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `python`, `pandoc`, `ffmpeg`) |
 | `authorkit version` | Print CLI and Python versions | — | Version report |
-| `authorkit status` | Project health dashboard for the current book | — | Chapter breakdown by status, parked-decision counts, world entity totals, drift warnings |
+| `authorkit status` | Project health dashboard for the current book | — | Chapter breakdown by status, parked-decision counts, world entity totals, open escalations, drift warnings |
+| `authorkit autopilot` | Run the semi-autonomous authoring loop (`chapters` / `plot`); stitches clean sessions of the four commands and halts on escalations | `chapters --range`, `plot --max-iters`, `--dry-run`, `--step`, `--commit`, `--permission-mode` | Chapter drafts/reviews or plan updates; `book/escalations/*.md`; `book/runs/autopilot.jsonl` |
 | `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force`, `--yes`, `--quiet`, `--output-dir`, `--from-chapter`, `--to-chapter` | `dist/manuscript.md` + rendered docs |
 | `authorkit book audio` | Generate chapter audio and optional merged audiobook | `--provider`, `--voice`, `--model`, `--merge`, `--output-dir`, `--from-chapter`, `--to-chapter`, `--force`, `--yes` | `dist/audio/*.mp3` (+ optional merged file) |
 | `authorkit book stats` | Compute chapter/global manuscript metrics | `--output`, `--wpm`, `--audio-dir`, `--from-chapter`, `--to-chapter` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
+
+---
+
+## Autonomous Drafting (AutoPilot)
+
+`authorkit autopilot` runs a **semi-autonomous loop** that stitches together clean AI sessions of the four commands above. A planning agent reads `authorkit status` each tick and picks the single next action; the loop dispatches it, then stops the moment a creative, structural, or quality decision is needed. It adds no new writing behavior — `review` still approves chapters exactly as it does by hand.
+
+```bash
+authorkit autopilot chapters --range 1-8            # plan -> draft -> review each chapter in range
+authorkit autopilot plot --max-iters 10             # develop the outline / world / chapter plans
+authorkit autopilot chapters --range 1-8 --dry-run  # show the next action; change nothing
+```
+
+- **Refuses without a seed.** `plot` needs `concept.md`; `chapters` additionally needs a filled constitution, `outline.md`, and a `chapters.md` covering the range.
+- **Bounds:** `--range` for `chapters`, `--max-iters` for `plot`. `--dry-run` previews the next directive, `--step` runs one tick, `--commit` commits after each tick.
+- **Tool access:** workers run with `--dangerously-skip-permissions` by default (full, unattended tool access — required to write files and run the setup/world-index scripts); the loop prints a heads-up each run. Pass `--permission-mode <mode>` (e.g. `acceptEdits`, `default`) to restrict, noting tighter modes may stall on script steps.
+- **Escalations.** When a decision is the author's to make, the loop writes an `OPEN` record to `book/escalations/` and halts. Resolve it with `/authorkit.discuss` (or `/authorkit.write N revise:` / `/authorkit.research`), which closes the record; the next run resumes. The loop never resolves its own escalations.
+- **Audit & control:** every tick is logged to `book/runs/autopilot.jsonl`; drop a `book/runs/STOP` file to halt after the current tick.
+
+See [docs/autopilot.md](docs/autopilot.md) for the full design and [docs/autopilot-implementation.md](docs/autopilot-implementation.md) for the build plan.
 
 ---
 
