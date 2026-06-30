@@ -33,6 +33,9 @@ ESCALATION_TYPES = {
     "parked-overdue",
     "grounding-gap",
     "loop-health",
+    "numeric-contradiction",
+    "disclosure-leak",
+    "scaffolding-gap",
 }
 # Markers that mean the constitution is still the shipped template, not filled in.
 CONSTITUTION_PLACEHOLDERS = ("[BOOK_TITLE]", "[PRINCIPLE_1_NAME]", "[PRINCIPLE_1_DESCRIPTION]")

@@ -47,12 +47,16 @@ class RunResult:
 class AgentRunner(Protocol):
     """Runs the planner and dispatches worker commands in clean sessions."""
 
-    def run_planner(self, prompt: str, status_json: str, mode_brief: str, context: str = "") -> Directive:
+    def run_planner(
+        self, prompt: str, status_json: str, mode_brief: str, context: str = "", guideline: str = ""
+    ) -> Directive:
         """Return the planner's single next-action Directive.
 
         ``context`` is optional read-only material (plot mode passes the concept,
         outline, world index, and research index so the planner can judge what is
         missing; chapters mode leaves it empty and stays status-only).
+        ``guideline`` is the operator's ``--guideline`` directive for this run (a
+        campaign instruction that takes precedence over the default ladder).
         """
         ...
 
@@ -72,9 +76,20 @@ def detect_flavor(repo_root: Path) -> str:
     return ais[0] if ais else "claude"
 
 
-def _compose_planner_input(prompt: str, status_json: str, mode_brief: str, context: str = "") -> str:
-    """Assemble the planner's full input: prompt + mode brief + optional context + status JSON."""
+def _compose_planner_input(
+    prompt: str, status_json: str, mode_brief: str, context: str = "", guideline: str = ""
+) -> str:
+    """Assemble the planner's full input: prompt + mode brief + guideline + optional context + status JSON."""
     parts = [prompt, "", f"## AutoPilot mode\n\n{mode_brief}", ""]
+    if guideline:
+        parts += [
+            "## Author Guidelines (high priority)\n\n"
+            "These take precedence over the default status ladder for this run, and MAY "
+            "authorize re-opening approved [X] chapters for a review/revise sweep. Track the "
+            "campaign's progress across ticks and emit `done` once it has swept the range.\n\n"
+            f"{guideline}",
+            "",
+        ]
     if context:
         parts += [f"## Plan-layer context (read-only)\n\n{context}", ""]
     parts += [
@@ -114,8 +129,10 @@ class _SubprocessRunner:
         """Pull the assistant's text out of the CLI's stdout envelope."""
         return stdout
 
-    def run_planner(self, prompt: str, status_json: str, mode_brief: str, context: str = "") -> Directive:
-        full = _compose_planner_input(prompt, status_json, mode_brief, context)
+    def run_planner(
+        self, prompt: str, status_json: str, mode_brief: str, context: str = "", guideline: str = ""
+    ) -> Directive:
+        full = _compose_planner_input(prompt, status_json, mode_brief, context, guideline)
         proc = subprocess.run(
             self._planner_argv(full),
             cwd=str(self.cwd),
@@ -246,10 +263,18 @@ class FakeRunner:
         self.planner_inputs: list[dict] = []
         self._on_command = on_command
 
-    def run_planner(self, prompt: str, status_json: str, mode_brief: str, context: str = "") -> Directive:
+    def run_planner(
+        self, prompt: str, status_json: str, mode_brief: str, context: str = "", guideline: str = ""
+    ) -> Directive:
         self.planner_calls += 1
         self.planner_inputs.append(
-            {"prompt": prompt, "status_json": status_json, "mode_brief": mode_brief, "context": context}
+            {
+                "prompt": prompt,
+                "status_json": status_json,
+                "mode_brief": mode_brief,
+                "context": context,
+                "guideline": guideline,
+            }
         )
         if not self._directives:
             return Directive(action="done", reason="no more scripted directives")

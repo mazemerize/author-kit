@@ -368,6 +368,97 @@ of evidence.
 interpretation into dialogue, a named emotion, or an open question.
 **Budget:** at most **two per chapter**.
 
+### 23. Looping self-echo — antimetabole / anadiplosis / confirming echo
+
+A phrase repeated within or across clauses — inverted, handed off, or confirmed — to
+manufacture gravitas the sentence has not earned. Three sibling forms:
+
+- **Antimetabole** (invert and repeat): "for a man who weighs his nods has learned that
+  nods are weighed."
+- **Anadiplosis** (end-word becomes the next clause's start): "because that was his trade
+  and his trade was to trust nothing he had not summed himself."
+- **Confirming echo / competence tag** (posit a rare skill as a condition, then immediately
+  confirm the character has it): "a man might read the health of the whole world in those
+  rolls if he knew the hand, and Crescens knew the hand."
+
+**Why it fails:** the rhetorical loop *sounds* like hard-won wisdom, but the repetition is
+doing the work an image or an action should. It is one of the highest-signal markers of
+LLM literary pastiche (McCarthy / King-James inflection), and it survives line-level review
+because each clause is grammatical and "resonant."
+
+**Fix:** say the thing once, plainly, and trust it; or replace the loop with a concrete
+detail. **Budget:** at most **one per chapter** across all three forms; the competence-tag
+form ("…if he knew X, and he knew X") is **budget 0**.
+
+### 24. Creed / trade-maxim characterization
+
+Narration summing a character up through a portable, essential-truth maxim — usually about
+their profession or fundamental nature — instead of showing them act.
+
+Examples:
+- "his trade was to trust nothing he had not summed himself"
+- "to record what was and add nothing to it was the whole of his trade"
+- "she was a woman who kept her debts in her head and her grief in her hands"
+
+**Why it fails:** it is the aphoristic-character gesture in narration form — cousin of
+pattern 1 (the relative-clause version) and pattern 10 (aphorism in dialogue). One is a
+thesis statement; a habit of them turns every figure into a proverb about themselves. The
+"…was the whole of his trade/work/life" closer also trips pattern 21 (trailing minimizer).
+
+**Fix:** let the character's actions and choices establish the creed; cut the summary.
+**Budget:** at most **one per character per chapter**, and **never** the "…was the whole of
+his X" closer absent an explicit constitution waiver.
+
+### 25. Participial / absolute-phrase scene-setting openers
+
+Sentences (especially paragraph or scene openers) led by a stacked present-participle or
+absolute phrase instead of a subject and verb.
+
+Examples:
+- "Standing at the window, she watched the harbour fill."
+- "Hands trembling, he set the cup down."
+- "The lamp guttering, the room half in shadow, they waited."
+
+**Why it fails:** one is fine; as a default opening move it gives every beat the same
+front-loaded, slightly breathless shape, and the participle often dangles or implies a
+simultaneity that isn't real.
+
+**Budget:** at most **three per 1,000 words**, and no more than **two consecutive**
+sentences or paragraph openers built this way.
+
+### 26. Correlative simultaneity — "at once X and Y" / "both X and Y"
+
+Rendering mixed feeling through a correlative pair rather than a concrete, particular
+reaction.
+
+Examples:
+- "she felt at once afraid and exhilarated"
+- "his voice was both gentle and final"
+- "it was at once an apology and a threat"
+
+**Why it fails:** it is the model's default formula for ambivalence — tidy, abstract, and
+interchangeable across characters and scenes. It names the poles instead of dramatizing the
+tension.
+
+**Fix:** show the contradiction in behaviour or pick the dominant note. **Budget:** at most
+**two per chapter**.
+
+### 27. Partitioned interiority — "part of her" / "some part of him"
+
+Locating feeling in a fractional self instead of naming it or showing it.
+
+Examples:
+- "part of her wanted to stay"
+- "some part of him already knew"
+- "a small part of her hated him for it"
+
+**Why it fails:** sibling of pattern 14 (vague "something" interiority). It simulates
+psychological depth by splitting the character into committee members, and the device
+becomes a verbal habit for any moment of hesitation.
+
+**Fix:** name the feeling, or show the hesitation as an action or a beat of dialogue.
+**Budget:** at most **two per chapter**.
+
 ## How to Apply
 
 **At generation time** (`/authorkit.write` draft / revise / passage help):
@@ -435,3 +526,8 @@ the voice"). Otherwise the budgets apply.
 | 20 | Em-dash interruptions | 4 per 1,000 words, max 2 per paragraph |
 | 21 | Composure beats / trailing minimizers | 1 per chapter as narration closer; dialogue exempt; high-signal |
 | 22 | Decoder narration ("understood X as Y") | 2 per chapter |
+| 23 | Looping self-echo (antimetabole/anadiplosis/confirming echo) | 1 per chapter; competence-tag form 0; high-signal |
+| 24 | Creed / trade-maxim characterization | 1 per character per chapter; "the whole of his X" closer 0; high-signal |
+| 25 | Participial / absolute-phrase openers | 3 per 1,000 words; max 2 consecutive |
+| 26 | Correlative simultaneity ("at once X and Y") | 2 per chapter |
+| 27 | Partitioned interiority ("part of her") | 2 per chapter |

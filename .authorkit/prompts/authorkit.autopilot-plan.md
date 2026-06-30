@@ -36,7 +36,7 @@ Return **only** a JSON object (no prose, fences optional):
   "command": "/authorkit.write 7",
   "reason": "one sentence: why this is the next step",
   "escalation": {
-    "type": "story-fork | contradiction | outline-exhausted | quality-stall | structural | parked-overdue | grounding-gap",
+    "type": "story-fork | contradiction | outline-exhausted | quality-stall | structural | parked-overdue | grounding-gap | numeric-contradiction | disclosure-leak | scaffolding-gap",
     "decision_needed": "the specific question for the author",
     "options": ["option A", "option B"],
     "recommended_command": "/authorkit.discuss \"resolve <ESC-ID>: <decision>\""
@@ -84,6 +84,27 @@ Return **only** a JSON object (no prose, fences optional):
    deadline; a chapter keeps failing review; or material grounding is missing.
 
 5. Emit exactly one directive.
+
+## Author Guidelines (when present)
+
+If the input includes an `## Author Guidelines (high priority)` section, the operator has
+set a **campaign** for this run. It **overrides the default status ladder** and may direct
+work the ladder would never pick on its own.
+
+- **Follow the guideline first.** It takes precedence over the ladder. Example: *"re-review
+  every chapter against the new tic patterns, revise drafts to comply, then re-review"* — a
+  review/revise sweep across the whole range.
+- **You MAY re-open approved `[X]` chapters** when the guideline calls for it (a manuscript
+  re-review/revise). This is the one case where touching `[X]` chapters is allowed; stay
+  within the range otherwise.
+- **Track campaign progress from status + content each tick** (the flag is not persisted, so
+  re-derive where the sweep is up to). Pick the lowest chapter the campaign has not yet
+  processed; dispatch its next campaign step (`/authorkit.review N`, then
+  `/authorkit.write N revise: <guideline>` if it needs changes, then re-review).
+- **Emit `done` only when the guideline has been applied across the whole range** — not when
+  chapters happen to be `[X]` (they may already have been before the campaign began).
+- Genuine forks still escalate; the new escalation types `numeric-contradiction`,
+  `disclosure-leak`, and `scaffolding-gap` exist for issues those review passes surface.
 
 ## Key Rules
 

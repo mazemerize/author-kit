@@ -15,6 +15,7 @@ Author:
 
 from __future__ import annotations
 
+import hashlib
 import re
 import subprocess
 from datetime import datetime
@@ -85,22 +86,33 @@ def _parse_range(value: str) -> tuple[int, int]:
     return (lo, hi)
 
 
-def _mode_brief(mode: str, chapter_range: tuple[int, int] | None, max_iters: int) -> str:
+def _mode_brief(
+    mode: str, chapter_range: tuple[int, int] | None, max_iters: int, guideline: str = ""
+) -> str:
     """One-paragraph situational brief handed to the planner each tick."""
     if mode == "chapters" and chapter_range is not None:
         lo, hi = chapter_range
-        return (
+        brief = (
             f"chapters — execute chapters CH{lo:02d}-CH{hi:02d} per the status ladder, for the lowest in-range "
             "chapter not yet [X]: [ ] -> /authorkit.write N plan; [P] -> /authorkit.write N (draft); "
             "[D] -> /authorkit.review N; [R] -> /authorkit.write N revise: <issues>. Own chapters/NN/ only — "
             "never edit the outline or world (escalate if scaffolding must change); never touch chapters outside "
             "the range or approved [X] chapters. done when all in-range chapters are [X]."
         )
-    return (
-        f"plot — book-level scaffolding only (outline, world, research), up to {max_iters} ticks; never touch "
-        "chapters/NN/. Ladder: generate the outline if missing; fold existing research into world/ and the outline; "
-        "deepen a thin world; then 'done' when outline + world are solid. Escalate on story-direction forks."
-    )
+    else:
+        brief = (
+            f"plot — book-level scaffolding only (outline, world, research), up to {max_iters} ticks; never touch "
+            "chapters/NN/. Ladder: generate the outline if missing; fold existing research into world/ and the "
+            "outline; deepen a thin world; then 'done' when outline + world are solid. Escalate on "
+            "story-direction forks."
+        )
+    if guideline:
+        brief += (
+            " AUTHOR GUIDELINES ARE ACTIVE this run (see the high-priority section): they override the default "
+            "ladder and MAY re-open approved [X] chapters for a review/revise sweep. Track the campaign across "
+            "ticks and emit 'done' only when the guideline has been applied across the range."
+        )
+    return brief
 
 
 def _strip_frontmatter(text: str) -> str:
@@ -165,17 +177,48 @@ def _plan_layer_context(book_dir: Path, repo_root: Path, *, cap: int = 6000) -> 
     return "\n\n".join(blocks)
 
 
-def _progress_key(mode: str, report) -> tuple:
+def _draft_fingerprint(book_dir: Path) -> tuple:
+    """A content fingerprint of all chapter drafts (chapter id + content hash).
+
+    Used under a guideline campaign so a tick that rewrites a draft counts as
+    progress even when chapter statuses don't move (e.g. re-reviewing approved
+    chapters), keeping the loop-health checks from misfiring. Hashing the bytes
+    (rather than size+mtime) catches same-length edits and sub-second rewrites.
+    """
+    chapters = book_dir / "chapters"
+    if not chapters.is_dir():
+        return ()
+    items: list[tuple] = []
+    for draft in sorted(chapters.glob("*/draft.md")):
+        try:
+            digest = hashlib.md5(draft.read_bytes()).hexdigest()
+        except OSError:
+            continue
+        items.append((draft.parent.name, digest))
+    return tuple(items)
+
+
+def _progress_key(mode: str, report, fingerprint: tuple | None = None) -> tuple:
     """A comparable snapshot of "progress" for loop-health checks.
 
     chapters mode keys on the chapter-status breakdown (any transition moves it);
     plot mode keys on the broader planning surface (outline presence, world
-    growth, chapter list), since planning may not move chapter statuses.
+    growth, chapter list), since planning may not move chapter statuses. When a
+    ``fingerprint`` is supplied (guideline campaigns), it is folded in so draft
+    rewrites register as progress even without a status transition.
     """
     counts = tuple(sorted(report.chapter_status_counts.items()))
     if mode == "chapters":
-        return counts
-    return (report.has_outline, report.world_entities, report.world_aliases, tuple(report.chapters_md_entries), counts)
+        base: tuple = counts
+    else:
+        base = (
+            report.has_outline,
+            report.world_entities,
+            report.world_aliases,
+            tuple(report.chapters_md_entries),
+            counts,
+        )
+    return (base, fingerprint) if fingerprint is not None else base
 
 
 def _completion_check(mode: str, book_dir: Path, chapter_range: tuple[int, int] | None) -> Directive | None:
@@ -186,10 +229,10 @@ def _completion_check(mode: str, book_dir: Path, chapter_range: tuple[int, int] 
     return None
 
 
-def _plan_once(runner, prompt: str, report, brief: str, context: str = "") -> Directive:
+def _plan_once(runner, prompt: str, report, brief: str, context: str = "", guideline: str = "") -> Directive:
     """Run the planner against the current status and return its directive."""
     status_json = to_json(status_report_to_obj(report))
-    return runner.run_planner(prompt, status_json, brief, context=context)
+    return runner.run_planner(prompt, status_json, brief, context=context, guideline=guideline)
 
 
 def _today() -> str:
@@ -277,11 +320,13 @@ def _run_autopilot(
     step: bool,
     commit: bool,
     permission_mode: str | None = None,
+    guideline: str | None = None,
 ) -> None:
     """Shared driver for both autopilot modes."""
     repo_root = find_repo_root()
     book_dir = _resolve_book_or_exit(repo_root)
     chapter_range = _parse_range(range_) if range_ else None
+    guideline = (guideline or "").strip()
 
     pf = preflight(mode, book_dir, repo_root, chapter_range=chapter_range)
     if not pf.ok:
@@ -310,17 +355,22 @@ def _run_autopilot(
 
     runner = get_runner(repo_root, permission_mode=permission_mode, skip_permissions=skip_permissions)
     planner_prompt = _load_planner_prompt(repo_root)
-    brief = _mode_brief(mode, chapter_range, max_iters)
+    brief = _mode_brief(mode, chapter_range, max_iters, guideline)
     run_id = datetime.now().strftime("%Y%m%dT%H%M%S")
     # The plot planner reads book-level scaffolding so it can judge what the story
     # still needs (unused research, a thin world); chapters mode stays status-only.
     context = _plan_layer_context(book_dir, repo_root) if mode == "plot" else ""
+    # Under a guideline campaign the all-[X] auto-done would end a re-review sweep
+    # before it starts, and status-only progress would misfire when re-reviews don't
+    # move statuses — so the planner owns 'done' and progress folds in draft content.
+    if guideline and not dry_run:
+        console.print(f"[dim]Author guideline active:[/dim] {guideline[:160]}")
 
     # Dry-run: show the next directive (a preview), write nothing, dispatch nothing.
     if dry_run:
         report = collect_status(book_dir, repo_root)
-        directive = _completion_check(mode, book_dir, chapter_range) or _plan_once(
-            runner, planner_prompt, report, brief, context
+        directive = (None if guideline else _completion_check(mode, book_dir, chapter_range)) or _plan_once(
+            runner, planner_prompt, report, brief, context, guideline
         )
         console.print(
             to_json({"mode": mode, "tick": 1, "directive": directive_to_obj(directive)}),
@@ -359,13 +409,15 @@ def _run_autopilot(
             raise typer.Exit(code=0)
 
         # Decide: deterministic completion first, else ask the planner (one retry).
-        directive = _completion_check(mode, book_dir, chapter_range)
+        # A guideline campaign skips auto-done (the planner owns completion) so a
+        # re-review sweep over already-[X] chapters isn't ended before it starts.
+        directive = None if guideline else _completion_check(mode, book_dir, chapter_range)
         if directive is None:
             try:
-                directive = _plan_once(runner, planner_prompt, report, brief, context)
+                directive = _plan_once(runner, planner_prompt, report, brief, context, guideline)
             except (DirectiveError, RuntimeError):
                 try:
-                    directive = _plan_once(runner, planner_prompt, report, brief, context)
+                    directive = _plan_once(runner, planner_prompt, report, brief, context, guideline)
                 except (DirectiveError, RuntimeError) as exc:
                     path = _write_planner_failure_escalation(book_dir, str(exc))
                     console.print(
@@ -390,12 +442,14 @@ def _run_autopilot(
             raise typer.Exit(code=0)
 
         # Act: dispatch the one chosen command in a clean session.
-        key_before = _progress_key(mode, report)
+        fp_before = _draft_fingerprint(book_dir) if guideline else None
+        key_before = _progress_key(mode, report, fp_before)
         console.print(f"[dim]tick {tick}[/dim] {directive.action}: {directive.command} [dim]({directive.reason})[/dim]")
         result = runner.run_command(directive.command)
 
         report_after = collect_status(book_dir, repo_root)
-        status_changed = _progress_key(mode, report_after) != key_before
+        fp_after = _draft_fingerprint(book_dir) if guideline else None
+        status_changed = _progress_key(mode, report_after, fp_after) != key_before
 
         entry: dict = {
             "tick": tick,
@@ -429,6 +483,7 @@ def chapters_cmd(
     step: bool = typer.Option(False, "--step", help="Run a single tick, then stop."),
     commit: bool = typer.Option(False, "--commit", help="git commit after each accepted tick."),
     permission_mode: str | None = typer.Option(None, "--permission-mode", help="Restrict worker tool access to this mode (e.g. acceptEdits, default). Default: full access via --dangerously-skip-permissions."),
+    guideline: str | None = typer.Option(None, "--guideline", help="A campaign directive that overrides the default ladder for this run (e.g. 're-review every chapter against the new tic patterns, revise drafts, then re-review'). May re-open approved [X] chapters."),
 ) -> None:
     """Autonomously plan/draft/review chapters across a range, escalating on decisions."""
     _run_autopilot(
@@ -439,6 +494,7 @@ def chapters_cmd(
         step=step,
         commit=commit,
         permission_mode=permission_mode,
+        guideline=guideline,
     )
 
 
@@ -449,6 +505,7 @@ def plot_cmd(
     step: bool = typer.Option(False, "--step", help="Run a single tick, then stop."),
     commit: bool = typer.Option(False, "--commit", help="git commit after each accepted tick."),
     permission_mode: str | None = typer.Option(None, "--permission-mode", help="Restrict worker tool access to this mode (e.g. acceptEdits, default). Default: full access via --dangerously-skip-permissions."),
+    guideline: str | None = typer.Option(None, "--guideline", help="A campaign directive that overrides the default ladder for this run (book-level scaffolding work)."),
 ) -> None:
     """Autonomously develop the plan layer (outline, world, plans), escalating on direction."""
     if max_iters < 1:
@@ -461,4 +518,5 @@ def plot_cmd(
         step=step,
         commit=commit,
         permission_mode=permission_mode,
+        guideline=guideline,
     )

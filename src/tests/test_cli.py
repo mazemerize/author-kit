@@ -783,7 +783,7 @@ def test_init_injects_shared_generation_guardrails_and_keeps_shared_asset_unrend
 
         write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
         assert "## Shared Generation Guardrails" in write_prompt
-        assert "### Name Originality Protocol" in write_prompt
+        assert "### Entropy Protocol" in write_prompt
 
         assert Path(".authorkit/prompts/_shared/generation-guardrails.md").exists()
         assert not Path(".codex/prompts/generation-guardrails.md").exists()
@@ -827,7 +827,7 @@ def test_init_renders_discuss_prompt_for_all_ai_flavors():
             assert path.exists(), f"Expected rendered discuss prompt at {path}"
             body = path.read_text(encoding="utf-8")
             assert "## Shared Generation Guardrails" in body, f"Guardrails missing in {path}"
-            assert "### Name Originality Protocol" in body, f"Name protocol missing in {path}"
+            assert "### Entropy Protocol" in body, f"Entropy protocol missing in {path}"
             assert "Clarifications" in body, f"Clarifications section reference missing in {path}"
 
 
@@ -2791,3 +2791,206 @@ def test_unattended_mode_wired_into_guardrails_and_discuss():
     assert "AUTOPILOT-UNATTENDED" in discuss
     # The runtime directive AutoPilot appends keys on the same marker the prompts read.
     assert "AUTOPILOT-UNATTENDED" in autopilot_runner.UNATTENDED_DIRECTIVE
+
+
+# --- Entropy tool (code-driven names & numbers) ------------------------------
+
+import authorkit_cli.entropy as entropy  # noqa: E402
+
+
+def test_entropy_roll_numbers_respects_bounds_and_kinds():
+    """roll_numbers honors the inclusive bounds, count, and per-kind output shape."""
+    ints = entropy.roll_numbers("int", 3, 40, count=50)
+    assert len(ints) == 50
+    assert all(isinstance(v, int) and 3 <= v <= 40 for v in ints)
+
+    flts = entropy.roll_numbers("float", 0, 1, count=20)
+    assert all(isinstance(v, float) and 0.0 <= v <= 1.0 for v in flts)
+
+    years = entropy.roll_numbers("year", 1900, 1901, count=10)
+    assert all(v in (1900, 1901) for v in years)
+
+    times = entropy.roll_numbers("time", 9, 17, count=10)
+    assert all(len(t) == 5 and t[2] == ":" and 9 <= int(t[:2]) <= 17 for t in times)
+
+    with pytest.raises(ValueError):
+        entropy.roll_numbers("int", 10, 1)  # max < min
+    with pytest.raises(ValueError):
+        entropy.roll_numbers("bogus", 1, 2)  # bad kind
+
+
+def test_entropy_name_seed_is_scaffold_not_finished_name():
+    """make_name_seed returns construction scaffolding (skeleton/initial/length),
+    honors a known culture, and falls back to generic for an unknown one."""
+    import random
+
+    seed = entropy.make_name_seed("norse", syllables=2, rng=random.Random(1))
+    assert seed.culture == "norse"
+    assert seed.skeleton.count("-") == 1  # two syllables
+    assert seed.initial.isupper() and len(seed.initial) == 1
+    assert seed.length_target >= 3
+
+    assert entropy.make_name_seed("klingon").culture == "generic"  # unknown -> generic
+
+
+def test_entropy_number_cli_json_and_bounds(monkeypatch):
+    """`authorkit entropy number --json` emits a stable shape within bounds."""
+    result = runner.invoke(cli.app, ["entropy", "number", "--min", "5", "--max", "9", "--count", "4", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["kind"] == "int" and len(payload["values"]) == 4
+    assert all(5 <= v <= 9 for v in payload["values"])
+
+    bad = runner.invoke(cli.app, ["entropy", "number", "--min", "9", "--max", "5"])
+    assert bad.exit_code != 0
+
+
+def test_entropy_name_cli_varies_across_calls():
+    """`authorkit entropy name` produces seeds (not stock names) that vary."""
+    seeds = set()
+    for _ in range(8):
+        result = runner.invoke(cli.app, ["entropy", "name", "--culture", "latin", "--count", "1", "--json"])
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["culture"] == "latin"
+        seeds.add(payload["seeds"][0]["scaffold"])
+    assert len(seeds) > 1  # true randomness: not all identical
+
+
+# --- AutoPilot planner guidelines (--guideline campaigns) --------------------
+
+
+def test_autopilot_guideline_threads_into_planner_and_skips_auto_done(tmp_path, monkeypatch):
+    """--guideline reaches the planner and suppresses the all-[X] auto-done so a
+    re-review campaign over approved chapters is not ended before it starts."""
+    # Whole range already approved: without a guideline this would auto-`done`.
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 The Arrival - First\n")
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="campaign")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-1", "--guideline", "re-review CH1 against the new tic patterns", "--dry-run"],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    # Planner was consulted (not short-circuited to done) and got the guideline.
+    assert payload["directive"]["action"] == "review"
+    assert "tic patterns" in fake.planner_inputs[0]["guideline"]
+
+
+def test_autopilot_guideline_progress_is_content_aware(tmp_path, monkeypatch):
+    """Under a guideline, a draft rewrite counts as progress even when chapter
+    statuses don't move, so loop-health doesn't misfire on a re-review sweep."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 The Arrival - First\n")
+    draft = book_dir / "chapters" / "01" / "draft.md"
+    draft.parent.mkdir(parents=True, exist_ok=True)
+    draft.write_text("# Chapter 01\n\nOriginal prose.\n", encoding="utf-8")
+
+    calls = {"n": 0}
+
+    def on_command(_cmd):
+        # Each tick rewrites the draft (status stays [X]); content fingerprint moves.
+        calls["n"] += 1
+        draft.write_text(f"# Chapter 01\n\nRevised prose {calls['n']}.\n", encoding="utf-8")
+
+    # Five identical commands: status never changes. Without content-aware progress
+    # this trips no-progress; with it, each tick registers progress.
+    same = autopilot_core.Directive(action="revise", chapter=1, command="/authorkit.write 1 revise", reason="x")
+    done = autopilot_core.Directive(action="done", reason="campaign swept")
+    fake = autopilot_runner.FakeRunner([same, same, same, same, done], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-1", "--guideline", "revise then re-review every chapter"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" not in result.output.lower()
+    assert "done" in result.output.lower()
+    assert calls["n"] >= 4
+
+
+def test_autopilot_plan_prompt_documents_guidelines_and_escalations():
+    """The planner prompt explains author guidelines and the new escalation types."""
+    repo_root = Path(__file__).resolve().parents[2]
+    plan = (repo_root / ".authorkit" / "prompts" / "authorkit.autopilot-plan.md").read_text(encoding="utf-8")
+    assert "Author Guidelines" in plan
+    assert "re-open" in plan and "[X]" in plan
+    for esc in ("numeric-contradiction", "disclosure-leak", "scaffolding-gap"):
+        assert esc in plan
+        assert esc in autopilot_core.ESCALATION_TYPES
+
+
+# --- Review passes / tic catalog / writer strictness (prompt content) --------
+
+
+def test_analysis_passes_roster_is_shared_source_of_truth():
+    """The canonical Analysis Passes roster lives in the shared guardrails and the
+    review command renders the same named passes."""
+    repo_root = Path(__file__).resolve().parents[2]
+    akit = repo_root / ".authorkit"
+    guardrails = (akit / "prompts" / "_shared" / "generation-guardrails.md").read_text(encoding="utf-8")
+    review = (akit / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    assert "Analysis Passes" in guardrails
+    for pass_name in (
+        "Style Fidelity",
+        "AI-Tic Audit",
+        "In-Chapter Logical Consistency",
+        "Cross-Chapter & Plot-Arc Logical Consistency",
+        "Disclosure Horizon",
+        "Standalone Readability",
+    ):
+        assert pass_name in guardrails, f"roster missing {pass_name}"
+        assert pass_name in review, f"review missing pass {pass_name}"
+
+
+def test_new_tic_patterns_in_catalog():
+    """The catalog gains the looping-echo and creed-maxim patterns (and budget rows)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    catalog = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "literary-tic-catalog.md"
+    ).read_text(encoding="utf-8")
+    assert "Looping self-echo" in catalog
+    assert "Creed / trade-maxim" in catalog
+    assert "competence tag" in catalog
+    assert "| 23 |" in catalog and "| 24 |" in catalog
+
+
+def test_guardrails_define_entropy_disclosure_continuity_protocols():
+    """The shared guardrails carry the entropy, continuity, and disclosure protocols
+    and reference the entropy CLI."""
+    repo_root = Path(__file__).resolve().parents[2]
+    guardrails = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"
+    ).read_text(encoding="utf-8")
+    assert "Entropy Protocol" in guardrails
+    assert "authorkit entropy name" in guardrails and "authorkit entropy number" in guardrails
+    assert "Quantitative & Logical Continuity Protocol" in guardrails
+    assert "Disclosure Horizon Protocol" in guardrails
+
+
+def test_review_has_logic_disclosure_standalone_passes_and_manuscript_passes():
+    """The review command exposes the new chapter passes and manuscript detection passes."""
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    # Chapter-craft passes
+    assert "Pass 3 — In-Chapter Logical Consistency" in review
+    assert "Pass 4 — Cross-Chapter & Plot-Arc Logical Consistency" in review
+    assert "Pass 5 — Disclosure Horizon" in review
+    assert "Pass 6 — Standalone Readability" in review
+    # Manuscript detection passes
+    assert "Quantitative Continuity Ledger" in review
+    assert "Premature Disclosure" in review
+    assert "Scaffolding Leakage" in review
+
+
+def test_write_revise_is_pass_structured():
+    """Revise walks the Analysis Passes roster and re-verifies each pass."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    assert "Revise pass-by-pass" in write
+    assert "Re-run that pass's own check" in write
+    assert "authorkit entropy" in write  # entropy wired into drafting

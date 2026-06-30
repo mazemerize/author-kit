@@ -63,10 +63,10 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 
 ## Mode: Style Fidelity (single chapter, style-only)
 
-Triggered by `N style` / `style N` (or a chapter plus "style" / "voice" / "fidelity"). A focused, **read-only** pass that runs **only** the Style Fidelity gate (dimension B + the B1 tic audit) against the **fixed origin** — nothing about plot, world, theme, or pacing. Run it right after a chapter is written for a fast, explicit voice check. (The full craft review runs this same pass first; this mode is it in isolation.)
+Triggered by `N style` / `style N` (or a chapter plus "style" / "voice" / "fidelity"). A focused, **read-only** pass that runs **only** the gating passes — Pass 1 (Style Fidelity) + Pass 2 (AI-Tic Audit) — against the **fixed origin**, nothing about plot, world, theme, or pacing. Run it right after a chapter is written for a fast, explicit voice check. (The full craft review runs these same passes first; this mode is them in isolation.)
 
 1. Resolve the **fixed origin** exactly as the craft review does (Always-on step 3 → Origin reference): the `## Voice Origin` pin/excerpts if set, else the earliest approved (`[X]`) chapters, else constitution + concept voice/tone. Load `book/style-anchor.md` as a derived aid only — where it disagrees with the origin, the origin wins.
-2. Run **dimension B (Style Fidelity)** and **B1 (literary-tic audit)** in full — voice vs origin (global), style-anchor alignment, constitution voice rules, tic budgets — quoting the specific lines that diverge.
+2. Run **Pass 1 (Style Fidelity)** and **Pass 2 (AI-Tic Audit)** in full — voice vs origin (global), style-anchor alignment, constitution voice rules, tic budgets — quoting the specific lines that diverge.
 3. Write `BOOK_DIR/chapters/NN/style-review.md`:
 
    ```markdown
@@ -111,28 +111,39 @@ For a single chapter number `N`.
 - **Recommended — continuity & arc references**: for plot/thread/state, choose by *relevance*, not just `N±1` — the adjacent drafts, plus the **most recent** chapter(s) featuring this chapter's POV/focus characters and the chapter that last advanced an arc converging here. This is current-state context for *what happens*; voice is still graded against the fixed origin (global) and matched to the earliest-relevant exemplar (texture), never against a drifted neighbour.
 - **Optional**: Previous review at `chapters/NN/review.md` (if revision cycle)
 
-### Assess across dimensions
+### Assess in passes (canonical roster)
 
-#### A. Plan Adherence
+Run the **Analysis Passes** defined in the shared generation guardrails, in order. Passes 1–2
+are **gating**: a chapter that fails either is **NEEDS REVISION** regardless of how it scores
+elsewhere. Each pass becomes its own section in `review.md` (heading keyed to the roster
+name) and its own row in the Dimension Scores table. Every finding carries the shared shape:
+severity + a line/paragraph citation or quote + a one-line fix.
 
-- Did the draft cover all planned scenes/sections?
-- Were all key beats executed?
-- Did the opening hook land effectively?
-- Did the closing beat create forward momentum?
-- Any significant deviations from the plan? Are they improvements?
+**Sub-agent fan-out (when available).** If the runtime offers parallel sub-agents (Claude's
+Task/Agent tool), first resolve the **shared baseline once** — the fixed voice origin, this
+roster, the tic catalog, scope and absolute paths — then spawn **one sub-agent per pass in
+parallel**, handing each only its remit and the context it needs (Pass 1: origin + style
+anchor; Pass 2: the tic catalog; Pass 3: this draft alone; Pass 4: prior drafted chapters +
+`world/` `## Current State`; Pass 5: the outline; Pass 6: this draft with scaffolding
+withheld; Pass 7: plan + concept + world). Each returns findings in the shared shape; the
+**parent** aggregates them into the single `review.md`, applies the Pass 1–2 gate, dedups
+cross-pass overlaps (e.g. a creed-maxim line trips both Pass 2 pattern 24 and pattern 21),
+computes the scores/verdict, and updates `chapters.md`. **Independence guard:** sub-agents
+never re-derive the voice bar — the parent owns the fixed origin and passes it down. Where
+sub-agents are unavailable (other flavors, headless without the Task tool), run the **same**
+passes sequentially in-context against the **same** roster, emitting the **same** findings.
 
-#### B. Style Fidelity (gating — run this first)
+#### Pass 1 — Style Fidelity (gating)
 
-The dedicated style pass, and the whole of the focused `/authorkit.review N style` mode. **Run it before the other dimensions and gate on it:** a chapter that has drifted from the voice origin, or is over budget on a high-signal tic (patterns 7, 13, 21, 22), is **automatically NEEDS REVISION** — not approved while it is out of voice, however well it scores elsewhere.
+The dedicated style pass, and the whole of the focused `/authorkit.review N style` mode. A chapter that has drifted from the voice origin, or is over budget on a high-signal tic, is **automatically NEEDS REVISION** — not approved while it is out of voice, however well it scores elsewhere.
 
-- **Voice fidelity vs origin (global)**: compare the chapter's *global* voice — POV, narrative distance, sentence rhythm, diction/register, imagery — against the **fixed origin** (constitution + concept voice/tone + the resolved origin: the `## Voice Origin` pin/excerpts if set, else the earliest approved chapters), not merely against the style anchor or the previous chapter. Flag drift from the origin even when the chapter reads as locally consistent with its neighbors. Character/scene/arc *texture* (a POV character's cadence, an arc's register) is matched against the earliest-relevant exemplar and assessed under Continuity (E), not here. Distinguish *unsanctioned* drift (a finding, at least Important; Critical if it is also a constitution violation) from *constitution-sanctioned* evolution (not a finding). Quote the specific lines that diverge.
+- **Voice fidelity vs origin (global)**: compare the chapter's *global* voice — POV, narrative distance, sentence rhythm, diction/register, imagery — against the **fixed origin** (constitution + concept voice/tone + the resolved origin: the `## Voice Origin` pin/excerpts if set, else the earliest approved chapters), not merely against the style anchor or the previous chapter. Flag drift from the origin even when the chapter reads as locally consistent with its neighbors. Character/scene/arc *texture* (a POV character's cadence, an arc's register) is matched against the earliest-relevant exemplar and assessed under Pass 4, not here. Distinguish *unsanctioned* drift (a finding, at least Important; Critical if it is also a constitution violation) from *constitution-sanctioned* evolution (not a finding). Quote the specific lines that diverge.
 - **Style-anchor alignment**: does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile? The anchor is a derived view of the origin — where they disagree, the origin wins.
 - **Constitution voice rules**: voice matches the constitution's specifications; POV consistent; tense correct throughout; prose style matches the standards; no principle violated.
-- **Literary-tic audit**: run B1 below — it is part of this pass.
 
-#### B1. LLM Literary Tic Audit
+#### Pass 2 — AI-Tic Audit (gating on high-signal patterns)
 
-Load `.authorkit/prompts/_shared/literary-tic-catalog.md` and check the chapter against every pattern in it.
+Load `.authorkit/prompts/_shared/literary-tic-catalog.md` and check the chapter against every pattern in it. Over-budget on a high-signal pattern (7, 13, 21, 22, 23, 24) is gating.
 
 - For each pattern, count instances in the chapter (and per 1,000 words for the density patterns marked per-1,000-words in the catalog's budget table).
 - Compare counts against the catalog's default budgets.
@@ -140,55 +151,46 @@ Load `.authorkit/prompts/_shared/literary-tic-catalog.md` and check the chapter 
 - Tightened budgets in the constitution are binding — flag at the tightened threshold, not the default.
 - For every pattern over its (effective) budget, write a finding with: pattern number/name, count vs. budget, line/paragraph citations for each instance, and a one-line rewrite suggestion that does NOT introduce a different pattern from the catalog.
 - Severity mapping:
-  - Patterns 7 and 13 over budget → **Critical**
-  - Patterns 3, 10, and 16 over budget, or any instance of a named zero-budget cliché variant (patterns 14, 15) → **Important**
+  - Patterns 7, 13, and 23 over budget, or any instance of a zero-budget form (the competence-tag form of 23, the "whole of his X" closer of 24) → **Critical**
+  - Patterns 3, 10, 16, and 24 over budget, or any instance of a named zero-budget cliché variant (patterns 14, 15) → **Important**
   - Other patterns over budget → **Minor** (single instance over) or **Important** (≥2× budget)
 
-#### C. Craft Quality
+#### Pass 3 — In-Chapter Logical Consistency
 
-- **Pacing**: does the chapter flow well? Sections that drag or rush?
-- **Show vs Tell**: emotions shown through action/dialogue rather than stated?
-- **Dialogue** (fiction): natural? Each character sounds distinct?
-- **Description**: concrete and sensory? Enough (or too much)?
-- **Transitions**: smooth scene/section transitions?
-- **Opening**: does the first paragraph hook?
-- **Closing**: does the ending compel?
+*Within this chapter only* — internal logic and arithmetic. A hard internal contradiction is **Critical**.
 
-#### D. Character / Content Consistency
+- **Quantities**: every concrete count/age/date/duration/distance/ordinal stated in the chapter is internally consistent (three guards established ≠ "the four guards" later in the same scene) and arithmetically sound.
+- **Headcount & logistics (intra-chapter)**: trace every character's location scene by scene. At each transition verify (1) the number stated or implied present matches who could be there given prior movement within the chapter; (2) no character appears in a scene they couldn't have reached; (3) claims like "three watched" or "all four" match the actual count of bodies. Especially critical when characters split up or are introduced mid-chapter.
+- **Physical possibility**: all actions are possible within the established geometry — no exiting a dead-end "out the other side," no seeing a landmark without line-of-sight, no crossing a distance faster than established. Check any place "Physical Constraints."
+- **Knowledge-at-this-point**: a character acts only on what they could know *by this moment in this chapter*; if they react to a lie/plan/schedule, it was established earlier in the chapter (cross-chapter knowledge is Pass 4).
+- **Narrative necessity**: when the narrator frames an action as necessary ("the lie needed updating," "they had to," "there was no choice"), verify it against the story's own established logic; if their own system makes it pointless, the action, justification, or commentary is wrong.
 
-- **Fiction**: do characters behave consistently with their profiles? Voices distinct? Actions align with motivations?
-- **Knowledge boundaries**: for each character in the chapter, verify they only act on information they could plausibly possess. If a character reacts to something (a lie, a plan, a schedule), trace when and how they learned it. Flag any case where a character knows something they were never told, witnessed, or could reasonably infer. Cross-check against previous chapters and `world/characters/` profiles.
-- **Narrative necessity**: when the narrator frames an action as necessary ("the lie needed updating," "they had to," "there was no choice"), verify the claim against the story's own established logic. If the characters' own system makes the action pointless or unnecessary, the framing is wrong — either the action, the justification, or the narrator's commentary needs to change.
-- **Non-fiction**: claims accurate? Examples relevant? Argument logical?
+#### Pass 4 — Cross-Chapter & Plot-Arc Logical Consistency (if previous chapters exist)
 
-##### D1. World Consistency (if `world/` exists)
+Vs prior **drafted** chapters and `world/` `## Current State` — the canonical now-truth (`## History` tells whether a discrepancy is a genuine contradiction or an established later-chapter evolution).
 
-Cross-check this chapter against ALL relevant world/ categories. For each entity, compare what appears in the chapter against its `## Current State` block (the canonical now-truth); use `## History` to tell whether a discrepancy is a genuine contradiction or an established later-chapter evolution. For each category:
+- **Flow & contradictions**: does this chapter follow naturally from the prior relevant ones? Any contradiction with what earlier chapters established?
+- **Quantitative drift across chapters**: a quantity/fact committed in an earlier chapter (nine guards, age forty, a two-day journey) must not silently change here. Flag any referent whose value differs without an in-story change. **Critical** for a hard contradiction.
+- **Backstory verification**: for every factual claim this chapter makes about events from prior chapters ("he had done X in CH03"), grep the actual draft text of that chapter and verify it. Do not trust the plan or outline — verify against the drafted prose. Especially arrival details, exact lines of dialogue, who instructed whom.
+- **Knowledge boundaries across chapters**: a character knows only what they were told, witnessed, or could infer in prior chapters; cross-check `world/characters/` profiles.
+- **Plot-arc convergence**: a thread/arc this chapter advances is consistent with where prior chapters left it (use the `world/_index.md` Chapter Manifest + the most recent chapter that advanced the arc).
+- **Voice texture continuity**: the chapter's character/scene/arc voice *texture* matches the earliest **relevant** approved chapter (same POV/focus or arc register), not merely the previous chapter. (Global voice is graded under Pass 1.)
+- **World & canon consistency (if `world/` exists)**: cross-check entities appearing here against ALL relevant world/ categories — **Characters** (appearance, age, traits, speech, relationships, background), **Places** (descriptions, features, spatial relationships), **Organizations** (membership, hierarchy, purpose), **Systems** (rules, limits, scope — flag violations), **History** (dates, participants, outcomes). Flag contradictions with `(CONCEPT)` and `(CHxx)` entries, citing the world/ file, the tagged entry, and the draft location. **New entities** with no world/ entry are **Minor** (informational — Reconcile captures them post-draft). Established-entry contradictions are **Critical**/**Important** by reader-visible impact.
 
-- **Characters**: compare every character appearing in this chapter against their `world/characters/` profile — physical descriptions (appearance, age, distinguishing features), personality traits, speech patterns, relationships, background details. Flag contradictions with both `(CONCEPT)` and `(CHxx)` tagged entries.
-- **Places**: compare every location described or mentioned against its `world/places/` entry — physical descriptions, key features, atmosphere, spatial relationships. Flag setting details that contradict established descriptions. **Critically, verify that all character actions are physically possible within the established geometry** — characters cannot exit a dead-end cave "out the other side," cannot see a landmark from a location without line-of-sight, cannot walk between places faster than the established distance allows. Check any "Physical Constraints" section.
-- **Headcount & logistics**: trace every character's physical location through the chapter scene by scene. At each scene transition, verify: (1) the number of characters stated or implied as present matches who could logistically be there, given prior movements, available transport, distances; (2) no character appears in a scene they couldn't have reached; (3) claims like "three watched" or "all four" match the actual count of bodies. Especially critical when characters split up, when new characters are introduced mid-chapter, or when a single character has multiple copies.
-- **Organizations**: check any organizations referenced against their `world/organizations/` entries — membership, hierarchy, purpose, inter-organization relationships.
-- **Systems**: if the chapter involves any system (magic, technology, political, economic), verify the depiction follows rules, limitations, scope, and exceptions defined in `world/systems/`. Flag rule violations.
-- **History**: if past events are referenced, verify alignment with `world/history/` entries. Flag contradictory dates, participants, or outcomes.
-- **New entities**: flag characters, places, organizations, systems, or historical events that appear in this chapter but have NO corresponding `world/` entry. These are candidates for `/authorkit.write` Reconcile (which captures them automatically post-draft).
+#### Pass 5 — Disclosure Horizon
 
-For each contradiction found, cite the specific `world/` file, the tagged entry, and the location in the draft. Severity:
-- Contradictions with established entries: **Critical** or **Important** depending on reader-visible impact
-- Missing world/ entries: **Minor** (informational)
+Per the Disclosure Horizon Protocol. Scan for the chapter revealing a plot fact the outline/plan assigns to a *later* chapter — narrator-prophecy / proleptic flash-forward ("what she would only understand years later…") that names an undisclosed future, or a "later XXX, but for now YYY" where XXX is not yet known to the reader. Distinguish from **allowed** planted foreshadowing (an image/object that pays off later without naming the payoff). A reader-visible spoiler of a later reveal is **Critical**; a softer proleptic leak is **Important**.
 
-#### E. Continuity (if previous chapters exist)
+#### Pass 6 — Standalone Readability
 
-- Does this chapter flow naturally from the previous one?
-- Any contradictions with earlier chapters?
-- Does this chapter's character/scene/arc voice *texture* match the earliest **relevant** approved chapter (same POV/focus character or arc register), not just whatever chapter came before it? (Global voice drift is graded separately under B / Voice Fidelity vs Origin — being "consistent with a recent chapter" does not excuse drift from the origin.)
-- Are ongoing threads properly continued?
-- **Backstory verification**: for every factual claim this chapter makes about events from prior chapters (flashbacks, references, "he had done X in CH03"), grep the actual draft text of that chapter and verify the claim is accurate. Do not trust the plan or outline — verify against the drafted prose. Flag any claim that contradicts what was written. Especially important for arrival details, exact lines of dialogue, and who instructed whom.
+Per the Standalone Readability self-check. Would the chapter be fully comprehensible to a reader with **zero** access to `world/`/outline/concept — only the shipped chapters? Flag any sentence that parses *only* with the scaffolding: a name/term/relationship dropped without in-prose grounding, "as established" reliance on an unstated fact, or encyclopedia voice transcribed from a `world/` entry. Also flag the converse — something load-bearing withheld because "it's in the world file." An unexplained scaffolding-dependent reference is at least **Important**.
 
-#### F. Theme Integration
+#### Pass 7 — Craft & Structure
 
-- Are the book's themes present in this chapter where they should be?
-- Is theme integration organic (not heavy-handed)?
+- **Plan adherence**: did the draft cover all planned scenes/sections and key beats? Did the opening hook land and the closing beat create momentum? Any significant deviations — are they improvements?
+- **Craft quality**: pacing (sections that drag or rush); show vs tell (emotions shown, not stated); dialogue (natural, distinct per character); description (concrete, sensory, right amount); transitions; opening hook; compelling close.
+- **Character/content behaviour**: characters behave consistently with their profiles and motivations; voices distinct. Non-fiction: claims accurate, examples relevant, argument logical.
+- **Theme integration**: the book's themes are present where they should be, and integrated organically (not heavy-handed).
 
 ### Generate review
 
@@ -223,20 +225,17 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 - [Issue]: [Description]
   **Suggestion**: [Fix]
 
-## Dimension Scores
+## Pass Scores
 
-| Dimension | Score | Notes |
-|-----------|-------|-------|
-| Plan Adherence | [A/B/C/D] | [Brief note] |
-| Constitution Compliance | [A/B/C/D] | [Brief note] |
-| Voice Fidelity (vs Origin) | [A/B/C/D] | [Global-voice drift from the origin (pin / earliest [X]); note if sanctioned] |
-| Style Anchor Compliance | [A/B/C/D] | [Brief note] |
-| LLM Tic Audit | [A/B/C/D] | [Patterns over budget; active waivers, if any] |
-| Craft Quality | [A/B/C/D] | [Brief note] |
-| Character/Content | [A/B/C/D] | [Brief note] |
-| Continuity | [A/B/C/D] | [Brief note] |
-| Theme Integration | [A/B/C/D] | [Brief note] |
-| World Consistency | [A/B/C/D/N/A] | [Brief note] |
+| Pass | Score | Notes |
+|------|-------|-------|
+| 1 — Style Fidelity *(gating)* | [A/B/C/D] | [Global-voice drift vs origin (pin / earliest [X]); style-anchor + constitution voice; note if sanctioned] |
+| 2 — AI-Tic Audit *(gating)* | [A/B/C/D] | [Patterns over budget; high-signal flags; active waivers, if any] |
+| 3 — In-Chapter Logical Consistency | [A/B/C/D] | [Intra-chapter quantities/arithmetic/headcount/geometry/knowledge] |
+| 4 — Cross-Chapter & Plot-Arc Logic | [A/B/C/D/N/A] | [Numeric drift, backstory, knowledge, arc convergence, world/canon] |
+| 5 — Disclosure Horizon | [A/B/C/D] | [Premature disclosure / proleptic leaks of later chapters] |
+| 6 — Standalone Readability | [A/B/C/D] | [Scaffolding-only references; self-sufficiency] |
+| 7 — Craft & Structure | [A/B/C/D] | [Plan adherence, craft, character behaviour, theme] |
 
 ## Verdict
 
@@ -249,7 +248,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 
 ### Update chapter status
 
-- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`. PASS **requires the Style Fidelity gate (B) to pass** — never approve a chapter that drifted from the voice origin or is over a high-signal tic budget, however well it scores elsewhere.
+- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`. PASS **requires the gating passes (1 Style Fidelity and 2 AI-Tic Audit) to pass**, and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)** — never approve a chapter that drifted from the voice origin, is over a high-signal tic budget, contradicts an established quantity/fact, or spoils a later reveal, however well it scores elsewhere.
 - **NEEDS REVISION**: change `[D] → [R]` (reviewed, needs work)
 
 ### Report
@@ -356,6 +355,8 @@ These are **consolidation candidates**: the fix refreshes `## Current State` to 
 
 Focus on high-signal findings. Limit to 50 total findings (excluding drift findings from step 1).
 
+**Sub-agent fan-out (when available).** These detection passes are independent and operate over the whole manuscript, so when the runtime offers parallel sub-agents, dispatch each pass (A–L) as its own sub-agent against a baseline the parent resolves once (fixed origin, roster, catalog, the chapter set), then aggregate, dedup, and cap at 50. Otherwise run them sequentially. Either way the passes and severities are the same.
+
 #### A. Continuity & Timeline
 - Events referenced in later chapters that weren't established in earlier ones
 - Timeline contradictions (character in two places at once, seasonal inconsistencies)
@@ -433,6 +434,22 @@ If `world/` exists, cross-reference world/ files against all drafted chapters:
 
 Each finding cites the specific `world/` file and the chapter(s) where the contradiction occurs.
 
+#### J. Quantitative Continuity Ledger
+
+Build a ledger of every concrete quantitative/temporal fact across the drafted chapters in scope — counts, ages, dates, durations, distances, ordinals, headcounts — **keyed by referent** (e.g. "guards at the gate", "Crescens's age", "Carthage→Rome voyage"). For each referent, list the value each chapter asserts.
+
+- Flag any referent whose value **changes without an in-story justification** (the "nine guards in CH04 → twelve in CH09" case). A change dramatized as in-story change is fine; a silent contradiction is not.
+- Cross-check stated values against the matching `world/` `## Current State` where one exists.
+- Severity: **CRITICAL** for a hard contradiction a reader would catch; **HIGH** for an unexplained drift; **MEDIUM** for a value that is merely imprecise across chapters.
+
+#### K. Premature Disclosure (Disclosure Horizon, manuscript-wide)
+
+Scan for any chapter disclosing a plot fact the outline/plan assigns to a **later** chapter — a reveal, a death, a twist, an identity — stated or proleptically narrated before its intended chapter. Distinguish from allowed planted foreshadowing (names no payoff). Cite the leaking chapter and the chapter that owns the reveal. Severity: **CRITICAL** if it spoils a major later reveal; **HIGH** otherwise.
+
+#### L. Scaffolding Leakage (Standalone Readability, manuscript-wide)
+
+Scan for prose that only parses with access to `world/`/outline/concept — names/terms/relationships used before any chapter grounds them, "as established" reliance on unstated facts, or encyclopedia voice transcribed from `world/`. A reader of the shipped chapters alone should never hit an unexplained dependency. Cite chapter and location. Severity: **HIGH** if comprehension breaks; **MEDIUM** otherwise.
+
 ### Step 3: Severity Assignment
 
 - **CRITICAL**: Constitution violation, major plot hole, timeline contradiction, character inconsistency that breaks immersion, world rule violation that breaks established system logic, major geography/timeline contradiction
@@ -470,6 +487,25 @@ Output a Markdown report (no file write unless the author asks to save):
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
 | C1 | Continuity | HIGH | CH03, CH07 | Character's eye color changes | Standardize to blue (CH03 version) |
+
+### Quantitative Continuity Ledger
+
+| Referent | Per-chapter values | Consistent? | Severity |
+|----------|--------------------|-------------|----------|
+| Guards at the gate | CH04: nine; CH09: twelve | NO — silent change | CRITICAL |
+| Crescens's age | CH01: 52; CH06: 52 | yes | - |
+
+### Premature Disclosure
+
+| Leaking chapter | Fact disclosed | Owned by | Severity |
+|-----------------|----------------|----------|----------|
+| CH05 | the steward is the informant | CH11 reveal | CRITICAL |
+
+### Scaffolding Leakage
+
+| Chapter | Reference | Why it only parses with scaffolding | Severity |
+|---------|-----------|-------------------------------------|----------|
+| CH02 | "the Concordat" | named, never grounded in any drafted chapter | HIGH |
 
 ### Thread Tracking
 
@@ -556,7 +592,7 @@ For an input like `5-10` or `chapters 5-10`:
 - **Anchor to the origin, not the neighbors**: grade *global* voice against the fixed origin (constitution + concept voice/tone + the pinned-or-earliest approved chapters); match *character/scene texture* to the earliest **relevant** approved chapter. "Consistent with the last chapter" never establishes that something is correct — recent chapters may already have drifted.
 - **Prioritize ruthlessly**: one critical + three minor issues → critical first.
 - **Grade fairly**: A = exceptional, B = solid, C = adequate, D = needs significant work.
-- **PASS threshold**: no critical issues, no more than 2 important issues, constitution compliance is B or above, and Voice Fidelity (vs Origin) is B or above (no significant *unsanctioned* drift from the origin).
+- **PASS threshold**: no critical issues, no more than 2 important issues, the gating passes (1 Style Fidelity and 2 AI-Tic Audit) are B or above (no significant *unsanctioned* drift from the origin, no high-signal tic over budget), and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)**.
 - **Reviews are gated**: a chapter review writes only `chapters/NN/review.md` and updates the chapter row in `chapters.md`. A manuscript drift run writes nothing unless the author approves drift fixes — and those fixes touch only upstream planning artifacts (concept / outline / chapters.md / world), never chapter drafts. Consolidation fixes (1e/1f) additionally write a pre-consolidate snapshot before applying.
 - **Cap manuscript findings at 50** to keep reports actionable.
 - **Use absolute paths.**
