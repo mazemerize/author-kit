@@ -177,24 +177,29 @@ def _plan_layer_context(book_dir: Path, repo_root: Path, *, cap: int = 6000) -> 
     return "\n\n".join(blocks)
 
 
-def _draft_fingerprint(book_dir: Path) -> tuple:
-    """A content fingerprint of all chapter drafts (chapter id + content hash).
+def _content_fingerprint(book_dir: Path) -> tuple:
+    """A content fingerprint of all chapter drafts *and* reviews (chapter id + file + hash).
 
-    Used under a guideline campaign so a tick that rewrites a draft counts as
-    progress even when chapter statuses don't move (e.g. re-reviewing approved
-    chapters), keeping the loop-health checks from misfiring. Hashing the bytes
-    (rather than size+mtime) catches same-length edits and sub-second rewrites.
+    Used under a guideline campaign so a tick that rewrites a draft OR a review
+    counts as progress even when chapter statuses don't move (e.g. re-reviewing
+    approved chapters, which touches review.md but not the draft or the status),
+    keeping the loop-health checks from misfiring. A re-review sweep advances to a
+    different chapter each tick, so a fresh review.md digest registers progress;
+    a genuine stall (the same clean chapter re-reviewed to an identical review.md)
+    still produces an unchanged fingerprint and correctly trips loop-health.
+    Hashing the bytes (rather than size+mtime) catches same-length edits and
+    sub-second rewrites.
     """
     chapters = book_dir / "chapters"
     if not chapters.is_dir():
         return ()
     items: list[tuple] = []
-    for draft in sorted(chapters.glob("*/draft.md")):
+    for artifact in sorted(chapters.glob("*/draft.md")) + sorted(chapters.glob("*/review.md")):
         try:
-            digest = hashlib.md5(draft.read_bytes()).hexdigest()
+            digest = hashlib.md5(artifact.read_bytes()).hexdigest()
         except OSError:
             continue
-        items.append((draft.parent.name, digest))
+        items.append((artifact.parent.name, artifact.name, digest))
     return tuple(items)
 
 
@@ -205,7 +210,7 @@ def _progress_key(mode: str, report, fingerprint: tuple | None = None) -> tuple:
     plot mode keys on the broader planning surface (outline presence, world
     growth, chapter list), since planning may not move chapter statuses. When a
     ``fingerprint`` is supplied (guideline campaigns), it is folded in so draft
-    rewrites register as progress even without a status transition.
+    or review rewrites register as progress even without a status transition.
     """
     counts = tuple(sorted(report.chapter_status_counts.items()))
     if mode == "chapters":
@@ -442,13 +447,13 @@ def _run_autopilot(
             raise typer.Exit(code=0)
 
         # Act: dispatch the one chosen command in a clean session.
-        fp_before = _draft_fingerprint(book_dir) if guideline else None
+        fp_before = _content_fingerprint(book_dir) if guideline else None
         key_before = _progress_key(mode, report, fp_before)
         console.print(f"[dim]tick {tick}[/dim] {directive.action}: {directive.command} [dim]({directive.reason})[/dim]")
         result = runner.run_command(directive.command)
 
         report_after = collect_status(book_dir, repo_root)
-        fp_after = _draft_fingerprint(book_dir) if guideline else None
+        fp_after = _content_fingerprint(book_dir) if guideline else None
         status_changed = _progress_key(mode, report_after, fp_after) != key_before
 
         entry: dict = {

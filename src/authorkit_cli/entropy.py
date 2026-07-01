@@ -107,7 +107,7 @@ def roll_numbers(kind: str, lo: float, hi: float, count: int = 1, *, rng=None) -
             out.append(_randint(int(lo), int(hi), rng))
         elif kind == "float":
             span = hi - lo
-            frac = (_below(10_000, rng) / 10_000) if span else 0.0
+            frac = (_below(10_001, rng) / 10_000) if span else 0.0
             out.append(round(lo + frac * span, 2))
         else:  # time
             ilo, ihi = int(lo), int(hi)

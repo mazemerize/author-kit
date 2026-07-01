@@ -2913,6 +2913,46 @@ def test_autopilot_guideline_progress_is_content_aware(tmp_path, monkeypatch):
     assert calls["n"] >= 4
 
 
+def test_autopilot_guideline_review_only_sweep_registers_progress(tmp_path, monkeypatch):
+    """A re-review sweep touches review.md but not the draft or the [X] status.
+    The content fingerprint folds in review.md, so an advancing sweep across
+    already-approved chapters registers progress and does not trip loop-health."""
+    book_dir = _seed_autopilot_book(
+        tmp_path,
+        chapters_md=(
+            "# Chapters\n\n"
+            "- [X] CH01 A - x\n- [X] CH02 B - x\n- [X] CH03 C - x\n- [X] CH04 D - x\n"
+        ),
+    )
+    for n in range(1, 5):
+        d = book_dir / "chapters" / f"{n:02d}" / "draft.md"
+        d.parent.mkdir(parents=True, exist_ok=True)
+        d.write_text(f"# Chapter {n:02d}\n\nProse.\n", encoding="utf-8")
+
+    calls = {"n": 0}
+
+    def on_command(_cmd):
+        # Each tick re-reviews the next chapter: writes review.md, leaves the
+        # draft and the [X] status untouched. Only the review fingerprint moves.
+        calls["n"] += 1
+        rv = book_dir / "chapters" / f"{calls['n']:02d}" / "review.md"
+        rv.write_text(f"# Review {calls['n']}\n\nPASS.\n", encoding="utf-8")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review N", reason="sweep")
+    done = autopilot_core.Directive(action="done", reason="campaign swept")
+    fake = autopilot_runner.FakeRunner([review, review, review, review, done], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-4", "--guideline", "re-review every chapter against the new tics"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" not in result.output.lower()
+    assert "done" in result.output.lower()
+    assert calls["n"] >= 4
+
+
 def test_autopilot_plan_prompt_documents_guidelines_and_escalations():
     """The planner prompt explains author guidelines and the new escalation types."""
     repo_root = Path(__file__).resolve().parents[2]
