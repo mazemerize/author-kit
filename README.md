@@ -291,7 +291,7 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 | `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `python`, `pandoc`, `ffmpeg`) |
 | `authorkit version` | Print CLI and Python versions | — | Version report |
 | `authorkit status` | Project health dashboard for the current book | — | Chapter breakdown by status, parked-decision counts, world entity totals, open escalations, drift warnings |
-| `authorkit autopilot` | Run the semi-autonomous authoring loop (`chapters` / `plot`); stitches clean sessions of the four commands and halts on escalations | `chapters --range`, `plot --max-iters`, `--dry-run`, `--step`, `--commit`, `--permission-mode` | Chapter drafts/reviews or plan updates; `book/escalations/*.md`; `book/runs/autopilot.jsonl` |
+| `authorkit autopilot` | Run the semi-autonomous authoring loop (`chapters` / `plot`); stitches clean sessions of the four commands and halts on escalations | `chapters --range`, `plot --max-iters`, `--guideline`, `--dry-run`, `--step`, `--commit`, `--permission-mode` | Chapter drafts/reviews or plan updates; `book/escalations/*.md`; `book/runs/autopilot.jsonl` |
 | `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force`, `--yes`, `--quiet`, `--output-dir`, `--from-chapter`, `--to-chapter` | `dist/manuscript.md` + rendered docs |
 | `authorkit book audio` | Generate chapter audio and optional merged audiobook | `--provider`, `--voice`, `--model`, `--merge`, `--output-dir`, `--from-chapter`, `--to-chapter`, `--force`, `--yes` | `dist/audio/*.mp3` (+ optional merged file) |
 | `authorkit book stats` | Compute chapter/global manuscript metrics | `--output`, `--wpm`, `--audio-dir`, `--from-chapter`, `--to-chapter` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
@@ -306,10 +306,13 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 authorkit autopilot chapters --range 1-8            # plan -> draft -> review each chapter in range
 authorkit autopilot plot --max-iters 10             # develop the outline / world / chapter plans
 authorkit autopilot chapters --range 1-8 --dry-run  # show the next action; change nothing
+authorkit autopilot chapters --range 1-8 \
+  --guideline "re-review every chapter against the new tic patterns, revise drafts, then re-review"
 ```
 
 - **Refuses without a seed.** `plot` needs `concept.md`; `chapters` additionally needs a filled constitution, `outline.md`, and a `chapters.md` covering the range.
 - **Bounds:** `--range` for `chapters`, `--max-iters` for `plot`. `--dry-run` previews the next directive, `--step` runs one tick, `--commit` commits after each tick.
+- **Guidelines (campaigns):** `--guideline "<directive>"` steers the planner for the run — it **overrides the default status ladder** and may re-open approved `[X]` chapters for a review/revise sweep (e.g. re-reviewing a finished manuscript against new rules). Under a guideline the loop skips the all-`[X]` auto-done (the planner owns completion) and measures progress by draft/review **content** as well as status, so a sweep over already-approved chapters isn't cut short. Available on both `chapters` and `plot`.
 - **Tool access:** workers run with `--dangerously-skip-permissions` by default (full, unattended tool access — required to write files and run the setup/world-index scripts); the loop prints a heads-up each run. Pass `--permission-mode <mode>` (e.g. `acceptEdits`, `default`) to restrict, noting tighter modes may stall on script steps.
 - **Escalations.** When a decision is the author's to make, the loop writes an `OPEN` record to `book/escalations/` and halts. Resolve it with `/authorkit.discuss` (or `/authorkit.write N revise:` / `/authorkit.research`), which closes the record; the next run resumes. The loop never resolves its own escalations.
 - **Audit & control:** every tick is logged to `book/runs/autopilot.jsonl`; drop a `book/runs/STOP` file to halt after the current tick.
