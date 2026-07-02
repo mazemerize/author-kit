@@ -1788,6 +1788,29 @@ def test_parse_book_config_rejects_string_typed_numeric_fields(tmp_path):
         raise AssertionError("Expected BookConfigError for string-typed cost")
 
 
+def test_parse_book_config_rejects_scalar_autopilot_sections(tmp_path):
+    """A scalar where an ``[autopilot.<bucket>]`` table belongs (e.g.
+    ``planner = "haiku"`` under ``[autopilot]``) must raise BookConfigError,
+    not leak an AttributeError past the CLI's friendly error handling."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text(
+        '[book]\ntitle = "Test"\n[autopilot]\nplanner = "haiku"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(book_core.BookConfigError, match="autopilot.planner"):
+        book_core.parse_book_config(book_dir)
+
+    # The whole section as a scalar is equally friendly (top-level key, before
+    # any [table] header so it stays a root key).
+    (book_dir / "book.toml").write_text(
+        'autopilot = "haiku"\n[book]\ntitle = "Test"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(book_core.BookConfigError, match="autopilot"):
+        book_core.parse_book_config(book_dir)
+
+
 def test_book_build_surfaces_friendly_error_for_malformed_toml(tmp_path, monkeypatch):
     """`authorkit book build` must translate `BookConfigError` into a friendly
     Typer message (exit code 2) instead of crashing with a raw traceback.
@@ -2939,6 +2962,22 @@ def test_entropy_roll_numbers_respects_bounds_and_kinds():
         entropy.roll_numbers("bogus", 1, 2)  # bad kind
 
 
+def test_entropy_fractional_bounds_stay_inclusive():
+    """Fractional bounds never produce out-of-range values: int/year bounds are
+    ceil/floor'd (not truncated toward zero), floats are clamped after rounding."""
+    ints = entropy.roll_numbers("int", 2.7, 9.9, count=50)
+    assert all(3 <= v <= 9 for v in ints)  # int(2.7)=2 would escape the range
+
+    negs = entropy.roll_numbers("int", -9.9, -2.7, count=50)
+    assert all(-9 <= v <= -3 for v in negs)  # int(-2.7)=-2 would escape the range
+
+    with pytest.raises(ValueError):
+        entropy.roll_numbers("int", 2.7, 2.9)  # no integers in the range
+
+    flts = entropy.roll_numbers("float", 0, 0.999, count=200)
+    assert all(0.0 <= v <= 0.999 for v in flts)  # round(0.9985, 2) == 1.0 must be clamped
+
+
 def test_entropy_name_seed_is_scaffold_not_finished_name():
     """make_name_seed returns construction scaffolding (skeleton/initial/length),
     honors a known culture, and falls back to generic for an unknown one."""
@@ -3016,11 +3055,18 @@ def test_autopilot_guideline_progress_is_content_aware(tmp_path, monkeypatch):
         calls["n"] += 1
         draft.write_text(f"# Chapter 01\n\nRevised prose {calls['n']}.\n", encoding="utf-8")
 
-    # Five identical commands: status never changes. Without content-aware progress
-    # this trips no-progress; with it, each tick registers progress.
-    same = autopilot_core.Directive(action="revise", chapter=1, command="/authorkit.write 1 revise", reason="x")
+    # Four revise ticks: status never changes. Without content-aware progress
+    # this trips no-progress; with it, each tick registers progress. The issue
+    # text varies per tick (as a real planner's would) so the command-churn
+    # guard doesn't read the sequence as a stall.
+    revises = [
+        autopilot_core.Directive(
+            action="revise", chapter=1, command=f"/authorkit.write 1 revise: issue {n}", reason="x"
+        )
+        for n in range(1, 5)
+    ]
     done = autopilot_core.Directive(action="done", reason="campaign swept")
-    fake = autopilot_runner.FakeRunner([same, same, same, same, done], on_command=on_command)
+    fake = autopilot_runner.FakeRunner([*revises, done], on_command=on_command)
     monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(
@@ -3058,9 +3104,13 @@ def test_autopilot_guideline_review_only_sweep_registers_progress(tmp_path, monk
         rv = book_dir / "chapters" / f"{calls['n']:02d}" / "review.md"
         rv.write_text(f"# Review {calls['n']}\n\nPASS.\n", encoding="utf-8")
 
-    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review N", reason="sweep")
+    # The sweep advances to a different chapter (a different command) each tick.
+    reviews = [
+        autopilot_core.Directive(action="review", chapter=n, command=f"/authorkit.review {n}", reason="sweep")
+        for n in range(1, 5)
+    ]
     done = autopilot_core.Directive(action="done", reason="campaign swept")
-    fake = autopilot_runner.FakeRunner([review, review, review, review, done], on_command=on_command)
+    fake = autopilot_runner.FakeRunner([*reviews, done], on_command=on_command)
     monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(
@@ -3071,6 +3121,47 @@ def test_autopilot_guideline_review_only_sweep_registers_progress(tmp_path, monk
     assert "loop-health" not in result.output.lower()
     assert "done" in result.output.lower()
     assert calls["n"] >= 4
+
+
+def test_autopilot_guideline_command_churn_trips_loop_health(tmp_path, monkeypatch):
+    """Under a guideline, byte-changing rewrites always register as 'progress',
+    so a planner stuck re-dispatching the exact same command must be caught by
+    the command-churn guard instead of running to the MAX_TICKS cap."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 The Arrival - First\n")
+    rv = book_dir / "chapters" / "01" / "review.md"
+    rv.parent.mkdir(parents=True, exist_ok=True)
+
+    calls = {"n": 0}
+
+    def on_command(_cmd):
+        # Every tick rewrites review.md with different bytes: content-aware
+        # progress says "moving", but the command never changes — a stall.
+        calls["n"] += 1
+        rv.write_text(f"# Review sweep {calls['n']}\n\nPASS.\n", encoding="utf-8")
+
+    stuck = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="sweep")
+    fake = autopilot_runner.FakeRunner([stuck] * 8, on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-1", "--guideline", "re-review every chapter"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" in result.output.lower()
+    assert calls["n"] == 4  # tripped right after the churn window, not at MAX_TICKS
+
+
+def test_autopilot_guideline_brief_is_mode_scoped():
+    """The guideline addendum defers to the planner prompt's canonical rules and
+    never authorizes chapter work from plot mode."""
+    chapters = autopilot_commands._mode_brief("chapters", (1, 4), 20, "re-review everything")
+    plot = autopilot_commands._mode_brief("plot", None, 20, "re-check the outline")
+    assert "AUTHOR GUIDELINES ARE ACTIVE" in chapters
+    assert "AUTHOR GUIDELINES ARE ACTIVE" in plot
+    # Plot mode keeps its invariant: guidelines never open chapters/NN/.
+    assert "off-limits" in plot
+    assert "re-open" not in plot and "re-open" not in chapters  # semantics live in the prompt file
 
 
 def test_autopilot_plan_prompt_documents_guidelines_and_escalations():

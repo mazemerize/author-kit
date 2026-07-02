@@ -365,6 +365,23 @@ def detect_oscillation(history: list[dict], window: int = 3) -> bool:
     return same_command and no_change
 
 
+def detect_command_churn(history: list[dict], window: int = 4) -> bool:
+    """True when the last ``window`` dispatched ticks repeated the exact same
+    command, regardless of status or content change.
+
+    Guideline campaigns need this: their progress key folds in a content
+    fingerprint, and an LLM re-review virtually never rewrites review.md
+    byte-identically, so the ``status_changed``-keyed detectors above can never
+    fire. A healthy sweep advances to a different chapter — a different
+    command — each tick; the same command ``window`` times in a row is a
+    planner stuck in place, however much the bytes churn.
+    """
+    acts = [h for h in history if h.get("command")]
+    if len(acts) < window:
+        return False
+    return len({h["command"] for h in acts[-window:]}) == 1
+
+
 def detect_no_progress(history: list[dict], k: int = 4) -> bool:
     """True when the last ``k`` dispatched ticks produced no status change."""
     acts = [h for h in history if h.get("command")]

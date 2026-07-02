@@ -187,7 +187,9 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
 4. **Cross-Chapter & Plot-Arc Logical Consistency** — vs prior drafted chapters and `world/`
    `## Current State`: numeric/fact drift across chapters, backstory verified against the
    referenced *draft* (not the outline), knowledge boundaries across chapters, and plot-arc
-   convergence (a thread advanced here matches where prior chapters left it).
+   convergence (a thread advanced here matches where prior chapters left it). The world/canon
+   cross-check runs whenever `world/` exists — including on chapter 1, against the
+   `(CONCEPT)`-seeded entries; only the cross-chapter items need prior chapters.
 5. **Disclosure Horizon** — no premature disclosure / proleptic narration leaking
    future-chapter content. (See Disclosure Horizon Protocol.)
 6. **Standalone Readability** — the chapter stands on its own without the scaffolding. (See
@@ -198,8 +200,9 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
 Passes share one findings shape (severity + location/quote + suggested fix) and stable
 names, so a finding written under a pass is the section Revise reads when it reaches that
 pass. When the runtime offers parallel sub-agents, each pass may run as an independent
-sub-agent against a baseline the parent resolves once (fixed origin, this roster, the
-catalog); otherwise run them sequentially. Either way the names, order, and gating are these.
+sub-agent against a baseline the parent resolves once (fixed origin, this roster,
+`book/tic-ledger.md` — held by the parent; Pass 2's discovery step runs blind); otherwise
+run them sequentially. Either way the names, order, and gating are these.
 
 ### Tag and Placeholder Conventions
 

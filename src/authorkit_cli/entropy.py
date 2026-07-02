@@ -7,9 +7,10 @@ author-chosen bounds, and random name-construction *seeds* (syllable skeletons,
 an initial-letter constraint, a length target) the writer builds a setting-fit
 name from — not finished names.
 
-Randomness is true (`secrets`) by default; the chosen value is rolled once at
-draft time and becomes canon in the prose. Pure helpers take an optional ``rng``
-(a ``random.Random``) so tests can pin output; the Typer layer never passes one.
+Randomness is true (`random.SystemRandom`, os.urandom-backed — the same source
+`secrets` wraps) by default; the chosen value is rolled once at draft time and
+becomes canon in the prose. Pure helpers take an optional ``rng`` (a
+``random.Random``) so tests can pin output; the Typer layer never passes one.
 
 Author:
     mdemarne
@@ -18,7 +19,8 @@ Author:
 from __future__ import annotations
 
 import json
-import secrets
+import math
+import random
 from dataclasses import asdict, dataclass
 
 import typer
@@ -71,21 +73,13 @@ class NameSeed:
     length_target: int
 
 
-def _below(n: int, rng) -> int:
-    """Uniform int in ``[0, n)`` from ``rng`` if given, else ``secrets``."""
-    if n <= 0:
-        return 0
-    return rng.randrange(n) if rng is not None else secrets.randbelow(n)
-
-
-def _randint(lo: int, hi: int, rng) -> int:
-    """Uniform int in the inclusive range ``[lo, hi]``."""
-    return lo + _below(hi - lo + 1, rng)
-
-
-def _choice(seq, rng):
-    """Uniform choice from a non-empty sequence."""
-    return seq[_below(len(seq), rng)]
+def _int_bounds(lo: float, hi: float) -> tuple[int, int]:
+    """Integer bounds inside the inclusive ``[lo, hi]`` — ceil/floor, never
+    truncation toward zero, so a rolled int can't escape the requested range."""
+    ilo, ihi = math.ceil(lo), math.floor(hi)
+    if ihi < ilo:
+        raise ValueError(f"no integers in [{lo}, {hi}]")
+    return ilo, ihi
 
 
 def roll_numbers(kind: str, lo: float, hi: float, count: int = 1, *, rng=None) -> list:
@@ -100,22 +94,23 @@ def roll_numbers(kind: str, lo: float, hi: float, count: int = 1, *, rng=None) -
         raise ValueError("count must be >= 1")
     if hi < lo:
         raise ValueError("max must be >= min")
+    rng = rng if rng is not None else random.SystemRandom()
 
     out: list = []
     for _ in range(count):
         if kind in ("int", "year"):
-            out.append(_randint(int(lo), int(hi), rng))
+            ilo, ihi = _int_bounds(lo, hi)
+            out.append(rng.randint(ilo, ihi))
         elif kind == "float":
-            span = hi - lo
-            frac = (_below(10_001, rng) / 10_000) if span else 0.0
-            out.append(round(lo + frac * span, 2))
+            # Round for prose-friendly values, then clamp: rounding is the last
+            # step and could otherwise nudge the value past an inclusive bound
+            # (e.g. hi=0.999 rolling 0.9985 -> round 1.0).
+            out.append(float(min(hi, max(lo, round(rng.uniform(lo, hi), 2)))))
         else:  # time
-            ilo, ihi = int(lo), int(hi)
+            ilo, ihi = _int_bounds(lo, hi)
             if not (0 <= ilo <= 23 and 0 <= ihi <= 23):
                 raise ValueError("time bounds must be hours in 0..23")
-            hour = _randint(ilo, ihi, rng)
-            minute = _randint(0, 59, rng)
-            out.append(f"{hour:02d}:{minute:02d}")
+            out.append(f"{rng.randint(ilo, ihi):02d}:{rng.randint(0, 59):02d}")
     return out
 
 
@@ -130,28 +125,29 @@ def make_name_seed(culture: str = "generic", syllables: int | None = None, *, rn
     onsets, vowels, codas = _ONSETS.get(key), _VOWELS.get(key), _CODAS.get(key)
     if onsets is None:
         key, onsets, vowels, codas = "generic", _ONSETS["generic"], _VOWELS["generic"], _CODAS["generic"]
+    rng = rng if rng is not None else random.SystemRandom()
 
-    n = syllables if syllables is not None else _randint(2, 3, rng)
+    n = syllables if syllables is not None else rng.randint(2, 3)
     if n < 1:
         raise ValueError("syllables must be >= 1")
 
     shapes, parts = [], []
     for _ in range(n):
-        shape = _choice(_SHAPES, rng)
+        shape = rng.choice(_SHAPES)
         shapes.append(shape)
         piece = ""
         for ch in shape:
             if ch == "C":
-                piece += _choice(onsets, rng)
+                piece += rng.choice(onsets)
             elif ch == "V":
-                piece += _choice(vowels, rng)
+                piece += rng.choice(vowels)
             else:  # c — optional coda
-                piece += _choice(codas, rng)
+                piece += rng.choice(codas)
         parts.append(piece)
 
     scaffold = "-".join(p for p in parts if p)
     flat = scaffold.replace("-", "")
-    initial = (flat[:1] or _choice(vowels, rng)).upper()
+    initial = (flat[:1] or rng.choice(vowels)).upper()
     return NameSeed(
         culture=key,
         skeleton="-".join(shapes),

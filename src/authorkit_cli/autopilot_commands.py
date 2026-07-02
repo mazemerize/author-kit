@@ -29,6 +29,7 @@ from .autopilot_core import (
     Directive,
     DirectiveError,
     all_chapters_approved,
+    detect_command_churn,
     detect_no_progress,
     detect_oscillation,
     directive_to_obj,
@@ -108,10 +109,16 @@ def _mode_brief(
             "story-direction forks."
         )
     if guideline:
+        # The campaign rules themselves live once, in the planner prompt's
+        # '## Author Guidelines (when present)' section — don't restate them here.
+        scope = (
+            "within this mode's chapter scope"
+            if mode == "chapters"
+            else "within plot scope only — chapters/NN/ stays off-limits"
+        )
         brief += (
-            " AUTHOR GUIDELINES ARE ACTIVE this run (see the high-priority section): they override the default "
-            "ladder and MAY re-open approved [X] chapters for a review/revise sweep. Track the campaign across "
-            "ticks and emit 'done' only when the guideline has been applied across the range."
+            " AUTHOR GUIDELINES ARE ACTIVE this run: apply your prompt's '## Author Guidelines' rules "
+            f"to the high-priority section below, {scope}."
         )
     return brief
 
@@ -413,7 +420,14 @@ def _run_autopilot(
         if kill_switch_present(book_dir):
             console.print("[yellow]Halting:[/yellow] kill switch present (book/runs/STOP).")
             raise typer.Exit(code=0)
-        if detect_oscillation(history) or (mode == "chapters" and detect_no_progress(history)):
+        # Under a guideline the content fingerprint makes the status-keyed
+        # detectors near-impossible to trip (LLM rewrites are never
+        # byte-identical), so command churn is the stall signal there.
+        if (
+            detect_oscillation(history)
+            or (mode == "chapters" and detect_no_progress(history))
+            or (bool(guideline) and detect_command_churn(history))
+        ):
             path = _write_health_escalation(book_dir)
             console.print(
                 f"[yellow]Halting:[/yellow] loop-health trip (no progress / oscillation). Wrote {path.name}."

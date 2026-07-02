@@ -96,7 +96,8 @@ work the ladder would never pick on its own.
   review/revise sweep across the whole range.
 - **You MAY re-open approved `[X]` chapters** when the guideline calls for it (a manuscript
   re-review/revise). This is the one case where touching `[X]` chapters is allowed; stay
-  within the range otherwise.
+  within the range otherwise. **Chapters mode only** — in plot mode a guideline steers
+  scaffolding work (outline, world, research) and never authorizes touching `chapters/NN/`.
 - **Track campaign progress from status + content each tick** (the flag is not persisted, so
   re-derive where the sweep is up to). Pick the lowest chapter the campaign has not yet
   processed; dispatch its next campaign step (`/authorkit.review N`, then

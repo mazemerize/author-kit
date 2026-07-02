@@ -168,9 +168,9 @@ The self-learning tic pass (see the shared guardrails' *Tic Ledger & Voice Pairs
 - **Knowledge-at-this-point**: a character acts only on what they could know *by this moment in this chapter*; if they react to a lie/plan/schedule, it was established earlier in the chapter (cross-chapter knowledge is Pass 4).
 - **Narrative necessity**: when the narrator frames an action as necessary ("the lie needed updating," "they had to," "there was no choice"), verify it against the story's own established logic; if their own system makes it pointless, the action, justification, or commentary is wrong.
 
-#### Pass 4 — Cross-Chapter & Plot-Arc Logical Consistency (if previous chapters exist)
+#### Pass 4 — Cross-Chapter & Plot-Arc Logical Consistency
 
-Vs prior **drafted** chapters and `world/` `## Current State` — the canonical now-truth (`## History` tells whether a discrepancy is a genuine contradiction or an established later-chapter evolution).
+Vs prior **drafted** chapters and `world/` `## Current State` — the canonical now-truth (`## History` tells whether a discrepancy is a genuine contradiction or an established later-chapter evolution). The cross-chapter bullets apply only when previous drafted chapters exist, but the **World & canon consistency** bullet runs whenever `world/` exists — **including on chapter 1**, whose draft must already agree with the `(CONCEPT)`-seeded world files. Score this pass N/A only when there are no previous chapters *and* no `world/`.
 
 - **Flow & contradictions**: does this chapter follow naturally from the prior relevant ones? Any contradiction with what earlier chapters established?
 - **Quantitative drift across chapters**: a quantity/fact committed in an earlier chapter (nine guards, age forty, a two-day journey) must not silently change here. Flag any referent whose value differs without an in-story change. **Critical** for a hard contradiction.
@@ -235,7 +235,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 | 1 — Style Fidelity *(gating)* | [A/B/C/D] | [Global-voice drift vs origin (pin / earliest [X]); style-anchor + constitution voice; note if sanctioned] |
 | 2 — AI-Tic Audit *(gating)* | [A/B/C/D] | [Shapes discovered vs origin; recurring/rising ledger entries; active waivers, if any] |
 | 3 — In-Chapter Logical Consistency | [A/B/C/D] | [Intra-chapter quantities/arithmetic/headcount/geometry/knowledge] |
-| 4 — Cross-Chapter & Plot-Arc Logic | [A/B/C/D/N/A] | [Numeric drift, backstory, knowledge, arc convergence, world/canon] |
+| 4 — Cross-Chapter & Plot-Arc Logic | [A/B/C/D/N/A] | [Numeric drift, backstory, knowledge, arc convergence, world/canon — world/canon runs even on CH01; N/A only with no prior chapters and no world/] |
 | 5 — Disclosure Horizon | [A/B/C/D] | [Premature disclosure / proleptic leaks of later chapters] |
 | 6 — Standalone Readability | [A/B/C/D] | [Scaffolding-only references; self-sufficiency] |
 | 7 — Craft & Structure | [A/B/C/D] | [Plan adherence, craft, character behaviour, theme] |

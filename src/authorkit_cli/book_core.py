@@ -156,6 +156,23 @@ def _coerce_optional_float(value: object, *, field: str, config_path: Path) -> f
     )
 
 
+def _ensure_table(value, *, field: str, config_path: Path) -> dict:
+    """Coerce a config section to a table, erroring like the numeric coercers.
+
+    A scalar where a table belongs (``planner = "haiku"`` instead of
+    ``[autopilot.planner]`` / ``model = "haiku"``) must raise BookConfigError,
+    not leak an AttributeError past the CLI's friendly error handling.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    raise BookConfigError(
+        f"`{field}` in {config_path} must be a TOML table (`[{field}]` section), got {value!r}.",
+        config_path=config_path,
+    )
+
+
 def _parse_autopilot_op(raw: dict) -> AutopilotOpConfig:
     """Parse one ``[autopilot.<bucket>]`` table into an AutopilotOpConfig.
 
@@ -196,7 +213,7 @@ def parse_book_config(book_dir: Path) -> BookConfig:
     build_section = raw.get("build", {})
     audio_section = raw.get("audio", {})
     stats_section = raw.get("stats", {})
-    autopilot_section = raw.get("autopilot", {})
+    autopilot_section = _ensure_table(raw.get("autopilot"), field="autopilot", config_path=config_path)
 
     title = normalize_name(str(book_section.get("title") or book_dir.name))
     author = normalize_name(str(book_section.get("author") or "Unknown Author"))
@@ -233,9 +250,15 @@ def parse_book_config(book_dir: Path) -> BookConfig:
             field="stats.tts_cost_per_1m_chars", config_path=config_path,
         ),
         autopilot=AutopilotConfig(
-            planner=_parse_autopilot_op(autopilot_section.get("planner", {})),
-            review=_parse_autopilot_op(autopilot_section.get("review", {})),
-            writer=_parse_autopilot_op(autopilot_section.get("writer", {})),
+            planner=_parse_autopilot_op(
+                _ensure_table(autopilot_section.get("planner"), field="autopilot.planner", config_path=config_path)
+            ),
+            review=_parse_autopilot_op(
+                _ensure_table(autopilot_section.get("review"), field="autopilot.review", config_path=config_path)
+            ),
+            writer=_parse_autopilot_op(
+                _ensure_table(autopilot_section.get("writer"), field="autopilot.writer", config_path=config_path)
+            ),
         ),
     )
 

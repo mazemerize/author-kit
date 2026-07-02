@@ -312,6 +312,7 @@ Triggered when `chapters/NN/draft.md` exists and the user input includes "revise
    - **Harvest voice pairs (Pass 2 fixes only)**: for each AI-Tic finding fixed, append the before→after pair to `book/voice-pairs.md` **Active Pairs** (create the file from `.authorkit/templates/voice-pairs-template.md` if missing): `- TIC-NNN (CHnn): "<original sentence>" → "<revised sentence>"`. Keep Active at ~20 pairs, newest first, preferring one instructive pair per tic shape; rotate the oldest to **Archive**. These pairs are how the next draft learns — harvesting is not optional.
    - **Re-run that pass's own check** on the edited prose before advancing, so a Style fix that introduces a tic (Pass 2), or a logic fix (Pass 4) that breaks voice (Pass 1), is caught in-loop. A pass with no findings is verified-and-skipped, never silently ignored.
    - If no `review.md` exists (a direct `revise: <issue>`), still walk the roster but act only on the passes the issue touches, running those passes' checks yourself.
+   - **Final gate sweep (mandatory, after the last pass)**: re-check every span edited during passes 3–7 against Pass 1 (voice vs the fixed origin) and Pass 2 (tic budgets vs the ledger). The per-pass re-check only covers each pass's own remit, so a logic or craft fix made after the gating passes ran can still drift voice or introduce a ledger shape — this sweep is what catches it before the draft is saved.
 
 4. **Update the plan** at `chapters/NN/plan.md` if the revision changes the chapter's structure.
 5. **Update status** in `chapters.md`:

@@ -99,14 +99,9 @@ def _compose_planner_input(
     """Assemble the planner's full input: prompt + mode brief + guideline + optional context + status JSON."""
     parts = [prompt, "", f"## AutoPilot mode\n\n{mode_brief}", ""]
     if guideline:
-        parts += [
-            "## Author Guidelines (high priority)\n\n"
-            "These take precedence over the default status ladder for this run, and MAY "
-            "authorize re-opening approved [X] chapters for a review/revise sweep. Track the "
-            "campaign's progress across ticks and emit `done` once it has swept the range.\n\n"
-            f"{guideline}",
-            "",
-        ]
+        # Bare label + operator text; the campaign rules live once, in the
+        # planner prompt's '## Author Guidelines (when present)' section.
+        parts += [f"## Author Guidelines (high priority)\n\n{guideline}", ""]
     if context:
         parts += [f"## Plan-layer context (read-only)\n\n{context}", ""]
     parts += [
