@@ -542,14 +542,10 @@ Audio narration instructions:
 - Instructions selection order: `[audio].instructions` config path, then default template, then built-in fallback
 - The default template follows openai.fm-style guidance covering voice, punctuation, delivery, phrasing, tone, pauses, and markdown handling
 
-`authorkit autopilot` per-operation model/effort (`[autopilot.*]` in `book.toml`):
-- AutoPilot makes three kinds of LLM calls per run: the **meta-planner** that decides each tick's next action (`[autopilot.planner]`), dispatched **review** commands (`[autopilot.review]`, i.e. `/authorkit.review`), and everything else — plan/draft/revise/research (`[autopilot.writer]`, dispatching `/authorkit.write` and `/authorkit.research`).
-- Every field is optional and starts unset. **There is no built-in default and no CLI flag** — `book.toml` is the only place to set this. Leaving a field unset means no `--model`/`--effort` (or flavor-equivalent) is passed at all, so the agent CLI's own ambient default applies, exactly like today.
-- Flag syntax by flavor (only emitted when you set a value):
-  - **Claude**: `--model <alias|id>` (e.g. `haiku`, `sonnet`, `opus`, or a full model ID) and `--effort <low|medium|high|xhigh|max>`.
-  - **Codex**: `-m <id>` for the model, and `-c model_reasoning_effort="<level>"` for effort (`minimal|low|medium|high|xhigh`) — Codex CLI has no dedicated effort flag. Note: several upstream Codex CLI issues report `model_reasoning_effort` occasionally being ignored; treat it as best-effort.
-  - **Copilot**: `--model=<id>` and `--effort=<level>` (`low|medium|high|xhigh|max`). `--model` is confirmed to work in headless `-p` mode; `--effort` alongside `-p` is undocumented upstream and should be spot-checked before relying on it.
-- Codex/Copilot invocation is still marked "needs live validation" in this codebase (see `docs/autopilot.md`) — the flags above are the documented syntax, not yet exercised end-to-end here.
+`authorkit autopilot` model/effort per operation (`[autopilot.*]` in `book.toml`):
+- Point each of AutoPilot's three jobs at a different model — `planner` (decides what to do next each tick), `review` (runs `/authorkit.review`), `writer` (runs `/authorkit.write` and `/authorkit.research`) — e.g. a cheap model for planning and your strongest model for drafting.
+- Uncomment and fill in whichever `[autopilot.*]` blocks you want in `book.toml`; leave the rest as-is. There's no built-in default and no CLI flag, so anything you don't set just uses your agent CLI's normal default.
+- `model` takes whatever your AI flavor accepts (e.g. `haiku`/`sonnet`/`opus` for Claude); `effort` takes a reasoning-depth level such as `low`/`medium`/`high` (exact accepted values vary by flavor — see [docs/autopilot.md](docs/autopilot.md) for the per-flavor flag details).
 
 ---
 
