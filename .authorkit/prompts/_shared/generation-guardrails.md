@@ -96,24 +96,72 @@ Voice lives at two layers; keep them distinct so intelligent matching never erod
 - **Layer 2 — character/scene/arc texture (the voice exemplar; matched, never the bar).** For texture the global origin under-specifies — how a given POV character's interiority reads, an arc's tonal colour, a recurring character's dialogue voice — match the **earliest *relevant* approved chapter**: the lowest-numbered approved draft featuring this chapter's POV/focus characters or the same arc register (use the `world/_index.md` Chapter Manifest + Alias Lookup). Pick the *earliest* relevant draft, not the most recent, so the exemplar is a representative instance rather than a trailing (possibly drifted) one. The exemplar may only *add* detail the origin leaves open; where it conflicts with the constitution or the fixed origin, the origin wins and the divergence is drift, not licence. Fall back to the fixed origin when no more-relevant approved chapter exists.
 - Ground prose decisions in `book/style-anchor.md` and keep prose aligned on POV, tense, narrative distance, cadence, diction/register, imagery density, and dialogue behaviour defined there. (Plot/thread/state continuity — where an arc currently stands — comes from the *most recent* relevant chapter, a reference separate from the earliest-relevant voice exemplar.)
 
-### Literary Tic Avoidance
+### Voice Conditioning Protocol (generation-side)
 
-- The canonical list of LLM-typical prose tics, with default budgets and the
-  constitution-override clause, lives at
-  `.authorkit/prompts/_shared/literary-tic-catalog.md`. Load it for any
-  command that drafts, revises, or reviews manuscript prose.
-- Treat the catalog's budgets as defaults. A pattern is permitted beyond its
-  budget only when the constitution (or the style anchor's **Avoid** /
-  **Imagery Density** sections) **explicitly** names the pattern, raises its
-  budget, or states a voice/genre rationale. A generic "literary register"
-  note does not waive a pattern.
-- A book's constitution can also tighten a budget (e.g., zero negations).
-  Treat tightening as binding.
-- Drafting commands: write within budget on the first pass; do not generate
-  tic-rich prose and clean it up after.
-- Review commands: count instances per pattern (per chapter and per 1,000
-  words for density patterns), compare against the budgets, and report any
-  active constitution waivers at the top of the review.
+Models imitate the register of the text immediately preceding their output far
+more faithfully than they follow style instructions — and negated instructions
+prime the very patterns they name. So drafting **conditions** the model on the
+voice instead of policing it with rules:
+
+- **Continuation conditioning.** Assemble the drafting context so the model
+  *continues* the book rather than follows instructions about it. Immediately
+  before writing prose, place in order: (1) the resolved origin excerpt(s)
+  **verbatim** (~2–4 pages of the fixed origin — see Style Continuity
+  Protocol), (2) the tail of the current draft (or the previous chapter's
+  closing scene when starting a chapter), (3) a *minimal* beat sheet for the
+  scene, then continue the prose from there.
+- **Voice pairs.** Load `book/voice-pairs.md` (**Active Pairs section only**)
+  into the drafting context, framed positively: *in this book, prose like the
+  left column gets revised to the right column — write right-column prose
+  directly.* If the file doesn't exist yet, skip silently.
+- **Two-stage drafting.** Draft each scene in two passes:
+  - **Pass A — content**: deliberately flat camera prose — events, dialogue,
+    concrete physical fact; no figurative language, no interiority glosses,
+    no rhythm performance. All Entropy Protocol rolls (names, numbers) happen
+    here. Pass A is working material only — never written to `book/`.
+  - **Pass B — voice**: rewrite Pass A into the anchored voice with the origin
+    excerpts and Active Pairs in context. Hard rule: **Pass B adds no new
+    facts, names, or numbers** — it is a translation of Pass A, and the
+    self-check diffs B against A to confirm. Only Pass B is saved.
+- **Quarantine (see the next section):** the drafting context never contains
+  the tic catalog, the tic ledger, or any enumeration of bad-prose patterns.
+
+### Tic Ledger & Voice Pairs (self-learning tic defense)
+
+AI-typical prose tics are model-specific attractors: a static list goes stale
+the moment the model changes, and pattern descriptions in the drafting context
+prime the constructions they prohibit. The defense is therefore **learned per
+book** and split across two artifacts with a strict boundary:
+
+- **`book/tic-ledger.md` — review-side memory.** The living, book-specific tic
+  catalog, maintained by `/authorkit.review` Pass 2 via blind contrast against
+  the fixed voice origin (the prose anchor). Each entry carries: a one-line
+  shape, a quoted instance *from this book's drafts*, a counter-example showing
+  how the *origin* does the same job, a per-chapter occurrence trend, a status
+  (`seed | active | dormant | retired`), and an optional constitution waiver.
+  Lifecycle: active → dormant after 1 clean reviewed chapter → retired after 2
+  more consecutive clean chapters; `seed` entries (bootstrap hypotheses) retire
+  if unconfirmed after 2 reviews; a rediscovered retired shape reactivates with
+  its history. Follow `.authorkit/templates/tic-ledger-template.md`.
+- **`book/voice-pairs.md` — the only generation-side artifact.** Contrastive
+  before→after pairs harvested when Revise fixes a Pass 2 finding (and from
+  author hand-edits surfaced during Reconcile, tagged `(author)`). Keep ~20
+  Active pairs, newest first, one instructive pair per shape; rotate the rest
+  to Archive. Follow `.authorkit/templates/voice-pairs-template.md`.
+- **Quarantine rule (binding).** Commands while *drafting* prose MUST NOT load
+  the tic catalog or the tic ledger. Tic knowledge crosses into generation
+  exclusively as Active voice pairs. Review and revision (which read existing
+  prose rather than generate fresh register) hold the ledger.
+- **The shipped catalog is a bootstrap seed only.**
+  `.authorkit/prompts/_shared/literary-tic-catalog.md` seeds the first ledger
+  entries when a book has no `book/tic-ledger.md` yet; once the ledger exists,
+  the ledger — not the catalog — is normative.
+- **Constitution waivers stay explicit.** The author sanctions a pattern by
+  naming it in the constitution (by example or description — a generic
+  "literary register" note is not a waiver). Review records the waiver on the
+  matching ledger entry's `Waiver:` field; waived entries are reported at the
+  top of the review, never flagged as findings. A constitution can also name a
+  shape as banned outright — treat that as binding regardless of trend.
 
 ### Analysis Passes (canonical roster)
 
@@ -125,9 +173,12 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
 1. **Style Fidelity** *(gating)* — global voice vs the fixed origin (POV, tense, narrative
    distance, cadence, diction/register, imagery), style-anchor alignment, constitution voice
    rules. (See Style Continuity Protocol.)
-2. **AI-Tic Audit** *(gating on high-signal patterns)* — every pattern in the literary-tic
-   catalog counted against its budget, constitution waivers honored, severity per the
-   catalog. (See Literary Tic Avoidance.)
+2. **AI-Tic Audit** *(gating)* — self-learning tic discovery & contrast: a blind pass over
+   the draft against the fixed origin prose (no list in hand) discovers recurring
+   constructions the origin never uses, then reconciles them into `book/tic-ledger.md`
+   (trends, decay, new entries); gating on a recurring discovered shape (≥3 instances) or
+   a recurring active ledger entry. Constitution waivers honored via the ledger. (See Tic
+   Ledger & Voice Pairs.)
 3. **In-Chapter Logical Consistency** — *within the one chapter*: quantities/counts/ages/
    dates/durations/distances/ordinals internally consistent and arithmetically sound;
    per-scene headcount and physical possibility within the established geometry; a character
@@ -175,12 +226,13 @@ Status markers `[ ]`, `[P]`, `[D]`, `[R]`, `[X]` appearing in `chapters.md` are 
 - Style audit:
   - Confirm alignment with constitution and `book/style-anchor.md`.
   - Flag and correct drift before final output.
-- Literary tic audit:
-  - Count instances of each pattern in `literary-tic-catalog.md` over the new
-    prose (per chapter, and per 1,000 words for density patterns).
-  - Compare to the catalog's budgets. For any pattern over budget, either
-    rewrite to comply or — if a constitution waiver applies — note the waiver
-    in the run report.
-  - Zero-budget patterns (3, 7, the named zero-budget variants of 14 and 15,
-    and the zero-budget forms of 23 and 24) and high-signal patterns
-    (10, 13, 16, 21, 22, 23, 24) get a dedicated pre-output sweep before saving.
+- Tic self-check (origin contrast — do NOT load the catalog or the ledger):
+  - Contrast the new prose against the origin excerpts and Active voice pairs
+    already in the drafting context. Does any construction, sentence shape, or
+    beat-closer recur here that the origin prose never uses? Does anything read
+    like left-column prose from `book/voice-pairs.md`?
+  - Rewrite what fails the contrast before saving — the fix is whatever the
+    origin does for the same job. If a constitution waiver sanctions the
+    pattern, note the waiver in the run report instead.
+  - Two-stage confirmation: diff Pass B against Pass A — no new facts, names,
+    or numbers may have entered during the voice pass.

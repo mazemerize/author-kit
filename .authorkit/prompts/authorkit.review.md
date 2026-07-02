@@ -40,7 +40,7 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 
 ## Operating Constraints
 
-- **Read-only by default.** Analysis itself never modifies files.
+- **Read-only by default.** Analysis itself never modifies files — with one carve-out: Pass 2 maintains `book/tic-ledger.md` (bootstrap + Step B write-back). The ledger is review-owned memory, not manuscript or planning state.
 - **Drift remediation is gated.** After presenting drift findings, you MAY offer to update upstream planning documents (concept, outline, chapters.md, world/). **Never** modify chapter drafts under any circumstance. Wait for explicit user approval before any write. Decline / skip = command stays fully read-only.
 - **Constitution Authority.** The book constitution (`.authorkit/memory/constitution.md`) is the authoritative style guide. Constitution violations are automatically CRITICAL.
 - **Style Continuity Anchor.** `book/style-anchor.md` is the continuity baseline across model switches. Style-anchor drift is at least MEDIUM severity.
@@ -66,7 +66,7 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 Triggered by `N style` / `style N` (or a chapter plus "style" / "voice" / "fidelity"). A focused, **read-only** pass that runs **only** the gating passes — Pass 1 (Style Fidelity) + Pass 2 (AI-Tic Audit) — against the **fixed origin**, nothing about plot, world, theme, or pacing. Run it right after a chapter is written for a fast, explicit voice check. (The full craft review runs these same passes first; this mode is them in isolation.)
 
 1. Resolve the **fixed origin** exactly as the craft review does (Always-on step 3 → Origin reference): the `## Voice Origin` pin/excerpts if set, else the earliest approved (`[X]`) chapters, else constitution + concept voice/tone. Load `book/style-anchor.md` as a derived aid only — where it disagrees with the origin, the origin wins.
-2. Run **Pass 1 (Style Fidelity)** and **Pass 2 (AI-Tic Audit)** in full — voice vs origin (global), style-anchor alignment, constitution voice rules, tic budgets — quoting the specific lines that diverge.
+2. Run **Pass 1 (Style Fidelity)** and **Pass 2 (AI-Tic Audit)** in full — voice vs origin (global), style-anchor alignment, constitution voice rules, and the two-step tic discovery & contrast (blind Step A against the origin prose, then Step B ledger reconciliation, including the first-run bootstrap and the write-back to `book/tic-ledger.md`) — quoting the specific lines that diverge.
 3. Write `BOOK_DIR/chapters/NN/style-review.md`:
 
    ```markdown
@@ -80,14 +80,14 @@ Triggered by `N style` / `style N` (or a chapter plus "style" / "voice" / "fidel
    - [Axis / line ref] — [origin expectation] vs [chapter]; [OK / drift]. **Fix**: [in-voice replacement]
 
    ## Literary Tics
-   | Pattern | Count | Budget | Over? | Lines |
+   | TIC (id / new) | Shape | Instances | Trend | Status | Lines |
 
    ## Verdict
    **Status**: [STYLE PASS / NEEDS STYLE REVISION]
    ```
 
 4. **Status & report**: NEEDS STYLE REVISION → set `[D] → [R]` (the revise step addresses voice); STYLE PASS → leave status unchanged (a clean style pass does not approve the chapter — the full craft review does). Report the verdict, the top drift findings, and the next step: PASS → `/authorkit.review N` (full craft) or `/authorkit.write N+1`; NEEDS → `/authorkit.write N revise: <the style fixes>`.
-5. **Read-only except the verdict** — writes only `chapters/NN/style-review.md` and the `[D]→[R]` flip; never edits the draft, and says nothing about plot, world, theme, or pacing.
+5. **Read-only except the verdict and the ledger** — writes only `chapters/NN/style-review.md`, the `book/tic-ledger.md` update (Pass 2's Step B write-back), and the `[D]→[R]` flip; never edits the draft, and says nothing about plot, world, theme, or pacing.
 
 ## Mode: Chapter Craft Review (single chapter)
 
@@ -103,6 +103,7 @@ For a single chapter number `N`.
 - **Required**: `chapters/NN/draft.md` (the chapter to review)
 - **Required**: `chapters/NN/plan.md` (what was planned)
 - **Required**: concept, constitution, style anchor (already loaded)
+- **Required**: `book/tic-ledger.md` — Pass 2's memory (created from `.authorkit/templates/tic-ledger-template.md` during Pass 2 if missing). Held by the parent only — never handed to the blind discovery step.
 - **Recommended**: `characters.md` (consistency checks)
 - **Recommended**: `outline.md` (chapter's role in overall structure)
 - **Optional**: `research.md` and relevant `research/` topic files (recursive — scope `general` and `chapter CHNN`) for accuracy checks
@@ -121,39 +122,41 @@ severity + a line/paragraph citation or quote + a one-line fix.
 
 **Sub-agent fan-out (when available).** If the runtime offers parallel sub-agents (Claude's
 Task/Agent tool), first resolve the **shared baseline once** — the fixed voice origin, this
-roster, the tic catalog, scope and absolute paths — then spawn **one sub-agent per pass in
+roster, `book/tic-ledger.md`, scope and absolute paths — then spawn **one sub-agent per pass in
 parallel**, handing each only its remit and the context it needs (Pass 1: origin + style
-anchor; Pass 2: the tic catalog; Pass 3: this draft alone; Pass 4: prior drafted chapters +
+anchor; Pass 2: the origin prose only — **blind**, no ledger and no seed catalog, so
+discovery is unbiased; the parent holds the ledger and runs Step B reconciliation on the
+sub-agent's findings; Pass 3: this draft alone; Pass 4: prior drafted chapters +
 `world/` `## Current State`; Pass 5: the outline; Pass 6: this draft with scaffolding
 withheld; Pass 7: plan + concept + world). Each returns findings in the shared shape; the
 **parent** aggregates them into the single `review.md`, applies the Pass 1–2 gate, dedups
-cross-pass overlaps (e.g. a creed-maxim line trips both Pass 2 pattern 24 and pattern 21),
-computes the scores/verdict, and updates `chapters.md`. **Independence guard:** sub-agents
+cross-pass overlaps (e.g. a creed-maxim beat-closer trips both a Pass 2 ledger entry and
+Pass 1 register drift), computes the scores/verdict, and updates `chapters.md`. **Independence guard:** sub-agents
 never re-derive the voice bar — the parent owns the fixed origin and passes it down. Where
 sub-agents are unavailable (other flavors, headless without the Task tool), run the **same**
 passes sequentially in-context against the **same** roster, emitting the **same** findings.
 
 #### Pass 1 — Style Fidelity (gating)
 
-The dedicated style pass, and the whole of the focused `/authorkit.review N style` mode. A chapter that has drifted from the voice origin, or is over budget on a high-signal tic, is **automatically NEEDS REVISION** — not approved while it is out of voice, however well it scores elsewhere.
+The dedicated style pass, and the whole of the focused `/authorkit.review N style` mode. A chapter that has drifted from the voice origin, or carries a recurring non-waived tic shape (Pass 2), is **automatically NEEDS REVISION** — not approved while it is out of voice, however well it scores elsewhere.
 
 - **Voice fidelity vs origin (global)**: compare the chapter's *global* voice — POV, narrative distance, sentence rhythm, diction/register, imagery — against the **fixed origin** (constitution + concept voice/tone + the resolved origin: the `## Voice Origin` pin/excerpts if set, else the earliest approved chapters), not merely against the style anchor or the previous chapter. Flag drift from the origin even when the chapter reads as locally consistent with its neighbors. Character/scene/arc *texture* (a POV character's cadence, an arc's register) is matched against the earliest-relevant exemplar and assessed under Pass 4, not here. Distinguish *unsanctioned* drift (a finding, at least Important; Critical if it is also a constitution violation) from *constitution-sanctioned* evolution (not a finding). Quote the specific lines that diverge.
 - **Style-anchor alignment**: does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile? The anchor is a derived view of the origin — where they disagree, the origin wins.
 - **Constitution voice rules**: voice matches the constitution's specifications; POV consistent; tense correct throughout; prose style matches the standards; no principle violated.
 
-#### Pass 2 — AI-Tic Audit (gating on high-signal patterns)
+#### Pass 2 — AI-Tic Audit (gating) — Tic Discovery & Contrast
 
-Load `.authorkit/prompts/_shared/literary-tic-catalog.md` and check the chapter against every pattern in it. Over-budget on a high-signal pattern (7, 13, 21, 22, 23, 24) is gating.
+The self-learning tic pass (see the shared guardrails' *Tic Ledger & Voice Pairs*). It maintains `book/tic-ledger.md` — the living, book-specific tic catalog — by contrasting the draft against the **fixed origin prose**, in two mandatory steps in this order:
 
-- For each pattern, count instances in the chapter (and per 1,000 words for the density patterns marked per-1,000-words in the catalog's budget table).
-- Compare counts against the catalog's default budgets.
-- **Constitution waivers**: before flagging anything, check `.authorkit/memory/constitution.md` and the style anchor's **Avoid** / **Imagery Density** sections for explicit waivers (the pattern must be named by number, by example, or by description — a vague "literary register" line is not a waiver). If a waiver applies, note it at the top of the review (e.g., *"Polysyndeton waived by constitution §II"*) and skip the corresponding count.
-- Tightened budgets in the constitution are binding — flag at the tightened threshold, not the default.
-- For every pattern over its (effective) budget, write a finding with: pattern number/name, count vs. budget, line/paragraph citations for each instance, and a one-line rewrite suggestion that does NOT introduce a different pattern from the catalog.
-- Severity mapping:
-  - Patterns 7, 13, and 23 over budget, or any instance of a zero-budget form (the competence-tag form of 23, the "whole of his X" closer of 24) → **Critical**
-  - Patterns 3, 10, 16, and 24 over budget, or any instance of a named zero-budget cliché variant (patterns 14, 15) → **Important**
-  - Other patterns over budget → **Minor** (single instance over) or **Important** (≥2× budget)
+- **Bootstrap (first run only)**: if `book/tic-ledger.md` does not exist, create it from `.authorkit/templates/tic-ledger-template.md`, seeding entries with `Status: seed` from the shipped seed catalog's high-signal patterns (`.authorkit/prompts/_shared/literary-tic-catalog.md` — patterns 7, 13, 21, 22, 23, 24 and its zero-budget forms). Seeds are hypotheses; the steps below confirm or retire them.
+- **Step A — blind discovery.** Read the draft against ONLY the resolved origin prose — deliberately without the ledger or the seed catalog in hand, so discovery is not biased toward known patterns and can surface tics nobody has named yet. Remit: find constructions, sentence shapes, beat-closers, and rhetorical gestures that **recur in the draft but are absent or rare in the origin**. For each: quote every instance with line/paragraph citations, describe the shape in one line, and show how the origin prose accomplishes the same job (the counter-example). When sub-agents are available this step IS the Pass 2 sub-agent (see fan-out); otherwise run it as a first, list-free read.
+- **Step B — ledger reconciliation** (the parent, holding the ledger): merge Step A's discoveries into `book/tic-ledger.md` — increment trends on recurring entries; create new `TIC-NNN` entries (book quote + origin counter-example) for new shapes; tick the decay counter on active entries Step A did not see (active → dormant after 1 clean chapter, dormant → retired after 2 more; unconfirmed `seed` entries retire after 2 reviews; a rediscovered retired shape reactivates with its history). Then run **one targeted sweep** of the draft for still-active ledger entries Step A missed — a shape appearing only once this chapter still ticks its trend. Write the updated ledger back to `book/tic-ledger.md`.
+- **Constitution waivers**: check `.authorkit/memory/constitution.md` (and the style anchor's **Avoid** / **Imagery Density** sections) for explicitly named patterns — by example or description; a vague "literary register" line is not a waiver. Record the waiver on the matching ledger entry's `Waiver:` field, note active waivers at the top of the review, and report (never flag) waived shapes. A constitution that bans a shape outright is binding regardless of trend.
+- **Findings**: every non-waived discovered/recurring shape becomes a finding with: TIC id (or "new"), instance count, citations for each instance, and a one-line rewrite grounded in the origin counter-example (the fix is what the origin does for the same job — never a rewrite that introduces another ledger shape).
+- **Severity mapping** (density- and trend-based, gating):
+  - A shape recurring **≥3 times** in this chapter, or an **active ledger entry with a rising trend** (more instances than the previous reviewed chapter) → **Critical**
+  - A shape with **2 instances**, or a recurring active entry holding steady → **Important**
+  - A **single instance** of an active ledger entry → **Minor**
 
 #### Pass 3 — In-Chapter Logical Consistency
 
@@ -230,7 +233,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 | Pass | Score | Notes |
 |------|-------|-------|
 | 1 — Style Fidelity *(gating)* | [A/B/C/D] | [Global-voice drift vs origin (pin / earliest [X]); style-anchor + constitution voice; note if sanctioned] |
-| 2 — AI-Tic Audit *(gating)* | [A/B/C/D] | [Patterns over budget; high-signal flags; active waivers, if any] |
+| 2 — AI-Tic Audit *(gating)* | [A/B/C/D] | [Shapes discovered vs origin; recurring/rising ledger entries; active waivers, if any] |
 | 3 — In-Chapter Logical Consistency | [A/B/C/D] | [Intra-chapter quantities/arithmetic/headcount/geometry/knowledge] |
 | 4 — Cross-Chapter & Plot-Arc Logic | [A/B/C/D/N/A] | [Numeric drift, backstory, knowledge, arc convergence, world/canon] |
 | 5 — Disclosure Horizon | [A/B/C/D] | [Premature disclosure / proleptic leaks of later chapters] |
@@ -248,7 +251,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 
 ### Update chapter status
 
-- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`. PASS **requires the gating passes (1 Style Fidelity and 2 AI-Tic Audit) to pass**, and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)** — never approve a chapter that drifted from the voice origin, is over a high-signal tic budget, contradicts an established quantity/fact, or spoils a later reveal, however well it scores elsewhere.
+- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`. PASS **requires the gating passes (1 Style Fidelity and 2 AI-Tic Audit) to pass**, and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)** — never approve a chapter that drifted from the voice origin, carries a recurring non-waived tic shape or a rising active ledger entry, contradicts an established quantity/fact, or spoils a later reveal, however well it scores elsewhere.
 - **NEEDS REVISION**: change `[D] → [R]` (reviewed, needs work)
 
 ### Report
@@ -355,7 +358,7 @@ These are **consolidation candidates**: the fix refreshes `## Current State` to 
 
 Focus on high-signal findings. Limit to 50 total findings (excluding drift findings from step 1).
 
-**Sub-agent fan-out (when available).** These detection passes are independent and operate over the whole manuscript, so when the runtime offers parallel sub-agents, dispatch each pass (A–L) as its own sub-agent against a baseline the parent resolves once (fixed origin, roster, catalog, the chapter set), then aggregate, dedup, and cap at 50. Otherwise run them sequentially. Either way the passes and severities are the same.
+**Sub-agent fan-out (when available).** These detection passes are independent and operate over the whole manuscript, so when the runtime offers parallel sub-agents, dispatch each pass (A–L) as its own sub-agent against a baseline the parent resolves once (fixed origin, roster, `book/tic-ledger.md`, the chapter set), then aggregate, dedup, and cap at 50. Otherwise run them sequentially. Either way the passes and severities are the same.
 
 #### A. Continuity & Timeline
 - Events referenced in later chapters that weren't established in earlier ones
@@ -387,18 +390,18 @@ Focus on high-signal findings. Limit to 50 total findings (excluding drift findi
 - Prose style drift (more/less literary)
 - Constitution principle violations
 - Drift from `book/style-anchor.md` profile
-- **LLM tic density across chapters**: load `.authorkit/prompts/_shared/literary-tic-catalog.md` and aggregate pattern counts across all drafted chapters in scope. Honor any constitution waivers (skip the corresponding patterns). Flag any pattern whose cross-chapter density is ≥2× the per-chapter budget on average, even if no single chapter is over budget on its own — this catches voice drift toward AI-flavoured prose that any single chapter could plausibly defend. Also check pattern 19's consecutive-chapter component here: three or more chapters in a row ending on the same zoom-out coda cadence is a voice-drift finding no single chapter can trip. Severity: HIGH for patterns 7 and 13; MEDIUM for the rest.
+- **Ledger trend review across chapters**: load `book/tic-ledger.md` and read each entry's per-chapter trend across the drafted chapters in scope (honor `Waiver:` fields — report, don't flag). Flag any entry whose trend **rises across recent chapters**, or that recurs at a steady rate in most chapters, even if no single chapter's count was gating on its own — this catches voice drift toward AI-flavoured prose that any single chapter could plausibly defend. Surface **retire candidates** (entries clean for 3+ reviewed chapters still marked active) so the ledger stays current. Also check the manuscript-only shapes no single chapter can trip: three or more chapters in a row ending on the same zoom-out coda cadence, or the same distinctive phrase/beat-closer recurring across chapters. A recurring shape found here that has no ledger entry gets one (this is still Pass 2 territory — write it back). Severity: HIGH for a rising trend; MEDIUM for steady recurrence.
 
 #### E1. Drift Trajectory (slope vs origin)
 
 Per-chapter checks catch absolute violations but miss *gradual* drift where every chapter is individually defensible yet the book has slid a long way from where it started. Establish the **fixed origin** (constitution + concept voice/tone + the resolved origin chapters — the `## Voice Origin` pin if set, else the earliest approved) and trace the *direction* of change across the chapter sequence, not just per-chapter compliance:
 
 - Read the chapters in order and track the trend of: average and variance of sentence length, paragraph shape, dialogue ratio, diction/register, and tic density.
-- Flag a **monotonic slope away from the origin** even when no single chapter breaches a budget — e.g. sentence length creeping up act over act, dialogue steadily thinning, register drifting more (or less) literary, the same epiphany-coda cadence recurring across runs of chapters.
+- Flag a **monotonic slope away from the origin** even when no single chapter trips a gating threshold — e.g. sentence length creeping up act over act, dialogue steadily thinning, register drifting more (or less) literary, the same epiphany-coda cadence recurring across runs of chapters.
 - **Origin jump test**: compare the latest chapters directly against the origin chapters (the `## Voice Origin` pin if set, else the earliest approved). If a reader started at the origin and jumped to the latest chapter, would it read as the same book, same narrator, same voice? Quote the divergence.
 - **Calibration sanity check**: re-read the *resolved origin* chapter (the `## Voice Origin` pin if set, else the earliest approved) against the *current* constitution and style anchor. If that origin chapter would no longer pass today's bar, the **bar has drifted** — e.g. a stale or hand-edited style anchor, or a voice evolution that was never recorded in the constitution. (If a pin already excludes an atypical opening, grade against the pinned exemplar — do not re-flag the excluded chapter.) Flag it and recommend re-grounding the anchor via `/authorkit.write` (which regenerates it from the origin), or recording the shift in `## Voice Origin`.
 
-Severity: HIGH if the trajectory crosses a budget or a constitution principle by the latest chapters; MEDIUM for a clear unsanctioned slope still within budget. Distinguish constitution-sanctioned evolution from unsanctioned drift; when ambiguous, surface it for the author to judge.
+Severity: HIGH if the trajectory crosses a constitution principle or a Pass 2 gating threshold by the latest chapters; MEDIUM for a clear unsanctioned slope short of that. Distinguish constitution-sanctioned evolution from unsanctioned drift; when ambiguous, surface it for the author to judge.
 
 #### F. Argument Coherence (Non-Fiction)
 - Claims made without support
@@ -535,7 +538,7 @@ Output a Markdown report (no file write unless the author asks to save):
 |--------|----------------------|--------|-----------|---------|
 | Avg sentence length | [n] | [n] | [rising/flat/falling] | [OK/Watch/Flag] |
 | Dialogue ratio | [n] | [n] | [rising/flat/falling] | [OK/Watch/Flag] |
-| Tic density (per 1k) | [n] | [n] | [rising/flat/falling] | [OK/Watch/Flag] |
+| Tic density (ledger trends) | [n] | [n] | [rising/flat/falling] | [OK/Watch/Flag] |
 | Register / diction | [origin feel] | [latest feel] | [drift direction] | [OK/Watch/Flag] |
 
 *Origin jump test*: [does the latest chapter still read as the same book as the origin? quote any divergence]
@@ -568,7 +571,7 @@ Output a Markdown report (no file write unless the author asks to save):
 - If CRITICAL issues exist: recommend resolving before drafting more chapters.
 - Provide specific `/authorkit.write [N] revise: <issue>` suggestions for the top issues.
 - If world-building issues dominate: recommend the author run `/authorkit.write [last-drafted-N]` whose Reconcile pass deepens world extraction and rebuilds the index.
-- If a recurring AI-flavoured pattern shows up that is NOT in the tic catalog: recommend adding it to the constitution via `/authorkit.discuss` (Constitution mode) so drafting and review both enforce it going forward. Do not park it in the style anchor's **Avoid** section — the anchor is regenerated from the constitution on every refresh, so hand-added entries there are overwritten.
+- If a recurring AI-flavoured shape shows up that has no `book/tic-ledger.md` entry: add the entry (Pass 2 write-back applies here too). If the author should *sanction* a shape instead (it's deliberate voice), recommend recording the waiver in the constitution via `/authorkit.discuss` (Constitution mode) — review will then mark the ledger entry waived. Do not park either in the style anchor's **Avoid** section — the anchor is regenerated from the constitution on every refresh, so hand-added entries there are overwritten.
 - If mostly clean: suggest continuing with `/authorkit.write next` or moving to final polish.
 
 ## Mode: Range Review
@@ -592,7 +595,7 @@ For an input like `5-10` or `chapters 5-10`:
 - **Anchor to the origin, not the neighbors**: grade *global* voice against the fixed origin (constitution + concept voice/tone + the pinned-or-earliest approved chapters); match *character/scene texture* to the earliest **relevant** approved chapter. "Consistent with the last chapter" never establishes that something is correct — recent chapters may already have drifted.
 - **Prioritize ruthlessly**: one critical + three minor issues → critical first.
 - **Grade fairly**: A = exceptional, B = solid, C = adequate, D = needs significant work.
-- **PASS threshold**: no critical issues, no more than 2 important issues, the gating passes (1 Style Fidelity and 2 AI-Tic Audit) are B or above (no significant *unsanctioned* drift from the origin, no high-signal tic over budget), and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)**.
+- **PASS threshold**: no critical issues, no more than 2 important issues, the gating passes (1 Style Fidelity and 2 AI-Tic Audit) are B or above (no significant *unsanctioned* drift from the origin, no recurring non-waived tic shape and no rising active ledger entry), and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)**.
 - **Reviews are gated**: a chapter review writes only `chapters/NN/review.md` and updates the chapter row in `chapters.md`. A manuscript drift run writes nothing unless the author approves drift fixes — and those fixes touch only upstream planning artifacts (concept / outline / chapters.md / world), never chapter drafts. Consolidation fixes (1e/1f) additionally write a pre-consolidate snapshot before applying.
 - **Cap manuscript findings at 50** to keep reports actionable.
 - **Use absolute paths.**

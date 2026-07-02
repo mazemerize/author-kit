@@ -2,11 +2,14 @@
 
 ## Voice & Style
 
-<!-- Literary tic budgets: .authorkit/prompts/_shared/literary-tic-catalog.md
-     defines default budgets for AI-typical prose patterns. To waive or tighten
-     one for this book, name the pattern explicitly in a principle below — by
-     number, by example, or by description (e.g. "polysyndeton is part of the
-     voice"). Vague wording like "literary register" is not a waiver. -->
+<!-- Literary tics: the living catalog of AI-typical prose patterns for this
+     book is book/tic-ledger.md, maintained by /authorkit.review (seeded once
+     from .authorkit/prompts/_shared/literary-tic-catalog.md). To sanction a
+     pattern as deliberate voice — or ban one outright — name it explicitly in
+     a principle below, by example or description (e.g. "polysyndeton is part
+     of the voice"); review records the waiver on the matching ledger entry.
+     Vague wording like "literary register" is not a waiver. Generation never
+     sees the ledger — it learns the voice from book/voice-pairs.md. -->
 
 ### [PRINCIPLE_1_NAME]
 <!-- Example: I. Narrative Voice -->

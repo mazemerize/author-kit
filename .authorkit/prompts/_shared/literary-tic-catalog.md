@@ -1,24 +1,36 @@
-# Literary Tic Catalog
+# Literary Tic Catalog (bootstrap seed)
 
-A catalog of LLM-typical literary tics — constructions that signal AI prose even
-when each instance is grammatically correct and individually defensible. Most
-fail through repetition: one instance is voice; a dozen is a verbal tell.
+A reference catalog of LLM-typical literary tics — constructions that signal AI
+prose even when each instance is grammatically correct and individually
+defensible. Most fail through repetition: one instance is voice; a dozen is a
+verbal tell.
 
-This catalog is normative for any command that generates manuscript prose or
-audits it. Treat the budgets as defaults; honor explicit constitution overrides.
+**This file is a bootstrap seed, not a normative gate.** The living, normative
+tic catalog for a book is `book/tic-ledger.md`, which `/authorkit.review`
+(Pass 2 — AI-Tic Audit) maintains by blind contrast against the fixed voice
+origin — discovering the tics the *current* model actually produces in *this*
+book, tracking their per-chapter trends, and retiring shapes that stop
+occurring. This seed's role is limited to review's first run on a book: its
+high-signal patterns become the ledger's initial `Status: seed` hypotheses,
+which the discovery pass then confirms or retires. Once `book/tic-ledger.md`
+exists, the ledger — not this file — is what review checks and what severity is
+mapped from.
 
-## Constitution Override
+**Never load this file while drafting.** Pattern descriptions in the drafting
+context prime the constructions they prohibit; tic knowledge reaches generation
+only as contrastive pairs in `book/voice-pairs.md` (see the shared guardrails'
+*Tic Ledger & Voice Pairs* and *Voice Conditioning Protocol*).
+
+## Constitution Waivers
 
 If `.authorkit/memory/constitution.md` (or `book/style-anchor.md`'s **Avoid** /
-**Imagery Density** sections) explicitly permits a pattern listed here — by
-naming the pattern, raising its budget, or stating a voice/genre rationale —
-defer to the constitution. Note the override at the top of any review that
-involves the affected pattern (e.g., *"Polysyndeton waived by constitution
-§II (McCarthy-inflected register)"*). Absent an explicit waiver, the budgets
-below apply.
-
-A book's constitution can also tighten a budget (e.g., zero negations). Treat
-tightening as binding; honor it without further checks.
+**Imagery Density** sections) explicitly sanctions a pattern listed here — by
+naming it by example or description with a voice/genre rationale — review
+records the waiver on the matching `book/tic-ledger.md` entry's `Waiver:` field
+and reports (never flags) the shape (e.g., *"Polysyndeton waived by
+constitution §II (McCarthy-inflected register)"*). A constitution can also ban
+a shape outright; treat that as binding regardless of trend. Vague register
+language ("literary style") is neither a waiver nor a ban.
 
 ## The Patterns
 
@@ -461,45 +473,30 @@ becomes a verbal habit for any moment of hesitation.
 
 ## How to Apply
 
-**At generation time** (`/authorkit.write` draft / revise / passage help):
-- Internalize the budgets before writing. Don't draft tic-rich prose and clean
-  it up after — write within budget on the first pass.
-- **Calibrate against the project's own corpus, not just this catalog.** The
-  budgets catch known patterns; they do not certify fidelity. If the project
-  has pre-existing prose (earlier chapters, the author's prior work), read it
-  before drafting and match how *that hand* delivers description, dialogue
-  attribution, interiority, and exposition. A chapter can pass every budget
-  here and still read as AI-authored against the corpus — typically through
-  poised low-affect cadence, silent POV analysis where the corpus uses
-  conversation, or restraint-measuring closers (patterns 21–22). When a
-  recurring corpus-vs-draft mismatch is found, name it in the book's
-  constitution so it binds future drafting; fidelity to the corpus outranks
-  polish. *(Lesson from the Ab Imo Pectore CH13–CH15 fidelity passes,
-  2026-06-11.)*
-- The "Style match pass" and "Quality self-check" steps count every pattern,
-  with dedicated attention to the zero / near-zero budget patterns and the
-  per-1,000-words density patterns — both identifiable from the budget table
-  below, so this list never needs updating when patterns are added.
-- If a constitution waiver is in effect, name it in the run report so the
-  author sees which budget was bypassed.
+**Seeding only** (`/authorkit.review` Pass 2, first run on a book): when
+`book/tic-ledger.md` does not exist, create it from
+`.authorkit/templates/tic-ledger-template.md` and seed `Status: seed` entries
+from the high-signal patterns here (7, 13, 21, 22, 23, 24 and the zero-budget
+forms of 3, 14, 15, 23, 24). Seeds are hypotheses: the blind discovery pass
+confirms the ones this book's drafts actually exhibit (they become `active`
+with a quoted instance and an origin counter-example) and retires the rest
+after 2 unconfirmed reviews. After seeding, this file is out of the loop.
 
-**At review time** (`/authorkit.review`):
-- Count instances per pattern, per chapter (and per 1,000 words for density
-  patterns).
-- Compare against the budgets. Patterns over budget become findings under the
-  **LLM Tic Audit** dimension.
-- Cite specific line references (or paragraph-anchored quotes) for every flag.
-- Severity triage lives in the review prompt, not here: this catalog owns the
-  patterns and budgets; the consuming command maps overages onto its own
-  severity ladder.
-- Manuscript-wide drift: track cumulative density across drafted chapters —
-  a pattern can sit at budget in every chapter and still mark voice drift in
-  aggregate. The cross-chapter threshold is defined in the review prompt.
+**Why the ledger outranks this catalog.** These budgets catch *known* patterns
+of the models this file was written against; they do not certify fidelity, and
+a chapter can respect every budget here and still read as AI-authored against
+the book's own corpus — typically through poised low-affect cadence, silent POV
+analysis where the corpus uses conversation, or restraint-measuring closers
+(patterns 21–22). The ledger exists precisely because tics are model- and
+book-specific: discovery by contrast against the fixed origin finds what this
+list cannot name in advance, and the trend/decay lifecycle keeps the ledger
+describing the model currently drafting. *(Lesson from the Ab Imo Pectore
+CH13–CH15 fidelity passes, 2026-06-11.)*
 
-**Constitution waivers must be explicit.** A vague "literary register" line in
-the constitution does not waive a pattern. The constitution must name the
-pattern by number, by example, or by description ("polysyndeton is part of
-the voice"). Otherwise the budgets apply.
+**The budgets below are seed-calibration data, not live thresholds.** Severity
+in review is density/trend-based and defined in the review prompt; the per-1,000
+budgets here indicate how tolerant a pattern's *seed* should be when judging
+whether a discovered recurrence is deliberate voice or a tell.
 
 ## Quick-reference budget table
 

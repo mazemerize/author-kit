@@ -3108,7 +3108,8 @@ def test_analysis_passes_roster_is_shared_source_of_truth():
 
 
 def test_new_tic_patterns_in_catalog():
-    """The catalog gains the looping-echo and creed-maxim patterns (and budget rows)."""
+    """The catalog keeps the looping-echo and creed-maxim patterns (and budget rows)
+    but is framed as a bootstrap seed for book/tic-ledger.md, not a normative gate."""
     repo_root = Path(__file__).resolve().parents[2]
     catalog = (
         repo_root / ".authorkit" / "prompts" / "_shared" / "literary-tic-catalog.md"
@@ -3117,6 +3118,12 @@ def test_new_tic_patterns_in_catalog():
     assert "Creed / trade-maxim" in catalog
     assert "competence tag" in catalog
     assert "| 23 |" in catalog and "| 24 |" in catalog
+    # Seed framing: the ledger is normative, this file only bootstraps it and
+    # is quarantined from drafting.
+    assert "bootstrap seed" in catalog
+    assert "book/tic-ledger.md" in catalog
+    assert "Never load this file while drafting" in catalog
+    assert "normative for any command" not in catalog
 
 
 def test_guardrails_define_entropy_disclosure_continuity_protocols():
@@ -3154,3 +3161,104 @@ def test_write_revise_is_pass_structured():
     assert "Revise pass-by-pass" in write
     assert "Re-run that pass's own check" in write
     assert "authorkit entropy" in write  # entropy wired into drafting
+
+
+def test_guardrails_define_tic_ledger_voice_pairs_and_conditioning():
+    """The shared guardrails carry the self-learning tic defense (ledger + pairs,
+    with the generation-side quarantine) and the voice conditioning protocol."""
+    repo_root = Path(__file__).resolve().parents[2]
+    guardrails = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"
+    ).read_text(encoding="utf-8")
+    assert "Tic Ledger & Voice Pairs" in guardrails
+    assert "book/tic-ledger.md" in guardrails
+    assert "book/voice-pairs.md" in guardrails
+    assert "MUST NOT load" in guardrails  # quarantine rule is binding
+    assert "bootstrap seed" in guardrails
+    assert "Voice Conditioning Protocol" in guardrails
+    assert "Pass A" in guardrails and "Pass B" in guardrails
+    # Ledger lifecycle is defined (decay to retirement).
+    assert "dormant" in guardrails and "retired" in guardrails
+
+
+def test_write_prompt_quarantines_tic_lists_and_conditions_on_voice():
+    """Drafting never loads the tic catalog or ledger; it conditions on origin
+    prose + voice pairs, drafts scenes in two passes, and harvests pairs on revise."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    # Quarantine: no catalog path anywhere in the write prompt.
+    assert "literary-tic-catalog" not in write
+    # Generation-side conditioning artifacts.
+    assert "book/voice-pairs.md" in write
+    assert "Active Pairs" in write
+    assert "Voice Conditioning Protocol" in write
+    # Two-stage drafting, all draft modes.
+    assert "Pass A — content" in write
+    assert "Pass B — voice" in write
+    assert "no new facts, names, or numbers" in write
+    # Pair harvesting on revise and reconcile.
+    assert "Harvest voice pairs" in write
+    assert "voice-pairs-template.md" in write
+    assert "(author)" in write  # author-edit harvest during reconcile
+
+
+def test_review_pass2_is_blind_discovery_with_ledger_reconciliation():
+    """Pass 2 discovers tics by blind contrast against the origin and maintains
+    book/tic-ledger.md (bootstrapped from the seed catalog on first run)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    assert "Tic Discovery & Contrast" in review
+    assert "Step A — blind discovery" in review
+    assert "Step B — ledger reconciliation" in review
+    assert "book/tic-ledger.md" in review
+    assert "tic-ledger-template.md" in review  # bootstrap path
+    assert "Status: seed" in review
+    # The blind step must not receive the ledger or the seed catalog.
+    assert "no ledger and no seed catalog" in review
+
+
+def test_discuss_constitution_mode_records_tic_waivers_on_ledger():
+    """Constitution mode frames tic overrides as waivers recorded on the ledger."""
+    repo_root = Path(__file__).resolve().parents[2]
+    discuss = (repo_root / ".authorkit" / "prompts" / "authorkit.discuss.md").read_text(encoding="utf-8")
+    assert "Tic Waivers" in discuss
+    assert "book/tic-ledger.md" in discuss
+
+
+def test_init_copies_tic_ledger_and_voice_pairs_templates_and_keeps_seed_catalog():
+    """Init ships the new templates, and the demoted seed catalog stays at its
+    original path so re-install never deletes it from existing projects."""
+    with isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert Path(".authorkit/templates/tic-ledger-template.md").exists()
+        assert Path(".authorkit/templates/voice-pairs-template.md").exists()
+        manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
+        assert ".authorkit/templates/tic-ledger-template.md" in manifest["managed_paths"]
+        assert ".authorkit/templates/voice-pairs-template.md" in manifest["managed_paths"]
+        # Seed catalog still shipped at its original path (re-install safety).
+        assert ".authorkit/prompts/_shared/literary-tic-catalog.md" in manifest["managed_paths"]
+        # Rendered claude write prompt: guardrails injected, catalog quarantined.
+        # The injected guardrails block precedes the command body (which starts
+        # at "## User Input"); the catalog path may appear only in guardrails.
+        rendered_write = Path(".claude/commands/authorkit.write.md").read_text(encoding="utf-8")
+        assert "Tic Ledger & Voice Pairs" in rendered_write  # via injected guardrails
+        write_body = rendered_write.split("## User Input", 1)[1]
+        assert "literary-tic-catalog" not in write_body
+        # Rendered review prompt bootstraps the ledger.
+        rendered_review = Path(".claude/commands/authorkit.review.md").read_text(encoding="utf-8")
+        assert "tic-ledger-template.md" in rendered_review

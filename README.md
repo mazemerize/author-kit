@@ -163,9 +163,13 @@ Progress is tracked in `chapters.md` with status markers:
 
 For cross-model prose continuity, `/authorkit.write` also maintains `book/style-anchor.md`, derived from the constitution, the concept's voice & tone, plus the *earliest* approved chapters (a fixed origin, so the voice bar doesn't drift downward with recent output). Character/scene/arc *texture* is matched separately against the earliest *relevant* approved chapter, so it never lowers that bar.
 
+Drafting itself is **conditioned on the voice rather than policed by rules**: the model writes with pages of the origin prose immediately in context (so it *continues* the book instead of following style instructions about it), sees recent before→after voice pairs from `book/voice-pairs.md`, and drafts each scene in two passes — a flat content pass (events, dialogue, concrete fact; names and numbers rolled with `authorkit entropy`) followed by a voice pass that translates it into the book's register without adding any new facts.
+
 ### 4. Review what you wrote
 
-`/authorkit.review` does a few jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`); the craft review now **leads with a gating style-fidelity pass** (voice vs the fixed origin + the literary-tic audit), so a chapter that has drifted from the book's voice is not approved. Pass `N style` for that **style pass alone** (→ `chapters/NN/style-review.md`) — a fast, explicit voice check right after writing. Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep. Pass a range for both.
+`/authorkit.review` does a few jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`); the craft review **leads with two gating passes**: style fidelity vs the fixed origin, and a **self-learning AI-tic pass** — a blind contrast of the draft against the origin prose that discovers AI-flavoured constructions (no fixed list to go stale), then reconciles them into `book/tic-ledger.md`, the book's living tic catalog with per-chapter trends. A chapter that has drifted from the book's voice, or repeats a discovered tic shape, is not approved. Pass `N style` for the **gating passes alone** (→ `chapters/NN/style-review.md`) — a fast, explicit voice check right after writing. Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep. Pass a range for both.
+
+The tic defense is a loop, not a list: review **discovers** tics by contrast with the origin and remembers them in the ledger; revision fixes them and **harvests** each fix as a before→after pair into `book/voice-pairs.md`; drafting is **conditioned** on those pairs (and never sees the ledger or any tic list — pattern descriptions in a drafting context prime the very constructions they prohibit). Switch models and the ledger relearns the new model's habits within a few chapters; the shipped catalog only seeds the first entries.
 
 ```bash
 /authorkit.review 1                # Craft review of chapter 1
@@ -586,6 +590,8 @@ Audio narration instructions:
 |   |-- research-topic-template.md
 |   |-- world-entity-frontmatter.md
 |   |-- style-anchor-template.md
+|   |-- tic-ledger-template.md         # /authorkit.review (Pass 2 bootstrap)
+|   |-- voice-pairs-template.md        # /authorkit.write (revise-time pair harvest)
 |   |-- parked-decisions-template.md   # /authorkit.discuss (park mode)
 |   |-- snapshot-template.md           # /authorkit.discuss (auto-snapshot before risky writes)
 |   |-- amendment-template.md          # /authorkit.discuss (cross-cutting change mode)
@@ -614,6 +620,8 @@ Created when you first run `/authorkit.discuss` on an empty repo (or when it ent
 book/
 |-- concept.md
 |-- style-anchor.md                  # Auto-derived from constitution + concept voice/tone + earliest approved chapters (fixed origin); managed by write prompt
+|-- tic-ledger.md                    # Living, book-specific catalog of AI-tic shapes; discovered + maintained by review (Pass 2); never loaded while drafting
+|-- voice-pairs.md                   # Before/after voice pairs harvested from revisions and author edits; the only tic knowledge drafting sees
 |-- outline.md
 |-- research.md
 |-- research/
