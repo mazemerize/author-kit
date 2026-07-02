@@ -2595,6 +2595,126 @@ def test_claude_runner_permission_flags(tmp_path):
     assert mode[-2:] == ["--permission-mode", "acceptEdits"]
 
 
+def _autopilot_config(**buckets) -> book_core.AutopilotConfig:
+    """Build an AutopilotConfig for tests, defaulting unset buckets to (None, None)."""
+    empty = book_core.AutopilotOpConfig(model=None, effort=None)
+    return book_core.AutopilotConfig(
+        planner=buckets.get("planner", empty),
+        review=buckets.get("review", empty),
+        writer=buckets.get("writer", empty),
+    )
+
+
+def test_runner_model_effort_unset_by_default(tmp_path):
+    """No [autopilot.*] config -> no --model/--effort (or flavor-equivalent) flags,
+    for every flavor -- identical argv to before this feature existed."""
+    for cls in (autopilot_runner.ClaudeRunner, autopilot_runner.CodexRunner, autopilot_runner.CopilotRunner):
+        agent_runner = cls(tmp_path)
+        planner_argv = agent_runner._planner_argv("prompt")
+        writer_argv = agent_runner._command_argv("/authorkit.write 1", "writer")
+        review_argv = agent_runner._command_argv("/authorkit.review 1", "review")
+        for argv in (planner_argv, writer_argv, review_argv):
+            assert "--model" not in argv
+            assert "--effort" not in argv
+            assert "-m" not in argv
+            assert "-c" not in argv
+
+
+def test_claude_runner_model_effort_per_bucket(tmp_path):
+    """Each bucket's book.toml override lands on the matching invocation only."""
+    models = _autopilot_config(
+        planner=book_core.AutopilotOpConfig(model="haiku", effort="low"),
+        review=book_core.AutopilotOpConfig(model="sonnet", effort="medium"),
+        writer=book_core.AutopilotOpConfig(model="opus", effort="high"),
+    )
+    agent_runner = autopilot_runner.ClaudeRunner(tmp_path, models=models)
+
+    planner_argv = agent_runner._planner_argv("prompt")
+    assert planner_argv[-4:] == ["--model", "haiku", "--effort", "low"]
+
+    review_argv = agent_runner._command_argv("/authorkit.review 1", "review")
+    assert review_argv[-4:] == ["--model", "sonnet", "--effort", "medium"]
+
+    writer_argv = agent_runner._command_argv("/authorkit.write 1", "writer")
+    assert writer_argv[-4:] == ["--model", "opus", "--effort", "high"]
+
+
+def test_claude_runner_model_only_omits_effort_flag(tmp_path):
+    """Setting only model (not effort) injects --model alone."""
+    models = _autopilot_config(writer=book_core.AutopilotOpConfig(model="opus", effort=None))
+    argv = autopilot_runner.ClaudeRunner(tmp_path, models=models)._command_argv("/authorkit.write 1", "writer")
+    assert "--model" in argv and "opus" in argv
+    assert "--effort" not in argv
+
+
+def test_codex_runner_model_effort_flags(tmp_path):
+    """Codex uses -m for model and -c model_reasoning_effort=... for effort."""
+    models = _autopilot_config(writer=book_core.AutopilotOpConfig(model="gpt-5.5", effort="high"))
+    argv = autopilot_runner.CodexRunner(tmp_path, models=models)._command_argv("/authorkit.write 1", "writer")
+    assert "-m" in argv
+    assert argv[argv.index("-m") + 1] == "gpt-5.5"
+    assert "-c" in argv
+    assert argv[argv.index("-c") + 1] == 'model_reasoning_effort="high"'
+
+
+def test_copilot_runner_model_effort_flags(tmp_path):
+    """Copilot uses --model/--effort, both confirmed real flags."""
+    models = _autopilot_config(review=book_core.AutopilotOpConfig(model="claude-sonnet-4.6", effort="medium"))
+    argv = autopilot_runner.CopilotRunner(tmp_path, models=models)._command_argv("/authorkit.review 1", "review")
+    assert argv[-4:] == ["--model", "claude-sonnet-4.6", "--effort", "medium"]
+
+
+def test_book_config_parses_autopilot_section(tmp_path):
+    """[autopilot.*] parses per-bucket model/effort; absent section is all-None."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text(
+        "[autopilot.planner]\n"
+        'model = "haiku"\n'
+        'effort = "low"\n'
+        "[autopilot.review]\n"
+        'model = "sonnet"\n',
+        encoding="utf-8",
+    )
+    config = book_core.parse_book_config(book_dir)
+    assert config.autopilot.planner.model == "haiku"
+    assert config.autopilot.planner.effort == "low"
+    assert config.autopilot.review.model == "sonnet"
+    assert config.autopilot.review.effort is None
+    assert config.autopilot.writer.model is None
+    assert config.autopilot.writer.effort is None
+
+
+def test_book_config_autopilot_defaults_to_unset(tmp_path):
+    """No [autopilot] section at all -> every field is None (no defaults)."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text('[book]\ntitle = "T"\n', encoding="utf-8")
+    config = book_core.parse_book_config(book_dir)
+    for bucket in (config.autopilot.planner, config.autopilot.review, config.autopilot.writer):
+        assert bucket.model is None
+        assert bucket.effort is None
+
+
+def test_autopilot_dispatch_tags_review_vs_writer_op(tmp_path, monkeypatch):
+    """The dispatch loop tags review actions with op='review' and everything
+    else (plan/draft/revise/research) with op='writer'."""
+    _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 The Arrival - First\n")
+    plan = autopilot_core.Directive(action="plan", chapter=1, command="/authorkit.write 1 plan", reason="x")
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="x")
+    revise = autopilot_core.Directive(action="revise", chapter=1, command="/authorkit.write 1 revise", reason="x")
+    fake = autopilot_runner.FakeRunner([plan, review, revise])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched_ops == ["writer"]
+
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched_ops == ["writer", "review"]
+
+
 def test_escalation_record_title_and_slug_are_concise(tmp_path):
     """A long decision yields a word-boundary title (ellipsis) + short slug;
     explicit title/slug override the derivation."""

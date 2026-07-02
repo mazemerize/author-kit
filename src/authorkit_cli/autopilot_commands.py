@@ -38,6 +38,7 @@ from .autopilot_core import (
     write_escalation,
 )
 from .autopilot_runner import detect_flavor, get_runner
+from .book_commands import _safe_parse_book_config
 from .book_core import find_repo_root, resolve_book_dir, to_json
 from .book_status import collect_status, status_report_to_obj
 
@@ -358,7 +359,13 @@ def _run_autopilot(
         else:
             console.print(f"[dim]Workers run with --permission-mode {permission_mode}.[/dim]")
 
-    runner = get_runner(repo_root, permission_mode=permission_mode, skip_permissions=skip_permissions)
+    book_config = _safe_parse_book_config(book_dir)
+    runner = get_runner(
+        repo_root,
+        permission_mode=permission_mode,
+        skip_permissions=skip_permissions,
+        models=book_config.autopilot,
+    )
     planner_prompt = _load_planner_prompt(repo_root)
     brief = _mode_brief(mode, chapter_range, max_iters, guideline)
     run_id = datetime.now().strftime("%Y%m%dT%H%M%S")
@@ -450,7 +457,8 @@ def _run_autopilot(
         fp_before = _content_fingerprint(book_dir) if guideline else None
         key_before = _progress_key(mode, report, fp_before)
         console.print(f"[dim]tick {tick}[/dim] {directive.action}: {directive.command} [dim]({directive.reason})[/dim]")
-        result = runner.run_command(directive.command)
+        op = "review" if directive.action == "review" else "writer"
+        result = runner.run_command(directive.command, op=op)
 
         report_after = collect_status(book_dir, repo_root)
         fp_after = _content_fingerprint(book_dir) if guideline else None

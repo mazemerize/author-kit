@@ -295,12 +295,19 @@ See [`autopilot-implementation.md`](autopilot-implementation.md) for the detaile
 - **Escalation storage:** a separate `book/escalations/` directory (current plan) vs.
   folding loop-raised items into `parked-decisions.md` with a `blocks: autopilot`
   flag. Separate keeps blocking (hard) vs. soft semantics clean; folding reuses more.
-- **Planner model:** default is the installed AI flavor for the repo. A cheaper/
-  smaller model for the (status-only) planner is a possible later optimization.
+- **Per-operation model/effort:** implemented via `[autopilot.planner|review|writer]`
+  in `book.toml` — each of the three call sites (meta-planner, dispatched `review`,
+  dispatched `plan`/`draft`/`revise`/`research`) can be pointed at a different
+  model/effort. All fields are unset by default (no CLI flags, no built-in
+  defaults) — see the README's `authorkit autopilot` section for the flag syntax
+  per flavor. Codex's effort flag (`-c model_reasoning_effort=...`) and Copilot's
+  effort flag paired with `-p` are both real but not yet exercised end-to-end in
+  this repo — see the next item.
 - **Headless invocation per flavor:** AutoPilot needs a per-agent recipe to run a
   command in a fresh non-interactive session (e.g. `claude -p …`, `codex exec …`,
   Copilot equivalent). This is the main implementation detail to pin down for the
-  multi-AI story.
+  multi-AI story — the base invocation (not just model/effort) is still unvalidated
+  for Codex/Copilot.
 - **Unattended notifications:** mechanism for surfacing an escalation when no one is
   watching (Phase 4).
 
