@@ -98,7 +98,7 @@ Triggered when `outline.md` doesn't exist or the input explicitly asks for outli
      - Each chapter entry: title, purpose, summary, key events/points, characters/concepts, closing beat, connections. Verify pacing (mix of high-tension and breathing-room chapters).
      - Map character arcs and thematic threads across outlined chapters. For partial/extend, note expected directions for un-outlined portions.
    - **Continuation Notes** (partial and extend only): populate the section with **Last Outlined Through**, **Open Plot Threads**, **Character Arc Positions**, **Thematic Threads In Progress**, **Notes for Next Outlining Session**. On extend, **replace** Continuation Notes entirely (do not merge with previous notes; chapter entries are the historical record). For full mode: remove the section or leave it empty with a "complete" note.
-   - **Phase 2 — Validation**: Constitution check, Completeness check, Arc check (scope-aware), Pacing check.
+   - **Phase 2 — Validation**: Constitution check, Completeness check, Arc check (scope-aware), Pacing check, **Disclosure-horizon check** (per the Disclosure Horizon Protocol): no chapter entry's summary, key events, or closing beat may prescribe disclosing a plot fact the outline assigns to a *later* chapter — a reveal, death, twist, or identity stated ahead of the chapter that owns it. Keep cross-chapter links as setups/payoffs, not spoilers. A deliberate non-linear structure (frame narrative, flash-forward prologue) is allowed only when it is an explicit, recorded structural choice for this book; otherwise flag it and resolve via `/authorkit.discuss`.
 5. Stop and report: OUTLINE path, artifacts generated (research.md, characters.md), whether research/ was consumed, scope, partial-outline reminder if applicable.
 
 After Outline mode produces an outline, **continue automatically into Chapters mode** if `chapters.md` doesn't exist and the user originally asked for a chapter. Otherwise stop and let the author decide.
@@ -155,13 +155,15 @@ For a chapter number N with no plan yet (or to overwrite an existing plan with a
    - **Voice & Style Notes**: chapter-specific style considerations
    - **Estimated Length**: target word count based on overall scope
 
-6. **Write the plan** to `BOOK_DIR/chapters/NN/plan.md`.
+6. **Disclosure-horizon check (before writing the plan)** — per the Disclosure Horizon Protocol, applied to the plan itself: no Key Revelation, closing beat, or scene beat may state or proleptically narrate a plot fact the outline assigns to a *later* chapter. A plan that prescribes a premature reveal is executed faithfully by Draft mode, so the leak must be caught here, not left for review. Keep setups as **planted foreshadowing** (an image/object/unease that pays off later without naming the payoff), not disclosure. A genuine flash-forward/frame device is allowed **only** if the concept, constitution, or outline structure records it as intended — otherwise escalate the structural question via `/authorkit.discuss` instead of planning the reveal in.
 
-7. **Update chapter status** in `chapters.md`: change `- [ ] CHNN` to `- [P] CHNN`.
+7. **Write the plan** to `BOOK_DIR/chapters/NN/plan.md`.
 
-8. **Fix stale outline entries** if step 2 found mismatches: update `outline.md` to match drafted reality.
+8. **Update chapter status** in `chapters.md`: change `- [ ] CHNN` to `- [P] CHNN`.
 
-9. **Report**: path to plan, summary of scenes/sections planned, key connections, suggested next step (continue to Draft mode for this chapter, or stop if the author wanted plan-only).
+9. **Fix stale outline entries** if step 2 found mismatches: update `outline.md` to match drafted reality.
+
+10. **Report**: path to plan, summary of scenes/sections planned, key connections, suggested next step (continue to Draft mode for this chapter, or stop if the author wanted plan-only).
 
 ## Mode: Plan + draft
 

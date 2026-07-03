@@ -65,13 +65,24 @@ After deriving, run the originality/rationale audit that used to *be* these prot
 
 ### Disclosure Horizon Protocol
 
-You can see the whole outline; the reader cannot. Write from the **knowledge horizon of the
-chapter's present** and do not betray that foreknowledge.
+You can see the whole outline; the reader cannot. **Plan and write** from the **knowledge
+horizon of the chapter's present** and do not betray that foreknowledge — at either layer.
 
 - Do **not** state or reveal a plot fact the outline assigns to a *later* chapter. The
   narrator-prophecy / proleptic flash-forward construction ("what she would only understand
   years later…", "this was the day that would…") is **disallowed** unless the referenced
   fact is already disclosed to the reader.
+- **This binds planning, not just prose.** A chapter plan or outline entry must not
+  *prescribe* a premature reveal — no "Key Revelation", closing beat, or scene beat that
+  states a later chapter's twist, and no plan note calling for a proleptic flash-forward or
+  narrator-prophecy. A leak planted in the plan is executed faithfully by the drafter and
+  only caught downstream at review; catch it at the plan instead.
+- **Exception — story-sanctioned structure.** A deliberate non-linear device (a frame
+  narrative recounted from a known future, a flash-forward prologue, an outline explicitly
+  built to open ahead of its timeline) is allowed **only when the concept, constitution, or
+  outline structure records it as intended** — never as an incidental plan beat. When in
+  doubt, treat it as a leak: seed the future instead of disclosing it, and escalate the
+  structural question rather than planning the reveal in.
 - The construction *"later, XXX, but for now, YYY"* is allowed **only when XXX is already
   known to the reader** (you are sequencing the known, not spoiling the unknown).
 - Planted foreshadowing remains welcome: an image, object, or unease that *pays off* later

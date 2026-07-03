@@ -3228,6 +3228,20 @@ def test_guardrails_define_entropy_disclosure_continuity_protocols():
     assert "authorkit entropy name" in guardrails and "authorkit entropy number" in guardrails
     assert "Quantitative & Logical Continuity Protocol" in guardrails
     assert "Disclosure Horizon Protocol" in guardrails
+    # The disclosure horizon binds planning, not just prose (a plan that
+    # prescribes a premature reveal is executed faithfully downstream).
+    assert "binds planning" in guardrails
+
+
+def test_disclosure_horizon_is_enforced_at_planning_not_just_review():
+    """Plan and Outline modes must run the disclosure-horizon check so a
+    proleptic reveal is caught at the plan, not left to slip through to review."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    # Both plan-producing modes reference the shared protocol by name.
+    assert write.count("Disclosure Horizon Protocol") >= 2
+    assert "Disclosure-horizon check" in write  # Outline Phase 2 validation
+    assert "Disclosure-horizon check (before writing the plan)" in write  # single-chapter Plan mode
 
 
 def test_review_has_logic_disclosure_standalone_passes_and_manuscript_passes():
