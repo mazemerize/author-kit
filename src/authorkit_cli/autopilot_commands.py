@@ -584,7 +584,10 @@ def _run_autopilot(
                 draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
                 state_after = review_state(book_dir, chapter)
                 record_review(book_dir, chapter, draft_sha=file_md5(draft_path), verdict=state_after.verdict)
-                gating_shapes = list(state_after.gating_shapes)
+                # None = the review emitted no Gating Shapes line — leave it off the tick so the
+                # stall detector skips it rather than reading it as a (falsely converged) empty set.
+                if state_after.gating_shapes is not None:
+                    gating_shapes = list(state_after.gating_shapes)
             elif directive.action == "revise":
                 bump_review_cycles(book_dir, chapter)
 

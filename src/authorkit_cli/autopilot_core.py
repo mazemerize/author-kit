@@ -436,7 +436,10 @@ class ReviewState:
     exists: bool = False
     current: bool = False
     verdict: str | None = None
-    gating_shapes: tuple[str, ...] = ()
+    # The Pass-2 carry-over set: () = an explicit "none" (gate clear); a tuple = the gating
+    # shapes; None = the review emitted no ``**Gating Shapes**:`` line at all (contract not
+    # followed — distinct from a cleared gate, so it is never mistaken for convergence).
+    gating_shapes: tuple[str, ...] | None = None
 
 
 def file_md5(path: Path) -> str | None:
@@ -484,24 +487,41 @@ def parse_review_verdict(text: str) -> str | None:
     Prefers the authoritative ``## Verdict`` ``**Status**`` line over the top
     ``**Overall Assessment**`` header, and skips any line still carrying the literal
     ``[PASS / NEEDS REVISION]`` template (both markers) — so a half-filled review whose
-    header is untouched but whose Status is PASS is not misread as NEEDS_REVISION.
+    header is untouched but whose Status is PASS is not misread as NEEDS_REVISION. When the
+    prose heading is missing/templated, falls back to the machine-readable ``**Gating
+    Shapes**:`` line (``none`` ⇒ PASS, else NEEDS_REVISION). The heading stays authoritative
+    when present, because it reflects *all* gating passes (voice, logic, disclosure), not only
+    the Pass-2 tic gate.
     """
     for regex in (_STATUS_RE, _ASSESSMENT_RE):
         for match in regex.finditer(text):
             verdict = _classify_verdict(match.group(1))
             if verdict is not None:
                 return verdict
+    gating = parse_gating_shapes(text)
+    if gating is not None:
+        return "PASS" if not gating else "NEEDS_REVISION"
     return None
 
 
-def parse_gating_shapes(text: str) -> tuple[str, ...]:
+def parse_gating_shapes(text: str) -> tuple[str, ...] | None:
     """Extract the review's machine-readable ``**Gating Shapes**:`` record — the Pass-2
-    shapes that gated *this* review — as a normalized tuple. Absent or ``none`` → empty."""
+    shapes that gated *this* review.
+
+    Returns ``()`` for an explicit ``none`` (the tic gate is clear), a tuple of normalized
+    shape ids otherwise, and ``None`` when the line is **absent or still an unfilled
+    ``[…]`` template** — i.e. the review did not emit the convergence contract. ``None`` must
+    never be treated as a cleared gate (that is the very bug that let the loop mistake a
+    non-emitting review for convergence).
+    """
     match = _GATING_RE.search(text)
     if not match:
-        return ()
+        return None
     raw = match.group(1).strip()
-    if not raw or raw.strip().lower() in _GATING_NONE:
+    low = raw.lower()
+    if raw.startswith("[") or "comma-separated" in low or "tic ids" in low:
+        return None  # unfilled template placeholder — not a real record
+    if not raw or low in _GATING_NONE:
         return ()
     parts = [p.strip().lower() for p in re.split(r"[;,]", raw)]
     return tuple(p for p in parts if p)

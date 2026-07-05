@@ -2662,6 +2662,27 @@ def test_parse_review_verdict_prefers_status_and_skips_template():
     assert autopilot_core.parse_review_verdict("**Overall Assessment**: [PASS / NEEDS REVISION]\n") is None
 
 
+def test_parse_gating_shapes_absent_vs_none_vs_template():
+    """An ABSENT or unfilled-template Gating Shapes line is None (contract not followed —
+    never mistaken for convergence); an explicit `none` is the empty gate (review-fix / complaint)."""
+    assert autopilot_core.parse_gating_shapes("a review with no such line") is None
+    assert autopilot_core.parse_gating_shapes("**Gating Shapes**: none\n") == ()
+    # Unfilled `[…]`/template placeholder → treated as absent, not as a shape list.
+    assert autopilot_core.parse_gating_shapes("**Gating Shapes**: [REQUIRED, comma-separated ids]\n") is None
+    assert autopilot_core.parse_gating_shapes("**Gating Shapes**: TIC-059, TIC-066\n") == ("tic-059", "tic-066")
+
+
+def test_parse_review_verdict_falls_back_to_gating_line():
+    """When the prose heading is missing/templated, the machine-readable Gating Shapes line is
+    the fallback verdict: `none` -> PASS (converged), non-empty -> NEEDS_REVISION."""
+    assert autopilot_core.parse_review_verdict("## Verdict\n**Gating Shapes**: none\n") == "PASS"
+    assert autopilot_core.parse_review_verdict("## Verdict\n**Gating Shapes**: TIC-1\n") == "NEEDS_REVISION"
+    # A present heading still wins over the gating line (it reflects ALL gating passes).
+    assert autopilot_core.parse_review_verdict("**Status**: NEEDS REVISION\n**Gating Shapes**: none\n") == "NEEDS_REVISION"
+    # Neither a heading nor a gating line → unknown.
+    assert autopilot_core.parse_review_verdict("prose only, no verdict") is None
+
+
 def test_detect_reconcile_stall_arms():
     """The stall detector trips on an identity-stuck gating set, tolerates a failed (gating-less)
     review in the window, and honors the persisted cross-run cycle cap (review-fixes #3, #6)."""
@@ -2724,6 +2745,83 @@ def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, mo
     assert "quality-stall" in records[0].read_text(encoding="utf-8")
     # Bounded: it stopped well short of the MAX_TICKS backstop.
     assert len(fake.dispatched) < 20
+
+
+def test_autopilot_converged_with_residual_review_reaches_approved(tmp_path, monkeypatch):
+    """Complaint acceptance: a re-review whose carry-over gating shapes are all fixed but whose
+    blind sweep found NEW shapes emits `Gating Shapes: none` + Status PASS, reaches [X], and the
+    loop completes — the planner advances rather than dispatching yet another revise."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 A - a\n")
+    chap = book_dir / "chapters" / "01"
+    chap.mkdir(parents=True)
+    (chap / "draft.md").write_text("revised draft", encoding="utf-8")
+
+    def on_command(cmd):
+        # Prior gate (tic-003) is fixed; the fresh blind sweep names a new residual (blind-9)
+        # which is seeded, NOT gated → converged-with-residual → PASS.
+        (chap / "review.md").write_text(
+            "# Review\n\n**Overall Assessment**: PASS\n\n"
+            "Pass 2: converged-with-residual — new residual shape blind-9 seeded to the ledger.\n\n"
+            "## Verdict\n**Status**: PASS - ready to move on\n**Gating Shapes**: none\n",
+            encoding="utf-8",
+        )
+        _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="re-review")
+    fake = autopilot_runner.FakeRunner([review, review], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "done" in result.output.lower()
+    assert fake.dispatched == ["/authorkit.review 1"]  # a single review, no revise churn
+    assert "[X] CH01" in (book_dir / "chapters.md").read_text(encoding="utf-8")
+    assert autopilot_core.review_state(book_dir, 1).verdict == "PASS"  # parsed as converged, not failing
+
+
+def test_autopilot_converging_chapter_reaches_approved_within_cap(tmp_path, monkeypatch):
+    """Complaint acceptance #5: a tic-heavy chapter whose gating set shrinks each revise
+    terminates at [X] within the reconciliation cap — the loop converges, it does not escalate."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="v0", review_verdict="NEEDS REVISION",
+        gating="tic-a, tic-b", status_line="[R] CH01 A - a",
+    )
+    review_path = book_dir / "chapters" / "01" / "review.md"
+    st = {"gate": ["tic-a", "tic-b"], "v": 0}
+
+    def on_command(cmd):
+        if "revise" in cmd:  # each revise fixes one gating shape and re-drafts
+            if st["gate"]:
+                st["gate"].pop()
+            st["v"] += 1
+            draft_path.write_text(f"v{st['v']}", encoding="utf-8")
+            _flip_status(book_dir, "[R] CH01", "[D] CH01")
+        elif "/authorkit.review" in cmd:  # re-review reports the shrinking carry-over set
+            if st["gate"]:
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: NEEDS REVISION\n\n## Verdict\n"
+                    f"**Status**: NEEDS REVISION\n**Gating Shapes**: {', '.join(st['gate'])}\n",
+                    encoding="utf-8",
+                )
+                _flip_status(book_dir, "[D] CH01", "[R] CH01")
+            else:  # gate empty → converged → PASS
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
+                    "**Status**: PASS\n**Gating Shapes**: none\n",
+                    encoding="utf-8",
+                )
+                _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="converge")
+    fake = autopilot_runner.FakeRunner([review] * 12, on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "done" in result.output.lower()
+    assert "[X] CH01" in (book_dir / "chapters.md").read_text(encoding="utf-8")
+    assert not list((book_dir / "escalations").glob("*.md"))  # converged, never escalated
 
 
 def test_autopilot_kill_switch_halts(tmp_path, monkeypatch):
