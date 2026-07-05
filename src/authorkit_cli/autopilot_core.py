@@ -47,8 +47,9 @@ KILL_SWITCH_NAME = "STOP"
 # the content hash of the draft that review covered, so the loop can tell a stale review
 # (draft changed since — re-review) from a current one (re-review would be a pure no-op).
 REVIEW_INDEX_NAME = "review-index.json"
-# Instance count at which a tracked tic shape is "over budget" (Pass 2's Critical / gating
-# threshold — a shape recurring this many times in a chapter). Mirrors the review prompt.
+# The *default* instance budget at which a tracked tic shape is "over budget" (Pass 2's
+# Critical / gating threshold). Mirrors the review prompt's default; individual ledger
+# entries may carry a stricter budget (0 = flag on sight) or a per-1,000-words one.
 GATING_BUDGET = 3
 # How many review/revise reconciliation round-trips a single chapter may burn before the
 # loop escalates a `quality-stall` (human override) rather than churning to MAX_TICKS. A
@@ -379,20 +380,27 @@ def detect_oscillation(history: list[dict], window: int = 3) -> bool:
 
 
 def detect_command_churn(history: list[dict], window: int = 4) -> bool:
-    """True when the last ``window`` dispatched ticks repeated the exact same
-    command, regardless of status or content change.
+    """True when the last ``window`` dispatched ticks are a planner stuck in place:
+    the exact same command every tick, or nothing but reviews cycling over at most
+    two commands (the two-chapter ping-pong).
 
     Guideline campaigns need this: their progress key folds in a content
     fingerprint, and an LLM re-review virtually never rewrites review.md
     byte-identically, so the ``status_changed``-keyed detectors above can never
     fire. A healthy sweep advances to a different chapter — a different
-    command — each tick; the same command ``window`` times in a row is a
-    planner stuck in place, however much the bytes churn.
+    command — each tick, and a healthy review→revise reconciliation interleaves
+    revise ticks (and is bounded by ``detect_reconcile_stall``), so an all-review
+    window alternating between two commands is unproductive churn, however much
+    the bytes move.
     """
     acts = [h for h in history if h.get("command")]
     if len(acts) < window:
         return False
-    return len({h["command"] for h in acts[-window:]}) == 1
+    last = acts[-window:]
+    distinct = {h["command"] for h in last}
+    if len(distinct) == 1:
+        return True
+    return len(distinct) <= 2 and all(h.get("action") == "review" for h in last)
 
 
 def detect_no_progress(history: list[dict], k: int = 4) -> bool:
@@ -459,7 +467,13 @@ _ASSESSMENT_RE = re.compile(r"\*\*Overall Assessment\*\*:\s*([^\n]+)", re.IGNORE
 _GATING_RE = re.compile(r"\*\*Gating Shapes\*\*:\s*([^\n]+)", re.IGNORECASE)
 # A single chapter number, but NOT the first half of a range (``5-10`` / ``5 - 10``)
 # — a range/manuscript review is not attributable to one chapter (see command_chapter).
-_CMD_CHAPTER_RE = re.compile(r"/authorkit\.\w+\s+(\d+)(?!\s*-\s*\d)")
+# The ``(?!\d)`` keeps backtracking from splitting a multi-digit number: without it,
+# ``15-20`` matches as ``1`` (``(\d+)`` gives back ``5``, and the range lookahead then
+# sees ``5-20`` and passes).
+_CMD_CHAPTER_RE = re.compile(r"/authorkit\.\w+\s+(\d+)(?!\d)(?!\s*-\s*\d)")
+# A style-fidelity review (``/authorkit.review N style``) writes style-review.md, not
+# review.md — so it must never stamp the craft-review sidecar (see record_review's caller).
+_STYLE_REVIEW_RE = re.compile(r"/authorkit\.review\s+\d+\s+style\b", re.IGNORECASE)
 _GATING_NONE = {"none", "n/a", "na", "-", "(none)", "0"}
 
 
@@ -539,6 +553,16 @@ def command_chapter(command: str | None) -> int | None:
         return None
     match = _CMD_CHAPTER_RE.search(command)
     return int(match.group(1)) if match else None
+
+
+def is_style_review(command: str | None) -> bool:
+    """True for a style-fidelity review dispatch (``/authorkit.review N style``).
+
+    Style reviews write ``style-review.md`` and never touch ``review.md``, so recording one
+    in the craft-review sidecar would stamp a stale craft verdict as current for the new
+    draft hash (`ReviewState` is craft-only by contract).
+    """
+    return bool(command) and _STYLE_REVIEW_RE.search(command) is not None
 
 
 def _review_index_path(book_dir: Path) -> Path:

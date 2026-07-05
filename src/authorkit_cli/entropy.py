@@ -199,8 +199,11 @@ def name_cmd(
         raise typer.BadParameter(str(exc)) from exc
 
     if json_output:
+        # The seeds carry the *resolved* culture (an unknown bank key falls back to
+        # "generic" in make_name_seed) — echo that, not the raw option, so the
+        # top-level field and the seeds can't disagree.
         console.print(
-            json.dumps({"culture": (culture or "generic").strip().lower(), "seeds": [asdict(s) for s in seeds]}),
+            json.dumps({"culture": seeds[0].culture, "seeds": [asdict(s) for s in seeds]}),
             markup=False,
             highlight=False,
             soft_wrap=True,

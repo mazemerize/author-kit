@@ -28,7 +28,9 @@ If `.authorkit/memory/constitution.md` (or `book/style-anchor.md`'s **Avoid** /
 naming it by example or description with a voice/genre rationale — review
 records the waiver on the matching `book/tic-ledger.md` entry's `Waiver:` field
 and reports (never flags) the shape (e.g., *"Polysyndeton waived by
-constitution §II (McCarthy-inflected register)"*). A constitution can also ban
+constitution §II (McCarthy-inflected register)"*). A legacy waiver that names a
+pattern *number* from this catalog ("waive pattern 13") remains binding —
+resolve the number here. A constitution can also ban
 a shape outright; treat that as binding regardless of trend. Vague register
 language ("literary style") is neither a waiver nor a ban.
 
@@ -493,10 +495,12 @@ list cannot name in advance, and the trend/decay lifecycle keeps the ledger
 describing the model currently drafting. *(Lesson from the Ab Imo Pectore
 CH13–CH15 fidelity passes, 2026-06-11.)*
 
-**The budgets below are seed-calibration data, not live thresholds.** Severity
-in review is density/trend-based and defined in the review prompt; the per-1,000
-budgets here indicate how tolerant a pattern's *seed* should be when judging
-whether a discovered recurrence is deliberate voice or a tell.
+**The budgets below live on through the ledger, not this file.** At bootstrap
+each seeded entry copies its pattern's budget into the ledger's `Budget:` field
+(zero-budget forms stay 0 — flag on sight); from then on the *ledger's*
+per-entry budget is the live threshold review enforces, and this table is only
+consulted again when seeding a rediscovered pattern. Severity and gating are
+defined in the review prompt's Pass 2 severity mapping.
 
 ## Quick-reference budget table
 

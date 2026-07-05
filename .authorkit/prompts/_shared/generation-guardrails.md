@@ -147,7 +147,9 @@ book** and split across two artifacts with a strict boundary:
 - **`book/tic-ledger.md` — review-side memory.** The living, book-specific tic
   catalog, maintained by `/authorkit.review` Pass 2 via blind contrast against
   the fixed voice origin (the prose anchor). Each entry carries: a one-line
-  shape, a quoted instance *from this book's drafts*, a counter-example showing
+  shape, a **budget** (instances per chapter or per 1,000 words; `0` = flag on
+  sight — seeded from the catalog, defaulting to 3 per chapter for discovered
+  shapes), a quoted instance *from this book's drafts*, a counter-example showing
   how the *origin* does the same job, a per-chapter occurrence trend, a status
   (`seed | active | dormant | retired`), and an optional constitution waiver.
   Lifecycle: active → dormant after 1 clean reviewed chapter → retired after 2
@@ -156,7 +158,7 @@ book** and split across two artifacts with a strict boundary:
   its history. Follow `.authorkit/templates/tic-ledger-template.md`.
 - **`book/voice-pairs.md` — the only generation-side artifact.** Contrastive
   before→after pairs harvested when Revise fixes a Pass 2 finding (and from
-  author hand-edits surfaced during Reconcile, tagged `(author)`). Keep ~20
+  author hand-edits surfaced during Reconcile, tagged `author`). Keep ~20
   Active pairs, newest first, one instructive pair per shape; rotate the rest
   to Archive. Follow `.authorkit/templates/voice-pairs-template.md`.
 - **Quarantine rule (binding).** Commands while *drafting* prose MUST NOT load
@@ -169,7 +171,8 @@ book** and split across two artifacts with a strict boundary:
   the ledger — not the catalog — is normative.
 - **Constitution waivers stay explicit.** The author sanctions a pattern by
   naming it in the constitution (by example or description — a generic
-  "literary register" note is not a waiver). Review records the waiver on the
+  "literary register" note is not a waiver; a legacy waiver naming a
+  seed-catalog pattern number stays binding, resolved against the catalog). Review records the waiver on the
   matching ledger entry's `Waiver:` field; waived entries are reported at the
   top of the review, never flagged as findings. A constitution can also name a
   shape as banned outright — treat that as binding regardless of trend.
@@ -188,7 +191,9 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
    the draft against the fixed origin prose (no list in hand) discovers recurring
    constructions the origin never uses, then reconciles them into `book/tic-ledger.md`
    (trends, decay, new entries). **Discovery is unbounded; gating is convergent (carry-over
-   rule).** A shape is over budget (Critical) at ≥3 instances or on a rising active ledger
+   rule).** A shape is over budget (Critical) at/above its ledger entry's budget — 3 per
+   chapter by default (per 1,000 words in long chapters), **any single instance for a
+   zero-budget form** — or on a rising active ledger
    entry — but on a *re-review* only the prior review's still-over-budget gating shapes gate,
    plus any regression the last revise introduced; freshly-discovered non-regression shapes
    are logged and reported as non-gating residual/seeds, not blockers, so the blind pass can

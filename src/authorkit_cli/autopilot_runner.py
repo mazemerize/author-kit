@@ -21,14 +21,6 @@ from typing import Callable, Protocol
 from .autopilot_core import Directive, parse_directive
 from .book_core import AutopilotConfig, AutopilotOpConfig
 
-# An all-unset config — the default when no book.toml [autopilot] section (or
-# no BookConfig at all) is supplied, so no --model/--effort flag is ever added.
-_EMPTY_AUTOPILOT_CONFIG = AutopilotConfig(
-    planner=AutopilotOpConfig(model=None, effort=None),
-    review=AutopilotOpConfig(model=None, effort=None),
-    writer=AutopilotOpConfig(model=None, effort=None),
-)
-
 # Appended to every worker command AutoPilot dispatches. Workers run headless
 # (`claude -p`), so they cannot ask the author and get a reply this turn; this
 # directive activates the shared "Unattended Mode" guardrail (grounded elaboration
@@ -131,15 +123,35 @@ class _SubprocessRunner:
         self.permission_mode = permission_mode
         self.skip_permissions = skip_permissions
         # Per-operation model/effort overrides from book.toml [autopilot.*].
-        # All-unset by default so no flags are ever injected unless the author
-        # opted in.
-        self.models = models or _EMPTY_AUTOPILOT_CONFIG
+        # AutopilotConfig() is all-unset (a fresh instance per runner, never a
+        # shared singleton) so no flags are injected unless the author opted in.
+        self.models = models or AutopilotConfig()
 
     def _op_config(self, op: str) -> AutopilotOpConfig:
         """Resolve the [autopilot.*] override for a bucket ("planner"/"review"/"writer")."""
         return getattr(self.models, op)
 
-    # Per-flavor command construction — overridden by subclasses.
+    def _op_flags(self, op: str) -> list[str]:
+        """The model/effort override flags for a bucket — empty unless set in book.toml.
+
+        One shared injection point so a new override knob (or a fix to one) lands in every
+        flavor and call site at once; subclasses supply only their flag spelling.
+        """
+        cfg = self._op_config(op)
+        argv: list[str] = []
+        if cfg.model:
+            argv += self._model_flags(cfg.model)
+        if cfg.effort:
+            argv += self._effort_flags(cfg.effort)
+        return argv
+
+    # Per-flavor flag spelling and command construction — overridden by subclasses.
+    def _model_flags(self, model: str) -> list[str]:
+        raise NotImplementedError
+
+    def _effort_flags(self, effort: str) -> list[str]:
+        raise NotImplementedError
+
     def _planner_argv(self, full_prompt: str) -> list[str]:
         raise NotImplementedError
 
@@ -192,14 +204,14 @@ class ClaudeRunner(_SubprocessRunner):
 
     flavor = "claude"
 
+    def _model_flags(self, model: str) -> list[str]:
+        return ["--model", model]
+
+    def _effort_flags(self, effort: str) -> list[str]:
+        return ["--effort", effort]
+
     def _planner_argv(self, full_prompt: str) -> list[str]:
-        argv = ["claude", "-p", full_prompt, "--output-format", "json"]
-        op = self._op_config("planner")
-        if op.model:
-            argv += ["--model", op.model]
-        if op.effort:
-            argv += ["--effort", op.effort]
-        return argv
+        return ["claude", "-p", full_prompt, "--output-format", "json"] + self._op_flags("planner")
 
     def _command_argv(self, command: str, op: str = "writer") -> list[str]:
         argv = ["claude", "-p", command]
@@ -210,12 +222,7 @@ class ClaudeRunner(_SubprocessRunner):
             argv.append("--dangerously-skip-permissions")
         elif self.permission_mode:
             argv += ["--permission-mode", self.permission_mode]
-        op_config = self._op_config(op)
-        if op_config.model:
-            argv += ["--model", op_config.model]
-        if op_config.effort:
-            argv += ["--effort", op_config.effort]
-        return argv
+        return argv + self._op_flags(op)
 
     def _extract_text(self, stdout: str) -> str:
         # `claude -p --output-format json` wraps the reply in a JSON envelope
@@ -244,23 +251,17 @@ class CodexRunner(_SubprocessRunner):
 
     flavor = "codex"
 
+    def _model_flags(self, model: str) -> list[str]:
+        return ["-m", model]
+
+    def _effort_flags(self, effort: str) -> list[str]:
+        return ["-c", f'model_reasoning_effort="{effort}"']
+
     def _planner_argv(self, full_prompt: str) -> list[str]:
-        argv = ["codex", "exec", full_prompt]
-        op = self._op_config("planner")
-        if op.model:
-            argv += ["-m", op.model]
-        if op.effort:
-            argv += ["-c", f'model_reasoning_effort="{op.effort}"']
-        return argv
+        return ["codex", "exec", full_prompt] + self._op_flags("planner")
 
     def _command_argv(self, command: str, op: str = "writer") -> list[str]:
-        argv = ["codex", "exec", command]
-        op_config = self._op_config(op)
-        if op_config.model:
-            argv += ["-m", op_config.model]
-        if op_config.effort:
-            argv += ["-c", f'model_reasoning_effort="{op_config.effort}"']
-        return argv
+        return ["codex", "exec", command] + self._op_flags(op)
 
 
 class CopilotRunner(_SubprocessRunner):
@@ -277,23 +278,17 @@ class CopilotRunner(_SubprocessRunner):
 
     flavor = "copilot"
 
+    def _model_flags(self, model: str) -> list[str]:
+        return ["--model", model]
+
+    def _effort_flags(self, effort: str) -> list[str]:
+        return ["--effort", effort]
+
     def _planner_argv(self, full_prompt: str) -> list[str]:
-        argv = ["copilot", "-p", full_prompt]
-        op = self._op_config("planner")
-        if op.model:
-            argv += ["--model", op.model]
-        if op.effort:
-            argv += ["--effort", op.effort]
-        return argv
+        return ["copilot", "-p", full_prompt] + self._op_flags("planner")
 
     def _command_argv(self, command: str, op: str = "writer") -> list[str]:
-        argv = ["copilot", "-p", command]
-        op_config = self._op_config(op)
-        if op_config.model:
-            argv += ["--model", op_config.model]
-        if op_config.effort:
-            argv += ["--effort", op_config.effort]
-        return argv
+        return ["copilot", "-p", command] + self._op_flags(op)
 
 
 _RUNNERS: dict[str, type[_SubprocessRunner]] = {

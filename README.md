@@ -299,6 +299,7 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 | `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force`, `--yes`, `--quiet`, `--output-dir`, `--from-chapter`, `--to-chapter` | `dist/manuscript.md` + rendered docs |
 | `authorkit book audio` | Generate chapter audio and optional merged audiobook | `--provider`, `--voice`, `--model`, `--merge`, `--output-dir`, `--from-chapter`, `--to-chapter`, `--force`, `--yes` | `dist/audio/*.mp3` (+ optional merged file) |
 | `authorkit book stats` | Compute chapter/global manuscript metrics | `--output`, `--wpm`, `--audio-dir`, `--from-chapter`, `--to-chapter` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
+| `authorkit entropy` | True-random values for drafting (the Entropy Protocol): `number` rolls within author-chosen bounds; `name` emits name-construction seeds, not finished names | `number --min --max --count --kind`, `name --culture --syllables --count`, `--json` | Values / name seeds (plain or JSON) |
 
 ---
 

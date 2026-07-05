@@ -36,6 +36,7 @@ from .autopilot_core import (
     detect_reconcile_stall,
     directive_to_obj,
     file_md5,
+    is_style_review,
     kill_switch_present,
     log_tick,
     preflight,
@@ -103,7 +104,9 @@ def _mode_brief(
         brief = (
             f"chapters — execute chapters CH{lo:02d}-CH{hi:02d} per the status ladder, for the lowest in-range "
             "chapter not yet [X]: [ ] -> /authorkit.write N plan; [P] -> /authorkit.write N (draft); "
-            "[D] -> /authorkit.review N; [R] -> /authorkit.write N revise: <issues>. Own chapters/NN/ only — "
+            "[D] -> /authorkit.review N (but first consult chapter_reviews[\"N\"] per your prompt's ladder — "
+            "a current NEEDS_REVISION review means dispatch its prescribed revise instead); "
+            "[R] -> /authorkit.write N revise: <issues>. Own chapters/NN/ only — "
             "never edit the outline or world (escalate if scaffolding must change); never touch chapters outside "
             "the range or approved [X] chapters. done when all in-range chapters are [X]."
         )
@@ -192,7 +195,8 @@ def _plan_layer_context(book_dir: Path, repo_root: Path, *, cap: int = 6000) -> 
 
 
 def _content_fingerprint(book_dir: Path) -> tuple:
-    """A content fingerprint of all chapter drafts *and* reviews (chapter id + file + hash).
+    """A content fingerprint of all chapter drafts *and* reviews, style reviews included
+    (chapter id + file + hash).
 
     Used under a guideline campaign so a tick that rewrites a draft OR a review
     counts as progress even when chapter statuses don't move (e.g. re-reviewing
@@ -208,7 +212,12 @@ def _content_fingerprint(book_dir: Path) -> tuple:
     if not chapters.is_dir():
         return ()
     items: list[tuple] = []
-    for artifact in sorted(chapters.glob("*/draft.md")) + sorted(chapters.glob("*/review.md")):
+    names = ("draft.md", "review.md", "style-review.md")
+    for artifact in sorted(p for name in names for p in chapters.glob(f"*/{name}")):
+        # Pure-numeric dirs only — same rule as book_core.discover_chapter_drafts, so a
+        # backup like chapters/01-old/ can't register (or mask) campaign progress.
+        if not artifact.parent.name.isdigit():
+            continue
         digest = file_md5(artifact)  # shared with the review-index sidecar so both agree on "changed"
         if digest is None:
             continue
@@ -288,7 +297,8 @@ def _resolve_review_noop(directive: Directive, chapter: int | None, book_dir: Pa
     work and passes through untouched.
     """
     planner_action = directive.action
-    if directive.action != "review" or chapter is None:
+    # A style review does different work than the standing craft review — never a no-op.
+    if directive.action != "review" or chapter is None or is_style_review(directive.command):
         return directive, planner_action
     state = review_state(book_dir, chapter)
     if state.current and state.verdict == "NEEDS_REVISION":
@@ -471,12 +481,15 @@ def _run_autopilot(
     # move statuses — so the planner owns 'done' and progress folds in draft content.
     if guideline and not dry_run:
         console.print(f"[dim]Author guideline active:[/dim] {guideline[:160]}")
+    # chapter_reviews is a chapters-mode field (per the planner prompt's contract);
+    # plot mode never consults it, so don't pay the per-chapter I/O to build it there.
+    reviews_dir = book_dir if mode == "chapters" else None
 
     # Dry-run: show the next directive (a preview), write nothing, dispatch nothing.
     if dry_run:
         report = collect_status(book_dir, repo_root)
         directive = (None if guideline else _completion_check(mode, book_dir, chapter_range)) or _plan_once(
-            runner, planner_prompt, report, brief, context, guideline, book_dir=book_dir
+            runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir
         )
         console.print(
             to_json({"mode": mode, "tick": 1, "directive": directive_to_obj(directive)}),
@@ -527,10 +540,10 @@ def _run_autopilot(
         directive = None if guideline else _completion_check(mode, book_dir, chapter_range)
         if directive is None:
             try:
-                directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=book_dir)
+                directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir)
             except (DirectiveError, RuntimeError):
                 try:
-                    directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=book_dir)
+                    directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir)
                 except (DirectiveError, RuntimeError) as exc:
                     path = _write_planner_failure_escalation(book_dir, str(exc))
                     console.print(
@@ -578,9 +591,11 @@ def _run_autopilot(
         # gating-shape set (so a re-opening tic gate is detectable in autopilot.jsonl). After a
         # revise, bump the persisted reconcile-cycle count so the stall cap survives re-runs.
         # Range/manuscript reviews have chapter=None and are skipped (not attributable to one).
+        # Style reviews write style-review.md, never review.md — recording one would stamp a
+        # stale craft verdict as current for the new draft hash, so they are skipped too.
         gating_shapes: list[str] | None = None
         if result.ok and chapter is not None:
-            if directive.action == "review":
+            if directive.action == "review" and not is_style_review(directive.command):
                 draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
                 state_after = review_state(book_dir, chapter)
                 record_review(book_dir, chapter, draft_sha=file_md5(draft_path), verdict=state_after.verdict)
@@ -616,7 +631,10 @@ def _run_autopilot(
         # gating set stops shrinking is a genuine quality-stall — escalate to the author
         # rather than churn to MAX_TICKS. Common cases converge autonomously via the review's
         # carry-over gating rule; this fires only when the reviser cannot self-resolve.
-        if mode == "chapters" and chapter is not None and detect_reconcile_stall(
+        # Checked only on review ticks: the verdict that decides "converged or not" is the
+        # review's, and a cap-th revise must get its confirming review (which resets the
+        # cycle count on PASS) before the cap can be read as a stall.
+        if mode == "chapters" and chapter is not None and directive.action == "review" and detect_reconcile_stall(
             history, chapter, persisted_cycles=review_cycles(book_dir, chapter)
         ):
             path = _write_quality_stall_escalation(book_dir, chapter)

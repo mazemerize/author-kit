@@ -9,8 +9,9 @@
      boundary, never as pattern descriptions or prohibitions.
 
      Harvested by /authorkit.write Revise when it applies a Pass 2 (AI-Tic
-     Audit) fix, and from author hand-edits surfaced during Reconcile (tagged
-     `(author)` — the highest-value pairs).
+     Audit) fix (tagged with the ledger TIC id), and from author hand-edits
+     surfaced during Reconcile (tagged `author` — the highest-value pairs;
+     prefer keeping them when rotating Active down).
 
      Drafting loads ONLY ## Active Pairs, framed as: "in this book, prose like
      the left gets revised to the right; write right-column prose directly."
@@ -21,8 +22,11 @@
 
 ## Active Pairs
 
-- [TIC-NNN | author] ([CHnn]): "[original sentence as drafted]"
-  → "[revised sentence in the book's voice]"
+<!-- One pair per line, newest first — the same format Revise appends:
+     the tag is the ledger TIC id, or `author` for hand-edit pairs. -->
+
+- TIC-NNN (CHnn): "[original sentence as drafted]" → "[revised sentence in the book's voice]"
+- author (CHnn): "[sentence as the AI drafted it]" → "[the author's hand-edit]"
 
 ## Archive
 

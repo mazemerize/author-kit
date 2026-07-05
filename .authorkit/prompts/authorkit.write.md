@@ -314,7 +314,7 @@ Triggered when `chapters/NN/draft.md` exists and the user input includes "revise
    - **Harvest voice pairs (Pass 2 fixes only)**: for each AI-Tic finding fixed, append the before→after pair to `book/voice-pairs.md` **Active Pairs** (create the file from `.authorkit/templates/voice-pairs-template.md` if missing): `- TIC-NNN (CHnn): "<original sentence>" → "<revised sentence>"`. Keep Active at ~20 pairs, newest first, preferring one instructive pair per tic shape; rotate the oldest to **Archive**. These pairs are how the next draft learns — harvesting is not optional.
    - **Re-run that pass's own check** on the edited prose before advancing, so a Style fix that introduces a tic (Pass 2), or a logic fix (Pass 4) that breaks voice (Pass 1), is caught in-loop. A pass with no findings is verified-and-skipped, never silently ignored.
    - If no `review.md` exists (a direct `revise: <issue>`), still walk the roster but act only on the passes the issue touches, running those passes' checks yourself.
-   - **Final gate sweep (mandatory, after the last pass)**: re-check every span edited during passes 3–7 against Pass 1 (voice vs the fixed origin) and Pass 2 (tic budgets vs the ledger). The per-pass re-check only covers each pass's own remit, so a logic or craft fix made after the gating passes ran can still drift voice or introduce a ledger shape — this sweep is what catches it before the draft is saved.
+   - **Final gate sweep (mandatory, after the last pass)**: re-check every span edited during passes 3–7 against Pass 1 (voice vs the fixed origin) and Pass 2 (tic budgets vs the ledger), then run one **whole-draft style match** — compare the full revised draft against the constitution + style anchor and fix any drift, edited or not, before reporting. The per-pass re-check only covers each pass's own remit and only the spans revise touched; drift sitting in a span the review missed and revise never edited is exactly what the whole-draft match exists to catch before the draft is saved.
 
 4. **Update the plan** at `chapters/NN/plan.md` if the revision changes the chapter's structure.
 5. **Update status** in `chapters.md`:
@@ -411,7 +411,7 @@ Scan the new prose for things that surfaced as new uncertainty (e.g., a characte
 
 ### Phase 4b: Voice-pair harvest from author edits (best-effort)
 
-If the draft shows author hand-edits since the last AI write (mixed authorship — e.g. `git log` / `git diff` on `chapters/NN/draft.md` shows changes this tool didn't produce, or content diverging from what the previous run reported writing), harvest the clearly **stylistic** small rewrites — a sentence reworded, a beat-closer replaced, a simile cut — as voice pairs tagged `(author)` in `book/voice-pairs.md` Active Pairs (create from `.authorkit/templates/voice-pairs-template.md` if missing). Author pairs are the highest-value conditioning examples; prefer keeping them when rotating Active down to ~20. Skip content-level edits (plot/fact changes — Phase 1 captures those). Interactive runs: list the candidate pairs and confirm before saving. Unattended runs (`[AUTOPILOT-UNATTENDED]`): save clearly-stylistic pairs and report them; when in doubt whether an edit is stylistic, skip it.
+If the draft shows author hand-edits since the last AI write (mixed authorship — e.g. `git log` / `git diff` on `chapters/NN/draft.md` shows changes this tool didn't produce, or content diverging from what the previous run reported writing), harvest the clearly **stylistic** small rewrites — a sentence reworded, a beat-closer replaced, a simile cut — as voice pairs in `book/voice-pairs.md` Active Pairs, in the same one-line format Revise appends but tagged `author` in place of the TIC id (create the file from `.authorkit/templates/voice-pairs-template.md` if missing). Author pairs are the highest-value conditioning examples; prefer keeping them when rotating Active down to ~20. Skip content-level edits (plot/fact changes — Phase 1 captures those). Interactive runs: list the candidate pairs and confirm before saving. Unattended runs (`[AUTOPILOT-UNATTENDED]`): save clearly-stylistic pairs and report them; when in doubt whether an edit is stylistic, skip it.
 
 ### Phase 5: Rebuild the world index
 
@@ -446,7 +446,7 @@ Run `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root. This regenerates the Entity R
 - New ambiguities worth clarifying: [N]
 
 ### Voice Pairs
-- Pairs harvested this run: [N] ([TIC-refs and/or (author)]; 0 if none)
+- Pairs harvested this run: [N] ([TIC-refs and/or author-tagged]; 0 if none)
 
 ### Index Stats
 - Entities indexed: [N]

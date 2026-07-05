@@ -2639,9 +2639,13 @@ def test_command_chapter_ignores_ranges():
     """A single-chapter command yields its number; a range/manuscript review yields None so it
     is not misattributed to its first chapter (review-fix #1)."""
     assert autopilot_core.command_chapter("/authorkit.review 7") == 7
+    assert autopilot_core.command_chapter("/authorkit.review 15") == 15
     assert autopilot_core.command_chapter("/authorkit.write 12 revise: fix voice") == 12
     assert autopilot_core.command_chapter("/authorkit.review 5-10") is None
     assert autopilot_core.command_chapter("/authorkit.review 5 - 10") is None
+    # Multi-digit ranges: backtracking must not split "15" into "1" + a passing lookahead.
+    assert autopilot_core.command_chapter("/authorkit.review 15-20") is None
+    assert autopilot_core.command_chapter("/authorkit.review 12 - 20") is None
     assert autopilot_core.command_chapter("/authorkit.review all") is None
     assert autopilot_core.command_chapter(None) is None
 
@@ -2745,6 +2749,47 @@ def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, mo
     assert "quality-stall" in records[0].read_text(encoding="utf-8")
     # Bounded: it stopped well short of the MAX_TICKS backstop.
     assert len(fake.dispatched) < 20
+
+
+def test_autopilot_capth_revise_gets_confirming_review(tmp_path, monkeypatch):
+    """The reconcile-cycle cap is judged at the confirming review, not on the revise tick that
+    reaches it: a chapter whose cap-th revise genuinely fixes the gating shapes PASSes and
+    approves instead of escalating quality-stall with the fix left unjudged."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="draft v5", review_verdict="NEEDS REVISION",
+        gating="tic-003", status_line="[R] CH01 X - first",
+    )
+    # The sidecar carries cap-1 prior revises; the next revise reaches the cap.
+    index = autopilot_core.read_review_index(book_dir)
+    index["CH01"]["cycles"] = autopilot_core.MAX_REVIEW_CYCLES_PER_CHAPTER - 1
+    autopilot_core.write_review_index(book_dir, index)
+    review_path = book_dir / "chapters" / "01" / "review.md"
+
+    def on_command(cmd):
+        if "revise" in cmd:  # the cap-th revise genuinely fixes the gating tic
+            draft_path.write_text("draft v6 (fixed)", encoding="utf-8")
+        elif "/authorkit.review" in cmd:  # the confirming review passes and approves
+            review_path.write_text(
+                "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
+                "**Status**: PASS\n**Gating Shapes**: none\n",
+                encoding="utf-8",
+            )
+            _flip_status(book_dir, "[R] CH01", "[X] CH01")
+
+    revise = autopilot_core.Directive(
+        action="revise", chapter=1, command="/authorkit.write 1 revise: fix tic-003", reason="cap-th revise"
+    )
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="confirm")
+    fake = autopilot_runner.FakeRunner([revise, review, review], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "quality-stall" not in result.output.lower()
+    assert not list((book_dir / "escalations").glob("*.md"))
+    # The PASS review reset the persisted cycle count for a fresh start if re-opened.
+    assert autopilot_core.review_cycles(book_dir, 1) == 0
 
 
 def test_autopilot_converged_with_residual_review_reaches_approved(tmp_path, monkeypatch):
@@ -3372,6 +3417,16 @@ def test_entropy_name_cli_varies_across_calls():
     assert len(seeds) > 1  # true randomness: not all identical
 
 
+def test_entropy_name_json_reports_resolved_culture():
+    """An unknown culture falls back to the generic bank — the JSON's top-level culture
+    must report the resolved bank, not echo the raw option (no self-contradictory payload)."""
+    result = runner.invoke(cli.app, ["entropy", "name", "--culture", "klingon", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["culture"] == "generic"
+    assert all(s["culture"] == "generic" for s in payload["seeds"])
+
+
 # --- AutoPilot planner guidelines (--guideline campaigns) --------------------
 
 
@@ -3506,6 +3561,57 @@ def test_autopilot_guideline_command_churn_trips_loop_health(tmp_path, monkeypat
     assert result.exit_code == 0, result.output
     assert "loop-health" in result.output.lower()
     assert calls["n"] == 4  # tripped right after the churn window, not at MAX_TICKS
+
+
+def test_detect_command_churn_alternating_reviews():
+    """Churn also catches a planner ping-ponging between two review commands (the
+    same-command rule misses it, and under a guideline the status-keyed detectors are
+    blind), while a healthy review→revise reconciliation and a multi-chapter sweep
+    never trip it."""
+    def rv(cmd):
+        return {"command": cmd, "action": "review"}
+
+    def wr(cmd):
+        return {"command": cmd, "action": "revise"}
+
+    ping = [rv("/authorkit.review 1"), rv("/authorkit.review 2")] * 2
+    assert autopilot_core.detect_command_churn(ping) is True
+    # A review→revise cycle interleaves revise ticks — bounded by reconcile-stall, not churn.
+    cycle = [
+        rv("/authorkit.review 3"), wr("/authorkit.write 3 revise: apply the standing review"),
+        rv("/authorkit.review 3"), wr("/authorkit.write 3 revise: apply the standing review"),
+    ]
+    assert autopilot_core.detect_command_churn(cycle) is False
+    # A healthy sweep advances to a different chapter each tick.
+    sweep = [rv(f"/authorkit.review {n}") for n in (1, 2, 3, 4)]
+    assert autopilot_core.detect_command_churn(sweep) is False
+    # The exact same command window-times in a row still trips regardless of action mix.
+    assert autopilot_core.detect_command_churn([wr("/authorkit.write 1 revise: x")] * 4) is True
+
+
+def test_style_reviews_never_stamp_the_craft_sidecar():
+    """`/authorkit.review N style` writes style-review.md, so it is neither a craft-review
+    no-op nor a sidecar-stampable review (ReviewState is craft-only by contract)."""
+    assert autopilot_core.is_style_review("/authorkit.review 3 style") is True
+    assert autopilot_core.is_style_review("/authorkit.review 3 STYLE") is True
+    assert autopilot_core.is_style_review("/authorkit.review 3") is False
+    assert autopilot_core.is_style_review("/authorkit.write 3 revise: fix style drift") is False
+    assert autopilot_core.is_style_review(None) is False
+
+
+def test_content_fingerprint_scope(tmp_path):
+    """The guideline progress fingerprint covers style-review.md (a style sweep is progress)
+    and only pure-numeric chapter dirs (a backup like 01-old/ can't register progress)."""
+    book_dir = tmp_path / "book"
+    for rel in ("chapters/01/draft.md", "chapters/01/style-review.md", "chapters/01-old/draft.md"):
+        path = book_dir / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(rel, encoding="utf-8")
+    fp = autopilot_commands._content_fingerprint(book_dir)
+    entries = {(chapter, name) for chapter, name, _ in fp}
+    assert ("01", "draft.md") in entries
+    assert ("01", "style-review.md") in entries  # style sweeps register as progress
+    assert all(chapter == "01" for chapter, _ in entries)  # 01-old/ excluded
 
 
 def test_autopilot_guideline_brief_is_mode_scoped():
@@ -3660,7 +3766,10 @@ def test_write_prompt_quarantines_tic_lists_and_conditions_on_voice():
     # Pair harvesting on revise and reconcile.
     assert "Harvest voice pairs" in write
     assert "voice-pairs-template.md" in write
-    assert "(author)" in write  # author-edit harvest during reconcile
+    assert "tagged `author`" in write  # author-edit harvest during reconcile (one canonical tag)
+    # Revise's final sweep covers the WHOLE draft, not just edited spans — drift in a span
+    # the review missed and revise never touched is still caught before saving.
+    assert "whole-draft style match" in write
 
 
 def test_review_pass2_is_blind_discovery_with_ledger_reconciliation():
@@ -3676,6 +3785,12 @@ def test_review_pass2_is_blind_discovery_with_ledger_reconciliation():
     assert "Status: seed" in review
     # The blind step must not receive the ledger or the seed catalog.
     assert "no ledger and no seed catalog" in review
+    # Per-entry budgets: zero-budget forms gate on sight; long chapters count per 1k words.
+    assert "`Budget:`" in review
+    assert "Critical and gating at one instance" in review
+    assert "0.75/1k" in review
+    # Legacy waivers naming a seed-catalog pattern number stay binding.
+    assert "pattern *number*" in review
 
 
 def test_discuss_constitution_mode_records_tic_waivers_on_ledger():
