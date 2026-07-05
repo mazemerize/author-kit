@@ -448,24 +448,49 @@ def file_md5(path: Path) -> str | None:
         return None
 
 
-_VERDICT_RE = re.compile(r"\*\*(?:Overall Assessment|Status)\*\*:\s*([^\n]+)", re.IGNORECASE)
+# The authoritative verdict is the ``## Verdict`` **Status** line; the top
+# **Overall Assessment** header is a fallback (they can disagree when a draft is
+# half-filled from the template).
+_STATUS_RE = re.compile(r"\*\*Status\*\*:\s*([^\n]+)", re.IGNORECASE)
+_ASSESSMENT_RE = re.compile(r"\*\*Overall Assessment\*\*:\s*([^\n]+)", re.IGNORECASE)
 _GATING_RE = re.compile(r"\*\*Gating Shapes\*\*:\s*([^\n]+)", re.IGNORECASE)
-_CMD_CHAPTER_RE = re.compile(r"/authorkit\.\w+\s+(\d+)")
+# A single chapter number, but NOT the first half of a range (``5-10`` / ``5 - 10``)
+# — a range/manuscript review is not attributable to one chapter (see command_chapter).
+_CMD_CHAPTER_RE = re.compile(r"/authorkit\.\w+\s+(\d+)(?!\s*-\s*\d)")
 _GATING_NONE = {"none", "n/a", "na", "-", "(none)", "0"}
+
+
+def _classify_verdict(value: str) -> str | None:
+    """Map one verdict-line value to PASS / NEEDS_REVISION / None.
+
+    A value carrying BOTH markers is an unfilled template (``[PASS / NEEDS REVISION]``) —
+    return None so the caller falls through rather than guessing.
+    """
+    upper = value.upper()
+    has_needs = "NEEDS REVISION" in upper or "NEEDS_REVISION" in upper
+    has_pass = "PASS" in upper
+    if has_needs and has_pass:
+        return None
+    if has_needs:
+        return "NEEDS_REVISION"
+    if has_pass:
+        return "PASS"
+    return None
 
 
 def parse_review_verdict(text: str) -> str | None:
     """Extract ``PASS`` / ``NEEDS_REVISION`` / ``None`` from a review.md body.
 
-    Reads the ``**Overall Assessment**`` header or the ``## Verdict`` ``**Status**`` line;
-    an ambiguous/templated value that mentions both resolves to the safe ``NEEDS_REVISION``.
+    Prefers the authoritative ``## Verdict`` ``**Status**`` line over the top
+    ``**Overall Assessment**`` header, and skips any line still carrying the literal
+    ``[PASS / NEEDS REVISION]`` template (both markers) — so a half-filled review whose
+    header is untouched but whose Status is PASS is not misread as NEEDS_REVISION.
     """
-    for match in _VERDICT_RE.finditer(text):
-        value = match.group(1).upper()
-        if "NEEDS REVISION" in value or "NEEDS_REVISION" in value:
-            return "NEEDS_REVISION"
-        if "PASS" in value:
-            return "PASS"
+    for regex in (_STATUS_RE, _ASSESSMENT_RE):
+        for match in regex.finditer(text):
+            verdict = _classify_verdict(match.group(1))
+            if verdict is not None:
+                return verdict
     return None
 
 
@@ -483,7 +508,13 @@ def parse_gating_shapes(text: str) -> tuple[str, ...]:
 
 
 def command_chapter(command: str | None) -> int | None:
-    """Best-effort chapter number from a dispatched command (``/authorkit.write 7 revise``)."""
+    """The single chapter a dispatched command targets, or ``None``.
+
+    Returns ``None`` for a range (``/authorkit.review 5-10``) or manuscript
+    (``/authorkit.review all``) review — those are not attributable to one chapter, so the
+    no-op guard, the review-index sidecar, and the reconcile-stall history must skip them
+    rather than misattribute the whole pass to its first chapter.
+    """
     if not command:
         return None
     match = _CMD_CHAPTER_RE.search(command)
@@ -495,7 +526,7 @@ def _review_index_path(book_dir: Path) -> Path:
 
 
 def read_review_index(book_dir: Path) -> dict:
-    """Load the review-index sidecar (chapter key -> {draft_sha, verdict}); ``{}`` on any error."""
+    """Load the review-index sidecar (chapter key -> {draft_sha, verdict, cycles}); ``{}`` on any error."""
     try:
         data = json.loads(_review_index_path(book_dir).read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
@@ -512,15 +543,49 @@ def write_review_index(book_dir: Path, index: dict) -> Path:
     return path
 
 
+def _index_entry(index: dict, chapter: int) -> dict:
+    """The sidecar entry dict for ``chapter`` (a fresh copy), tolerant of a missing/bad value."""
+    entry = index.get(f"CH{chapter:02d}")
+    return dict(entry) if isinstance(entry, dict) else {}
+
+
 def record_review(book_dir: Path, chapter: int, *, draft_sha: str | None, verdict: str | None) -> None:
     """Record that ``chapter``'s review covered the draft hashed ``draft_sha`` (with ``verdict``).
 
     Called by the loop right after a ``review`` dispatch — ``review`` never edits the draft,
-    so the current draft hash *is* the reviewed draft's hash.
+    so the current draft hash *is* the reviewed draft's hash. Preserves the persisted
+    reconcile-cycle count, and resets it to 0 once the chapter passes (a fresh start if it is
+    later re-opened).
     """
     index = read_review_index(book_dir)
-    index[f"CH{chapter:02d}"] = {"draft_sha": draft_sha, "verdict": verdict}
+    entry = _index_entry(index, chapter)
+    entry["draft_sha"] = draft_sha
+    entry["verdict"] = verdict
+    if verdict == "PASS":
+        entry["cycles"] = 0
+    index[f"CH{chapter:02d}"] = entry
     write_review_index(book_dir, index)
+
+
+def bump_review_cycles(book_dir: Path, chapter: int) -> int:
+    """Increment and persist ``chapter``'s reconcile-cycle count (one per revise dispatch).
+
+    Persisting the count in the sidecar — not just the in-memory tick history — lets the
+    reconcile-stall cap survive across separate ``autopilot`` invocations, so a chapter
+    nursed a couple of revises per run still escalates instead of restarting the count.
+    """
+    index = read_review_index(book_dir)
+    entry = _index_entry(index, chapter)
+    entry["cycles"] = int(entry.get("cycles") or 0) + 1
+    index[f"CH{chapter:02d}"] = entry
+    write_review_index(book_dir, index)
+    return entry["cycles"]
+
+
+def review_cycles(book_dir: Path, chapter: int) -> int:
+    """Persisted reconcile-cycle count for ``chapter`` (0 if none recorded)."""
+    entry = read_review_index(book_dir).get(f"CH{chapter:02d}")
+    return int(entry.get("cycles") or 0) if isinstance(entry, dict) else 0
 
 
 def review_state(book_dir: Path, chapter: int) -> ReviewState:
@@ -552,36 +617,22 @@ def review_state(book_dir: Path, chapter: int) -> ReviewState:
     return ReviewState(exists=True, current=current, verdict=verdict, gating_shapes=gating)
 
 
-def gating_findings(
-    carried_over: Iterable[str],
-    discovered: Mapping[str, int],
-    *,
-    prior: Iterable[str] = (),
-    budget: int = GATING_BUDGET,
-) -> set[str]:
-    """The Pass-2 tic shapes that gate a review under the carry-over convergence rule.
+def gating_findings(discovered: Mapping[str, int], *, budget: int = GATING_BUDGET) -> set[str]:
+    """The Pass-2 tic shapes that gate a review: every discovered shape at/above ``budget``.
 
-    This is the executable spec the review prompt mirrors; it is also the reference the
-    Bug-2 tests assert against. Inputs:
-
-    - ``carried_over``: shapes that gated the *prior* review of this chapter (the set that
-      must shrink). A carry-over shape keeps gating only while it is still over ``budget``.
-    - ``discovered``: shape -> instance count in the *current* draft (blind Step A + ledger).
-    - ``prior``: shapes present in the prior review of this chapter — used to tell a genuine
-      regression (a rampant shape the last revise *introduced*) from ordinary blind discovery.
-
-    A freshly-discovered shape gates only if it is over budget AND was absent last review
-    (a regression); otherwise it is non-gating residual/seed. For a fixed draft this makes the
-    gating set stable and non-growing; each revise that clears a carry-over shape strictly
-    shrinks it toward the empty (converged-with-residual) fixed point.
+    This is the executable spec the review prompt mirrors and the reference the Bug-2 tests
+    assert against. ``discovered`` maps shape -> instance count in the *current* draft (blind
+    Step A + the ledger sweep). Shapes **below** budget are non-gating residual/seeds — that
+    threshold, not an exclusion list, is what stops the blind pass from gating on "one more"
+    low-density construction every cycle. The gate set is therefore exactly the carry-over
+    (a prior ≥budget shape still ≥budget) plus any regression (a shape a revise pushed to
+    ≥budget) — their union is just ``{shapes ≥ budget}``. For a fixed draft this set is stable;
+    each effective revise reduces a shape below budget and drops it, shrinking the set toward
+    the empty (converged-with-residual) fixed point. A revise that *worsens* a tolerated shape
+    past budget re-gates it (soundness); one that merely re-shuffles low-density shapes changes
+    nothing.
     """
-    carried = set(carried_over)
-    prior_set = set(prior)
-    gating = {shape for shape in carried if discovered.get(shape, 0) >= budget}
-    for shape, count in discovered.items():
-        if count >= budget and shape not in prior_set and shape not in carried:
-            gating.add(shape)  # regression introduced since the last review — still gates
-    return gating
+    return {shape for shape, count in discovered.items() if count >= budget}
 
 
 def gating_set_converging(prev: Iterable[str], curr: Iterable[str]) -> bool:
@@ -602,26 +653,34 @@ def detect_reconcile_stall(
     *,
     cap: int = MAX_REVIEW_CYCLES_PER_CHAPTER,
     window: int = 3,
+    persisted_cycles: int = 0,
 ) -> bool:
     """True when ``chapter``'s review/revise reconciliation is not converging.
 
     Two arms, either of which trips (the loop then escalates ``quality-stall`` instead of
     churning to ``MAX_TICKS``):
 
-    - **Cap**: the chapter has been revised ``>= cap`` times without reaching ``[X]`` (the
-      loop only reaches this check while the chapter is still un-approved).
-    - **Diminishing returns**: across the last ``window`` reviews the parsed gating-shape set
-      never strictly shrank (stuck at the same size, or growing) while still non-empty — the
-      moving-target signature Bug 2 is meant to end.
+    - **Cap** (cross-run): the chapter has been revised ``>= cap`` times without reaching
+      ``[X]``. ``persisted_cycles`` carries the sidecar's revise count from earlier
+      invocations so a per-run-slow stall still trips; it already includes this run's revises,
+      so the in-memory history is not re-counted.
+    - **Diminishing returns** (in-run): across the last ``window`` reviews that recorded a
+      gating set, the set never *strictly shrank* while still non-empty — stuck on the same
+      shapes, or churning between same-size sets of different identity (the moving-target
+      signature). Reviews with no gating record (e.g. a failed dispatch) are skipped so a
+      transient empty entry cannot mask a real stall.
     """
-    ticks = _chapter_dispatches(history, chapter)
-    revises = [h for h in ticks if h.get("action") == "revise"]
-    if len(revises) >= cap:
+    if persisted_cycles >= cap:
         return True
-    reviews = [h for h in ticks if h.get("action") == "review"]
+    ticks = _chapter_dispatches(history, chapter)
+    reviews = [h for h in ticks if h.get("action") == "review" and "gating_shapes" in h]
     recent = reviews[-window:]
     if len(recent) >= window:
-        sizes = [len(h.get("gating_shapes") or ()) for h in recent]
-        if sizes[-1] > 0 and all(sizes[i] <= sizes[i + 1] for i in range(len(sizes) - 1)):
+        sets = [frozenset(h.get("gating_shapes") or ()) for h in recent]
+        progressed = any(
+            gating_set_converging(sets[i], sets[i + 1]) and len(sets[i + 1]) < len(sets[i])
+            for i in range(len(sets) - 1)
+        )
+        if sets[-1] and not progressed:
             return True
     return False

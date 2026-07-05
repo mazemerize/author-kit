@@ -2580,42 +2580,111 @@ def test_autopilot_reviews_when_draft_changed_since_review(tmp_path, monkeypatch
     assert fake.dispatched == ["/authorkit.review 1"]  # not converted
 
 
-def test_gating_findings_convergence():
-    """Bug 2 spec: for a fixed draft the gating set is stable/non-growing; a revise that clears
-    a carry-over shape shrinks it to the empty (converged-with-residual) fixed point; a
-    revise-introduced regression still gates."""
-    carried = {"tic-003"}
-    prior = {"tic-003", "tic-009"}
+def test_autopilot_range_review_not_attributed_to_first_chapter(tmp_path, monkeypatch):
+    """Review-fix #1: a range review (`/authorkit.review 1-2`) is dispatched as-is — never
+    converted to a single-chapter revise — and is not recorded against CH01's sidecar, even
+    when CH01's standing review is current + NEEDS_REVISION (which WOULD convert a single review)."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    _seed_chapter_review(book_dir, 1, draft="v0", review_verdict="NEEDS REVISION", status_line="[R] CH01 A - a")
+    (book_dir / "chapters.md").write_text("# Chapters\n\n- [R] CH01 A - a\n- [R] CH02 B - b\n", encoding="utf-8")
+    before = json.loads((book_dir / "runs" / "review-index.json").read_text(encoding="utf-8"))
 
-    # Fixed draft, blind discovery surfaces a DIFFERENT 1-instance residual each cycle.
-    g1 = autopilot_core.gating_findings(carried, {"tic-003": 3, "blind-a": 1}, prior=prior)
-    g2 = autopilot_core.gating_findings(carried, {"tic-003": 3, "blind-b": 1}, prior=prior)
+    rng = autopilot_core.Directive(action="review", chapter=None, command="/authorkit.review 1-2", reason="drift")
+    fake = autopilot_runner.FakeRunner([rng])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched == ["/authorkit.review 1-2"]  # dispatched as-is, not converted
+
+    entry = json.loads((book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert entry["chapter"] is None and entry["action"] == "review"
+    after = json.loads((book_dir / "runs" / "review-index.json").read_text(encoding="utf-8"))
+    assert after["CH01"]["draft_sha"] == before["CH01"]["draft_sha"]  # not re-stamped by the range pass
+
+
+def test_gating_findings_convergence():
+    """Bug 2 spec: the gate set is exactly {shapes >= budget}; below-budget residuals never
+    gate; a revise that drops a shape below budget shrinks it to the converged-with-residual
+    fixed point; a revise that worsens a tolerated shape past budget re-gates it (soundness)."""
+    # Fixed draft, blind discovery surfaces a DIFFERENT below-budget residual each cycle.
+    g1 = autopilot_core.gating_findings({"tic-003": 3, "blind-a": 1})
+    g2 = autopilot_core.gating_findings({"tic-003": 3, "blind-b": 1})
     assert g1 == g2 == {"tic-003"}  # stable, non-growing — the residuals never gate
     assert autopilot_core.gating_set_converging(g1, g2)
 
-    # A revise clears the carry-over shape → empty gating set (converged-with-residual).
-    g3 = autopilot_core.gating_findings(carried, {"tic-003": 0, "blind-c": 2}, prior=prior)
-    assert g3 == set()
-    assert autopilot_core.gating_set_converging(g1, g3) and g3 < g1  # strictly shrank
+    # A revise brings the shape below budget → empty gating set (converged-with-residual).
+    g3 = autopilot_core.gating_findings({"tic-003": 0, "blind-c": 2})
+    assert g3 == set() and g3 < g1  # strictly shrank
 
-    # A revise-INTRODUCED rampant shape (absent last review) still gates — no free pass.
-    g4 = autopilot_core.gating_findings(carried, {"tic-003": 0, "new-bad": 4}, prior=prior)
-    assert g4 == {"new-bad"}
+    # A revise that WORSENS a previously-tolerated shape (2 -> 4) past budget re-gates it.
+    g4 = autopilot_core.gating_findings({"tic-003": 0, "tic-050": 4})
+    assert g4 == {"tic-050"}
     assert autopilot_core.gating_set_converging({"a"}, {"a"}) is True
     assert autopilot_core.gating_set_converging({"a"}, {"a", "c"}) is False
 
 
 def test_gating_set_stable_across_repeated_reviews():
     """Bug 2 simulation: repeated reviews of a fixed draft return a stable, non-growing gating
-    set even as blind discovery injects a brand-new shape every cycle."""
-    carried = {"tic-003"}
-    prior = {"tic-003"}
+    set even as blind discovery injects a brand-new below-budget shape every cycle."""
     seen = [
-        frozenset(autopilot_core.gating_findings(carried, {"tic-003": 3, f"blind-{i}": 1}, prior=prior))
+        frozenset(autopilot_core.gating_findings({"tic-003": 3, f"blind-{i}": 1}))
         for i in range(6)
     ]
     assert all(s == seen[0] for s in seen)  # identical across every review
     assert all(autopilot_core.gating_set_converging(seen[0], s) for s in seen)  # never grows
+
+
+def test_command_chapter_ignores_ranges():
+    """A single-chapter command yields its number; a range/manuscript review yields None so it
+    is not misattributed to its first chapter (review-fix #1)."""
+    assert autopilot_core.command_chapter("/authorkit.review 7") == 7
+    assert autopilot_core.command_chapter("/authorkit.write 12 revise: fix voice") == 12
+    assert autopilot_core.command_chapter("/authorkit.review 5-10") is None
+    assert autopilot_core.command_chapter("/authorkit.review 5 - 10") is None
+    assert autopilot_core.command_chapter("/authorkit.review all") is None
+    assert autopilot_core.command_chapter(None) is None
+
+
+def test_parse_review_verdict_prefers_status_and_skips_template():
+    """The authoritative `## Verdict` Status line wins over a stale/templated Overall
+    Assessment header, and an unfilled `[PASS / NEEDS REVISION]` value is treated as unparsed
+    (review-fix #2)."""
+    # Header left as the literal template, Status correctly filled PASS → PASS (not churn).
+    body = (
+        "**Overall Assessment**: [PASS / NEEDS REVISION]\n\n"
+        "## Verdict\n**Status**: PASS - ready to move on\n"
+    )
+    assert autopilot_core.parse_review_verdict(body) == "PASS"
+    # A real NEEDS REVISION is still read.
+    assert autopilot_core.parse_review_verdict("**Status**: NEEDS REVISION - see issues\n") == "NEEDS_REVISION"
+    # Fully templated review → unparsed (None), so the guard won't wrongly convert.
+    assert autopilot_core.parse_review_verdict("**Overall Assessment**: [PASS / NEEDS REVISION]\n") is None
+
+
+def test_detect_reconcile_stall_arms():
+    """The stall detector trips on an identity-stuck gating set, tolerates a failed (gating-less)
+    review in the window, and honors the persisted cross-run cycle cap (review-fixes #3, #6)."""
+    def rv(shapes):
+        return {"command": "/authorkit.review 1", "chapter": 1, "action": "review", "gating_shapes": shapes}
+
+    def rz():  # a failed review — no gating_shapes recorded
+        return {"command": "/authorkit.review 1", "chapter": 1, "action": "review"}
+
+    # Strictly shrinking set → converging, does not trip.
+    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a"]), rv([])], 1) is False
+    # Same set every review → stuck, trips.
+    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "b"]), rv(["a", "b"])], 1) is True
+    # Same SIZE but churning identity (moving target) → no strict shrink, trips.
+    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "c"]), rv(["a", "d"])], 1) is True
+    # A trailing failed (gating-less) review is skipped, not read as a size-0 that MASKS the
+    # stall the three real stuck reviews establish.
+    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "b"]), rv(["a", "b"]), rz()], 1) is True
+    # ...and with only two real reviews (the third skipped), the window is not yet met.
+    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "b"]), rz()], 1) is False
+    # Cross-run cap: in-memory history is empty but the sidecar carried enough revises.
+    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=6) is True
+    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=5) is False
 
 
 def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, monkeypatch):

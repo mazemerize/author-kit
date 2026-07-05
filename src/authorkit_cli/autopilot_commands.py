@@ -15,7 +15,6 @@ Author:
 
 from __future__ import annotations
 
-import hashlib
 import re
 import subprocess
 from datetime import datetime
@@ -29,6 +28,7 @@ from .autopilot_core import (
     Directive,
     DirectiveError,
     all_chapters_approved,
+    bump_review_cycles,
     command_chapter,
     detect_command_churn,
     detect_no_progress,
@@ -40,6 +40,7 @@ from .autopilot_core import (
     log_tick,
     preflight,
     record_review,
+    review_cycles,
     review_state,
     write_escalation,
 )
@@ -208,9 +209,8 @@ def _content_fingerprint(book_dir: Path) -> tuple:
         return ()
     items: list[tuple] = []
     for artifact in sorted(chapters.glob("*/draft.md")) + sorted(chapters.glob("*/review.md")):
-        try:
-            digest = hashlib.md5(artifact.read_bytes()).hexdigest()
-        except OSError:
+        digest = file_md5(artifact)  # shared with the review-index sidecar so both agree on "changed"
+        if digest is None:
             continue
         items.append((artifact.parent.name, artifact.name, digest))
     return tuple(items)
@@ -575,13 +575,18 @@ def _run_autopilot(
 
         # After a real review, record the reviewed-draft hash + verdict in the sidecar (so a
         # later re-review of the unchanged draft is recognized as a no-op) and log the
-        # gating-shape set (so a re-opening tic gate is detectable in autopilot.jsonl).
+        # gating-shape set (so a re-opening tic gate is detectable in autopilot.jsonl). After a
+        # revise, bump the persisted reconcile-cycle count so the stall cap survives re-runs.
+        # Range/manuscript reviews have chapter=None and are skipped (not attributable to one).
         gating_shapes: list[str] | None = None
-        if result.ok and directive.action == "review" and chapter is not None:
-            draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
-            state_after = review_state(book_dir, chapter)
-            record_review(book_dir, chapter, draft_sha=file_md5(draft_path), verdict=state_after.verdict)
-            gating_shapes = list(state_after.gating_shapes)
+        if result.ok and chapter is not None:
+            if directive.action == "review":
+                draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
+                state_after = review_state(book_dir, chapter)
+                record_review(book_dir, chapter, draft_sha=file_md5(draft_path), verdict=state_after.verdict)
+                gating_shapes = list(state_after.gating_shapes)
+            elif directive.action == "revise":
+                bump_review_cycles(book_dir, chapter)
 
         entry: dict = {
             "tick": tick,
@@ -608,7 +613,9 @@ def _run_autopilot(
         # gating set stops shrinking is a genuine quality-stall — escalate to the author
         # rather than churn to MAX_TICKS. Common cases converge autonomously via the review's
         # carry-over gating rule; this fires only when the reviser cannot self-resolve.
-        if mode == "chapters" and chapter is not None and detect_reconcile_stall(history, chapter):
+        if mode == "chapters" and chapter is not None and detect_reconcile_stall(
+            history, chapter, persisted_cycles=review_cycles(book_dir, chapter)
+        ):
             path = _write_quality_stall_escalation(book_dir, chapter)
             console.print(
                 f"[yellow]Escalation:[/yellow] CH{chapter:02d} not converging — wrote {path.name} "
