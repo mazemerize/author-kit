@@ -84,6 +84,7 @@ Triggered by `N style` / `style N` (or a chapter plus "style" / "voice" / "fidel
 
    ## Verdict
    **Status**: [STYLE PASS / NEEDS STYLE REVISION]
+   **Gating Shapes**: [Pass-2 carry-over set gating this style pass, or `none` — same rule as the full review, within this file's own review lineage]
    ```
 
 4. **Status & report**: NEEDS STYLE REVISION → set `[D] → [R]` (the revise step addresses voice); STYLE PASS → leave status unchanged (a clean style pass does not approve the chapter — the full craft review does). Report the verdict, the top drift findings, and the next step: PASS → `/authorkit.review N` (full craft) or `/authorkit.write N+1`; NEEDS → `/authorkit.write N revise: <the style fixes>`.
@@ -138,7 +139,7 @@ passes sequentially in-context against the **same** roster, emitting the **same*
 
 #### Pass 1 — Style Fidelity (gating)
 
-The dedicated style pass, and the whole of the focused `/authorkit.review N style` mode. A chapter that has drifted from the voice origin, or carries a recurring non-waived tic shape (Pass 2), is **automatically NEEDS REVISION** — not approved while it is out of voice, however well it scores elsewhere.
+The dedicated style pass, and the whole of the focused `/authorkit.review N style` mode. A chapter that has drifted from the voice origin, or carries a **Pass-2 gating** tic shape (a carry-over shape still over budget, or a revise-introduced regression — per Pass 2's carry-over rule; a freshly-discovered non-gating residual shape does **not** count here, so Pass 1 never re-opens the tic gate Pass 2 just closed), is **automatically NEEDS REVISION** — not approved while it is out of voice, however well it scores elsewhere.
 
 - **Voice fidelity vs origin (global)**: compare the chapter's *global* voice — POV, narrative distance, sentence rhythm, diction/register, imagery — against the **fixed origin** (constitution + concept voice/tone + the resolved origin: the `## Voice Origin` pin/excerpts if set, else the earliest approved chapters), not merely against the style anchor or the previous chapter. Flag drift from the origin even when the chapter reads as locally consistent with its neighbors. Character/scene/arc *texture* (a POV character's cadence, an arc's register) is matched against the earliest-relevant exemplar and assessed under Pass 4, not here. Distinguish *unsanctioned* drift (a finding, at least Important; Critical if it is also a constitution violation) from *constitution-sanctioned* evolution (not a finding). Quote the specific lines that diverge.
 - **Style-anchor alignment**: does the chapter align with `book/style-anchor.md` on cadence, diction/register, imagery density, and dialogue profile? The anchor is a derived view of the origin — where they disagree, the origin wins.
@@ -153,10 +154,16 @@ The self-learning tic pass (see the shared guardrails' *Tic Ledger & Voice Pairs
 - **Step B — ledger reconciliation** (the parent, holding the ledger): merge Step A's discoveries into `book/tic-ledger.md` — increment trends on recurring entries; create new `TIC-NNN` entries (book quote + origin counter-example) for new shapes; tick the decay counter on active entries Step A did not see (active → dormant after 1 clean chapter, dormant → retired after 2 more; unconfirmed `seed` entries retire after 2 reviews; a rediscovered retired shape reactivates with its history). Then run **one targeted sweep** of the draft for still-active ledger entries Step A missed — a shape appearing only once this chapter still ticks its trend. Write the updated ledger back to `book/tic-ledger.md`.
 - **Constitution waivers**: check `.authorkit/memory/constitution.md` (and the style anchor's **Avoid** / **Imagery Density** sections) for explicitly named patterns — by example or description; a vague "literary register" line is not a waiver. Record the waiver on the matching ledger entry's `Waiver:` field, note active waivers at the top of the review, and report (never flag) waived shapes. A constitution that bans a shape outright is binding regardless of trend.
 - **Findings**: every non-waived discovered/recurring shape becomes a finding with: TIC id (or "new"), instance count, citations for each instance, and a one-line rewrite grounded in the origin counter-example (the fix is what the origin does for the same job — never a rewrite that introduces another ledger shape).
-- **Severity mapping** (density- and trend-based, gating):
+- **Severity mapping** (density- and trend-based — this is what makes a shape *over budget*, i.e. gating-eligible):
   - A shape recurring **≥3 times** in this chapter, or an **active ledger entry with a rising trend** (more instances than the previous reviewed chapter) → **Critical**
   - A shape with **2 instances**, or a recurring active entry holding steady → **Important**
   - A **single instance** of an active ledger entry → **Minor**
+- **Gating & convergence (carry-over rule — this is what makes the loop terminate).** Blind Step A always runs and always *discovers* (it keeps the ledger learning), but discovery must not re-open the gate every cycle. Distinguish the chapter's **gating set** from mere discovery:
+  - **First review of a chapter**: the over-budget (Critical) shapes Step A surfaces *are* this chapter's gating set. Record them verbatim in the review's `**Gating Shapes**:` line (below).
+  - **Re-review of a chapter** (a prior `chapters/NN/review.md` exists): read the prior review's `**Gating Shapes**:` line. Gate on the **carry-over set** only — the prior gating shapes that are *still* over budget in this draft — **plus regressions**: a shape now over budget that the prior review did **not** gate (a rampant tic the last revise introduced; these still gate, so a revise can never trade one gating shape for another and pass). A carry-over shape drops off the gate as soon as revise brings it within budget.
+  - **Freshly-discovered, non-regression shapes** (present now, not on the carry-over set, not over-budget-and-new) are **non-gating residual/seeds**: still write them to `book/tic-ledger.md` (Step B) and report them, and carry them as candidates for the *next* chapter's first-review gating set — but they do **not** block this chapter. This is what stops the blind pass from finding "one more shape" forever.
+  - **Converged-with-residual → PASS Pass 2**: when the carry-over set is empty (every previously-gating shape is now within budget) and no regression is present, Pass 2 **passes**, even if Step A surfaced new residual shapes this cycle. Note it in the review ("converged-with-residual: <residual shapes seeded forward>"). For a fixed draft this makes the gating set stable and non-growing across repeated reviews, and each applied revise strictly shrinks it — a guaranteed fixed point.
+  - **Record the decision**: in the `## Verdict` block, write `**Gating Shapes**: <comma-separated TIC ids / new-shape labels that gate THIS review>` (or `none`). This is the carry-over set the next re-review consumes and the machine-readable convergence signal the AutoPilot loop watches.
 
 #### Pass 3 — In-Chapter Logical Consistency
 
@@ -243,6 +250,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 ## Verdict
 
 **Status**: [PASS - ready to move on / NEEDS REVISION - see critical issues]
+**Gating Shapes**: [comma-separated TIC ids / new-shape labels gating this review — the carry-over set the next re-review consumes — or `none` (Pass 2 gate clear / converged-with-residual)]
 
 **Next Steps**:
 - [Specific action items if revision needed]
@@ -251,7 +259,7 @@ Write the review to `BOOK_DIR/chapters/NN/review.md`:
 
 ### Update chapter status
 
-- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`. PASS **requires the gating passes (1 Style Fidelity and 2 AI-Tic Audit) to pass**, and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)** — never approve a chapter that drifted from the voice origin, carries a recurring non-waived tic shape or a rising active ledger entry, contradicts an established quantity/fact, or spoils a later reveal, however well it scores elsewhere.
+- **PASS**: change status `[D] → [X]` (approved) in `chapters.md`. PASS **requires the gating passes (1 Style Fidelity and 2 AI-Tic Audit) to pass**, and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)** — never approve a chapter that drifted from the voice origin, carries a **Pass-2 gating tic shape** (an unfixed carry-over shape or a revise-introduced regression — `**Gating Shapes**: none` is required; freshly-discovered non-gating residual is seeded forward, not a blocker), contradicts an established quantity/fact, or spoils a later reveal, however well it scores elsewhere.
 - **NEEDS REVISION**: change `[D] → [R]` (reviewed, needs work)
 
 ### Report
@@ -595,7 +603,7 @@ For an input like `5-10` or `chapters 5-10`:
 - **Anchor to the origin, not the neighbors**: grade *global* voice against the fixed origin (constitution + concept voice/tone + the pinned-or-earliest approved chapters); match *character/scene texture* to the earliest **relevant** approved chapter. "Consistent with the last chapter" never establishes that something is correct — recent chapters may already have drifted.
 - **Prioritize ruthlessly**: one critical + three minor issues → critical first.
 - **Grade fairly**: A = exceptional, B = solid, C = adequate, D = needs significant work.
-- **PASS threshold**: no critical issues, no more than 2 important issues, the gating passes (1 Style Fidelity and 2 AI-Tic Audit) are B or above (no significant *unsanctioned* drift from the origin, no recurring non-waived tic shape and no rising active ledger entry), and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)**.
+- **PASS threshold**: no critical issues, no more than 2 important issues, the gating passes (1 Style Fidelity and 2 AI-Tic Audit) are B or above (no significant *unsanctioned* drift from the origin, and Pass 2's gate is clear — `**Gating Shapes**: none`: no carry-over shape still over budget and no revise-introduced regression; freshly-discovered non-gating residual is seeded forward, not a blocker), and **no unresolved logical/quantitative contradiction (Pass 3/4) and no premature-disclosure leak (Pass 5)**.
 - **Reviews are gated**: a chapter review writes only `chapters/NN/review.md` and updates the chapter row in `chapters.md`. A manuscript drift run writes nothing unless the author approves drift fixes — and those fixes touch only upstream planning artifacts (concept / outline / chapters.md / world), never chapter drafts. Consolidation fixes (1e/1f) additionally write a pre-consolidate snapshot before applying.
 - **Cap manuscript findings at 50** to keep reports actionable.
 - **Use absolute paths.**

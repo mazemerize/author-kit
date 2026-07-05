@@ -2468,6 +2468,195 @@ def test_autopilot_loop_health_oscillation_escalates(tmp_path, monkeypatch):
     assert "loop-health" in records[0].read_text(encoding="utf-8")
 
 
+# --- Review-currency gate & tic-gate convergence (Bug 1 + Bug 2) --------------
+
+
+def _seed_chapter_review(book_dir, n, *, draft, review_verdict, gating="none", status_line, record_sha=True):
+    """Create chapters/NN/{draft,review}.md, set CH0N's chapters.md row, and (optionally)
+    the review-index sidecar so ``review_state`` sees the review as current for the draft."""
+    chap = book_dir / "chapters" / f"{n:02d}"
+    chap.mkdir(parents=True, exist_ok=True)
+    draft_path = chap / "draft.md"
+    draft_path.write_text(draft, encoding="utf-8")
+    (chap / "review.md").write_text(
+        f"# Chapter Review: Chapter {n:02d}\n\n**Overall Assessment**: {review_verdict}\n\n"
+        f"## Verdict\n**Status**: {review_verdict}\n**Gating Shapes**: {gating}\n",
+        encoding="utf-8",
+    )
+    (book_dir / "chapters.md").write_text(f"# Chapters\n\n- {status_line}\n", encoding="utf-8")
+    if record_sha:
+        verdict = "NEEDS_REVISION" if "NEEDS" in review_verdict.upper() else "PASS"
+        autopilot_core.write_review_index(
+            book_dir, {f"CH{n:02d}": {"draft_sha": autopilot_core.file_md5(draft_path), "verdict": verdict}}
+        )
+    return draft_path
+
+
+def _flip_status(book_dir, old, new):
+    path = book_dir / "chapters.md"
+    path.write_text(path.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
+
+
+def test_review_state_currency(tmp_path):
+    """review_state is `current` only while the sidecar hash matches the draft on disk."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="v0", review_verdict="NEEDS REVISION", status_line="[R] CH01 X - first"
+    )
+
+    state = autopilot_core.review_state(book_dir, 1)
+    assert state.exists and state.current and state.verdict == "NEEDS_REVISION"
+
+    # Draft changes (a revise) → the standing review is stale, so not a no-op anymore.
+    draft_path.write_text("v1", encoding="utf-8")
+    assert autopilot_core.review_state(book_dir, 1).current is False
+
+    # No sidecar entry (e.g. a hand-run review) degrades safely to not-current.
+    autopilot_core.write_review_index(book_dir, {})
+    assert autopilot_core.review_state(book_dir, 1).current is False
+
+    # No review at all.
+    assert autopilot_core.review_state(book_dir, 2).exists is False
+
+
+def test_autopilot_converts_noop_review_to_revise(tmp_path, monkeypatch):
+    """Bug 1: a stubborn planner asking to re-review an unchanged NEEDS-REVISION draft is
+    converted to the prescribed revise — never two identical reviews in a row — and the loop
+    still terminates (does not run to MAX_TICKS)."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="draft v0", review_verdict="NEEDS REVISION", status_line="[R] CH01 X - first"
+    )
+    review_path = book_dir / "chapters" / "01" / "review.md"
+
+    def on_command(cmd):
+        if "revise" in cmd:  # mutate the draft (so the next review is real) and re-draft
+            draft_path.write_text("draft v1", encoding="utf-8")
+            _flip_status(book_dir, "[R] CH01", "[D] CH01")
+        elif "/authorkit.review" in cmd:  # a real review this time: approve to terminate
+            review_path.write_text(
+                "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
+                "**Status**: PASS\n**Gating Shapes**: none\n",
+                encoding="utf-8",
+            )
+            _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="stub")
+    fake = autopilot_runner.FakeRunner([review, review, review, review], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "done" in result.output.lower()
+
+    # First dispatch was the CONVERTED revise, not a re-review of the current draft.
+    assert fake.dispatched[0].startswith("/authorkit.write 1 revise")
+    assert fake.dispatched[1] == "/authorkit.review 1"
+    # No two consecutive identical review commands ever slipped through.
+    for a, b in zip(fake.dispatched, fake.dispatched[1:]):
+        assert not (a == b == "/authorkit.review 1")
+
+    # The conversion is visible in autopilot.jsonl (planner asked review, harness ran revise).
+    log_lines = (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+    first = json.loads(log_lines[0])
+    assert first["planner_action"] == "review" and first["action"] == "revise" and first["chapter"] == 1
+
+
+def test_autopilot_reviews_when_draft_changed_since_review(tmp_path, monkeypatch):
+    """Bug 1 negative: when the draft changed since the last review (sidecar stale), the guard
+    dispatches a real review — it does not convert."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="v0", review_verdict="NEEDS REVISION", status_line="[D] CH01 X - first"
+    )
+    draft_path.write_text("v1 — edited since review", encoding="utf-8")  # sidecar now stale
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="real")
+    fake = autopilot_runner.FakeRunner([review])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched == ["/authorkit.review 1"]  # not converted
+
+
+def test_gating_findings_convergence():
+    """Bug 2 spec: for a fixed draft the gating set is stable/non-growing; a revise that clears
+    a carry-over shape shrinks it to the empty (converged-with-residual) fixed point; a
+    revise-introduced regression still gates."""
+    carried = {"tic-003"}
+    prior = {"tic-003", "tic-009"}
+
+    # Fixed draft, blind discovery surfaces a DIFFERENT 1-instance residual each cycle.
+    g1 = autopilot_core.gating_findings(carried, {"tic-003": 3, "blind-a": 1}, prior=prior)
+    g2 = autopilot_core.gating_findings(carried, {"tic-003": 3, "blind-b": 1}, prior=prior)
+    assert g1 == g2 == {"tic-003"}  # stable, non-growing — the residuals never gate
+    assert autopilot_core.gating_set_converging(g1, g2)
+
+    # A revise clears the carry-over shape → empty gating set (converged-with-residual).
+    g3 = autopilot_core.gating_findings(carried, {"tic-003": 0, "blind-c": 2}, prior=prior)
+    assert g3 == set()
+    assert autopilot_core.gating_set_converging(g1, g3) and g3 < g1  # strictly shrank
+
+    # A revise-INTRODUCED rampant shape (absent last review) still gates — no free pass.
+    g4 = autopilot_core.gating_findings(carried, {"tic-003": 0, "new-bad": 4}, prior=prior)
+    assert g4 == {"new-bad"}
+    assert autopilot_core.gating_set_converging({"a"}, {"a"}) is True
+    assert autopilot_core.gating_set_converging({"a"}, {"a", "c"}) is False
+
+
+def test_gating_set_stable_across_repeated_reviews():
+    """Bug 2 simulation: repeated reviews of a fixed draft return a stable, non-growing gating
+    set even as blind discovery injects a brand-new shape every cycle."""
+    carried = {"tic-003"}
+    prior = {"tic-003"}
+    seen = [
+        frozenset(autopilot_core.gating_findings(carried, {"tic-003": 3, f"blind-{i}": 1}, prior=prior))
+        for i in range(6)
+    ]
+    assert all(s == seen[0] for s in seen)  # identical across every review
+    assert all(autopilot_core.gating_set_converging(seen[0], s) for s in seen)  # never grows
+
+
+def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, monkeypatch):
+    """Bug 2 backstop: a chapter whose gating set never shrinks across reviews escalates a
+    quality-stall (human override) instead of churning to MAX_TICKS."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="draft v0", review_verdict="NEEDS REVISION",
+        gating="tic-003, tic-009", status_line="[R] CH01 X - first",
+    )
+    review_path = book_dir / "chapters" / "01" / "review.md"
+    counter = {"n": 0}
+
+    def on_command(cmd):
+        if "revise" in cmd:  # edits the draft but never fixes the tics
+            counter["n"] += 1
+            draft_path.write_text(f"draft v{counter['n']}", encoding="utf-8")
+            _flip_status(book_dir, "[R] CH01", "[D] CH01")
+        elif "/authorkit.review" in cmd:  # same two shapes gate every time — no progress
+            review_path.write_text(
+                "# Review\n\n**Overall Assessment**: NEEDS REVISION\n\n## Verdict\n"
+                "**Status**: NEEDS REVISION\n**Gating Shapes**: tic-003, tic-009\n",
+                encoding="utf-8",
+            )
+            _flip_status(book_dir, "[D] CH01", "[R] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="stuck")
+    fake = autopilot_runner.FakeRunner([review] * 30, on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "quality-stall" in result.output.lower() or "not converging" in result.output.lower()
+
+    records = list((book_dir / "escalations").glob("*.md"))
+    assert len(records) == 1
+    assert "quality-stall" in records[0].read_text(encoding="utf-8")
+    # Bounded: it stopped well short of the MAX_TICKS backstop.
+    assert len(fake.dispatched) < 20
+
+
 def test_autopilot_kill_switch_halts(tmp_path, monkeypatch):
     """A book/runs/STOP sentinel halts the loop before any dispatch."""
     book_dir = _seed_autopilot_book(tmp_path)

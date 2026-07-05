@@ -52,7 +52,11 @@ Return **only** a JSON object (no prose, fences optional):
 
 1. Read the inputs: the mode brief, the status JSON (the `chapter_statuses` map, drift flags,
    open parked decisions, open escalations, world counts), and — in plot mode — the read-only
-   plan-layer context (concept, outline, world index, research index).
+   plan-layer context (concept, outline, world index, research index). In **chapters mode** the
+   status JSON also carries a `chapter_reviews` map: for each chapter that has a review, its
+   `current` (does the standing `review.md` already cover the *current* draft, or has the draft
+   changed since?) and `verdict` (`PASS` / `NEEDS_REVISION`). Use it so you never re-dispatch a
+   review that would be a pure no-op.
 
 2. **plot mode** — book-level scaffolding only; **never touch `chapters/NN/`** (no chapter
    plans, no drafts — that is chapters mode). Pick the highest applicable step:
@@ -73,10 +77,19 @@ Return **only** a JSON object (no prose, fences optional):
    - `[ ]` pending, no plan → `/authorkit.write N plan` (plan only). Use `research` first only
      when the chapter needs grounding you lack (`/authorkit.research "for chapter N, ..."`).
    - `[P]` planned, no draft → `/authorkit.write N` (draft).
-   - `[D]` drafted → `/authorkit.review N`.
+   - `[D]` drafted → `/authorkit.review N` — **but first check `chapter_reviews["N"]`.** If it is
+     `current: true` with `verdict: "NEEDS_REVISION"`, the standing review already covers this
+     exact draft, so re-reviewing is a no-op: dispatch its prescribed revise
+     (`/authorkit.write N revise: <the review's issues>`) instead. Only dispatch
+     `/authorkit.review N` when the chapter has no review yet or the draft changed since the last
+     one (`chapter_reviews["N"]` absent or `current: false`).
    - `[R]` needs revision → `/authorkit.write N revise: <the review's issues>`.
    - All in-range chapters `[X]` → `done`. Periodically (a part finished, or several chapters
      approved) prefer a range review first: `/authorkit.review A-B` for cross-chapter drift.
+
+   (The harness enforces this too: it converts a no-op review into the prescribed revise, and
+   if a chapter burns the review/revise reconciliation cap without converging to `[X]` it
+   escalates `quality-stall` for you — so choose the productive step, don't spin on review.)
 
 4. **Escalate** instead of acting when a decision is the author's: the story's direction is
    unsettled or the outline is exhausted; a draft contradicts a `(CONCEPT)` / `(CHxx)` fact;

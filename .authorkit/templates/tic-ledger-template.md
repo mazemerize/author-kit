@@ -13,6 +13,13 @@
      REVIEW-SIDE ONLY. Drafting commands never load this file — tic knowledge
      reaches generation exclusively as contrastive pairs in book/voice-pairs.md.
 
+     DISCOVERY vs GATING. Entries here are the unbounded discovery log — the blind
+     pass keeps adding shapes it finds. What GATES a given chapter is narrower and
+     convergent: on a re-review only the prior review's still-over-budget gating
+     shapes (plus a revise-introduced regression) gate; freshly-discovered shapes are
+     recorded here as non-gating residual/seeds and carried to the next chapter. See
+     /authorkit.review Pass 2 (carry-over rule) and each review's **Gating Shapes** line.
+
      Lifecycle (review updates Status on every pass):
      - seed     — bootstrap hypothesis from the catalog; retire if unconfirmed
                   after 2 reviews.

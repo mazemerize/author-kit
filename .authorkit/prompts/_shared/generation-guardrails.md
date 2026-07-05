@@ -187,9 +187,15 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
 2. **AI-Tic Audit** *(gating)* — self-learning tic discovery & contrast: a blind pass over
    the draft against the fixed origin prose (no list in hand) discovers recurring
    constructions the origin never uses, then reconciles them into `book/tic-ledger.md`
-   (trends, decay, new entries); gating on a recurring discovered shape (≥3 instances) or
-   a recurring active ledger entry. Constitution waivers honored via the ledger. (See Tic
-   Ledger & Voice Pairs.)
+   (trends, decay, new entries). **Discovery is unbounded; gating is convergent (carry-over
+   rule).** A shape is over budget (Critical) at ≥3 instances or on a rising active ledger
+   entry — but on a *re-review* only the prior review's still-over-budget gating shapes gate,
+   plus any regression the last revise introduced; freshly-discovered non-regression shapes
+   are logged and reported as non-gating residual/seeds, not blockers, so the blind pass can
+   keep finding new tics without re-opening the gate every cycle. The gate clears
+   (converged-with-residual) when the carry-over set is empty; the review records it as
+   `**Gating Shapes**:`. Constitution waivers honored via the ledger. (See Tic Ledger & Voice
+   Pairs and `/authorkit.review` Pass 2 for the full rule.)
 3. **In-Chapter Logical Consistency** — *within the one chapter*: quantities/counts/ages/
    dates/durations/distances/ordinals internally consistent and arithmetically sound;
    per-scene headcount and physical possibility within the established geometry; a character
