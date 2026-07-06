@@ -56,7 +56,7 @@ GATING_BUDGET = 3
 # healthy reconciliation converges in 2-3; a genuinely non-converging chapter is usually
 # caught much earlier by the diminishing-returns arm (no gating-set shrink across 3
 # reviews), so this cap is a generous cross-run backstop, not the primary detector.
-MAX_REVIEW_CYCLES_PER_CHAPTER = 12
+MAX_REVIEW_CYCLES_PER_CHAPTER = 20
 
 
 class DirectiveError(ValueError):
