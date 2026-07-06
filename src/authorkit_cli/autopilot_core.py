@@ -53,8 +53,10 @@ REVIEW_INDEX_NAME = "review-index.json"
 GATING_BUDGET = 3
 # How many review/revise reconciliation round-trips a single chapter may burn before the
 # loop escalates a `quality-stall` (human override) rather than churning to MAX_TICKS. A
-# healthy reconciliation converges in 2-3; the pathological runs observed ran 8.
-MAX_REVIEW_CYCLES_PER_CHAPTER = 6
+# healthy reconciliation converges in 2-3; a genuinely non-converging chapter is usually
+# caught much earlier by the diminishing-returns arm (no gating-set shrink across 3
+# reviews), so this cap is a generous cross-run backstop, not the primary detector.
+MAX_REVIEW_CYCLES_PER_CHAPTER = 12
 
 
 class DirectiveError(ValueError):

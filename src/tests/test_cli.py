@@ -2708,8 +2708,9 @@ def test_detect_reconcile_stall_arms():
     # ...and with only two real reviews (the third skipped), the window is not yet met.
     assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "b"]), rz()], 1) is False
     # Cross-run cap: in-memory history is empty but the sidecar carried enough revises.
-    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=6) is True
-    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=5) is False
+    cap = autopilot_core.MAX_REVIEW_CYCLES_PER_CHAPTER
+    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=cap) is True
+    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=cap - 1) is False
 
 
 def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, monkeypatch):
