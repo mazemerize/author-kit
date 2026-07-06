@@ -3773,6 +3773,27 @@ def test_write_prompt_quarantines_tic_lists_and_conditions_on_voice():
     assert "whole-draft style match" in write
 
 
+def test_revise_reanchors_repeat_offenders_on_origin_counter_example():
+    """Revise loads the tic ledger (revision is not quarantined — only drafting is) and,
+    for a carry-over gating shape (a failed prior fix, whose harvested voice pair is the
+    rewrite that didn't hold), re-anchors on the ledger's origin counter-example instead
+    of retrying a variant of that pair."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    revise = write.split("## Mode: Revise", 1)[1].split("## Mode: Passage Help", 1)[0]
+    assert "book/tic-ledger.md" in revise  # Load Context cites the ledger explicitly
+    assert "Repeat offenders" in revise
+    assert "carry-over" in revise
+    assert "origin counter-example" in revise
+    assert "replaces" in revise  # the new pair replaces the stale (failed) one
+    # The shared roster stays in sync: guardrails name the re-anchoring obligation.
+    guardrails = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"
+    ).read_text(encoding="utf-8")
+    assert "failed prior fix" in guardrails
+    assert "origin counter-example" in guardrails
+
+
 def test_review_pass2_is_blind_discovery_with_ledger_reconciliation():
     """Pass 2 discovers tics by blind contrast against the origin and maintains
     book/tic-ledger.md (bootstrapped from the seed catalog on first run)."""

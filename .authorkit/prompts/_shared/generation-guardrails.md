@@ -199,7 +199,10 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
    are logged and reported as non-gating residual/seeds, not blockers, so the blind pass can
    keep finding new tics without re-opening the gate every cycle. The gate clears
    (converged-with-residual) when the carry-over set is empty; the review records it as
-   `**Gating Shapes**:`. Constitution waivers honored via the ledger. (See Tic Ledger & Voice
+   `**Gating Shapes**:`. Constitution waivers honored via the ledger. On a re-review, Revise
+   treats each carry-over gating shape as a *failed prior fix* — its harvested voice pair is
+   the rewrite that didn't hold — and re-anchors on the ledger entry's origin counter-example
+   instead of retrying a variant of that pair. (See Tic Ledger & Voice
    Pairs and `/authorkit.review` Pass 2 for the full rule.)
 3. **In-Chapter Logical Consistency** — *within the one chapter*: quantities/counts/ages/
    dates/durations/distances/ordinals internally consistent and arithmetically sound;
