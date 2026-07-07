@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -51,12 +52,14 @@ REVIEW_INDEX_NAME = "review-index.json"
 # Critical / gating threshold). Mirrors the review prompt's default; individual ledger
 # entries may carry a stricter budget (0 = flag on sight) or a per-1,000-words one.
 GATING_BUDGET = 3
-# How many review/revise reconciliation round-trips a single chapter may burn before the
-# loop escalates a `quality-stall` (human override) rather than churning to MAX_TICKS. A
-# healthy reconciliation converges in 2-3; a genuinely non-converging chapter is usually
-# caught much earlier by the diminishing-returns arm (no gating-set shrink across 3
-# reviews), so this cap is a generous cross-run backstop, not the primary detector.
-MAX_REVIEW_CYCLES_PER_CHAPTER = 20
+# How many reviews a chapter may go WITHOUT its gating tic-set reaching a new minimum
+# before the loop escalates a `quality-stall` (human override). This is the single
+# reconciliation-progress knob: the sidecar tracks the smallest gating set ever reached
+# (a ratchet — it only decreases), so genuine progress keeps resetting the counter and
+# only true non-improvement accrues it. Because the signal is persisted, it bounds effort
+# across restarts too, replacing the old separate cross-run cycle cap. A healthy
+# reconciliation converges in 2-3; MAX_TICKS remains the unrelated per-process ceiling.
+RECONCILE_STALL_LIMIT = 5
 
 
 class DirectiveError(ValueError):
@@ -354,14 +357,37 @@ def write_escalation(
     return path
 
 
+def _needs_leading_newline(log_path: Path) -> bool:
+    """True when the log exists, is non-empty, and its last byte isn't ``\\n`` — a prior
+    record left unterminated by a crash or an interleaved concurrent write. Prepending a
+    newline then keeps every record on its own line for a naive line-by-line parser."""
+    try:
+        if log_path.stat().st_size == 0:
+            return False
+        with log_path.open("rb") as handle:
+            handle.seek(-1, os.SEEK_END)
+            return handle.read(1) != b"\n"
+    except OSError:
+        return False
+
+
 def log_tick(book_dir: Path, record: dict) -> Path:
-    """Append a per-tick record (JSONL) to ``book/runs/autopilot.jsonl``."""
+    """Append a per-tick (or terminal-outcome) record as one JSONL line to
+    ``book/runs/autopilot.jsonl``, guaranteeing it starts on a fresh line."""
     runs_dir = book_dir / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
     log_path = runs_dir / "autopilot.jsonl"
+    prefix = "\n" if _needs_leading_newline(log_path) else ""
     with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        handle.write(prefix + json.dumps(record, ensure_ascii=False) + "\n")
     return log_path
+
+
+def log_outcome(book_dir: Path, run_id: str, tick: int, outcome: str, **fields) -> Path:
+    """Log a terminal run outcome (``done``/``escalate``/``loop-health``/``quality-stall``/…)
+    to ``autopilot.jsonl`` so the log alone explains why a run ended — dispatched ticks alone
+    never recorded the ending."""
+    return log_tick(book_dir, {"run": run_id, "tick": tick, "outcome": outcome, **fields})
 
 
 def kill_switch_present(book_dir: Path) -> bool:
@@ -391,7 +417,7 @@ def detect_command_churn(history: list[dict], window: int = 4) -> bool:
     byte-identically, so the ``status_changed``-keyed detectors above can never
     fire. A healthy sweep advances to a different chapter — a different
     command — each tick, and a healthy review→revise reconciliation interleaves
-    revise ticks (and is bounded by ``detect_reconcile_stall``), so an all-review
+    revise ticks (and is bounded by ``reconcile_stalled``), so an all-review
     window alternating between two commands is unproductive churn, however much
     the bytes move.
     """
@@ -572,7 +598,9 @@ def _review_index_path(book_dir: Path) -> Path:
 
 
 def read_review_index(book_dir: Path) -> dict:
-    """Load the review-index sidecar (chapter key -> {draft_sha, verdict, cycles}); ``{}`` on any error."""
+    """Load the review-index sidecar (chapter key -> {draft_sha, verdict, and the
+    reconciliation-progress signal: best_gate_size / reviews_since_improvement / last_gate});
+    ``{}`` on any error."""
     try:
         data = json.loads(_review_index_path(book_dir).read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
@@ -595,43 +623,59 @@ def _index_entry(index: dict, chapter: int) -> dict:
     return dict(entry) if isinstance(entry, dict) else {}
 
 
-def record_review(book_dir: Path, chapter: int, *, draft_sha: str | None, verdict: str | None) -> None:
+def _clear_reconcile_signal(entry: dict) -> None:
+    """Reset the reconciliation-progress signal — a converged chapter starts fresh if it is
+    later re-opened. Removes the fields rather than zeroing so a fresh entry has no residue."""
+    entry.pop("best_gate_size", None)
+    entry.pop("reviews_since_improvement", None)
+    entry.pop("last_gate", None)
+
+
+def record_review(
+    book_dir: Path,
+    chapter: int,
+    *,
+    draft_sha: str | None,
+    verdict: str | None,
+    gating_shapes: tuple[str, ...] | None = None,
+) -> None:
     """Record that ``chapter``'s review covered the draft hashed ``draft_sha`` (with ``verdict``).
 
     Called by the loop right after a ``review`` dispatch — ``review`` never edits the draft,
-    so the current draft hash *is* the reviewed draft's hash. Preserves the persisted
-    reconcile-cycle count, and resets it to 0 once the chapter passes (a fresh start if it is
-    later re-opened).
+    so the current draft hash *is* the reviewed draft's hash.
+
+    Also maintains the reconciliation-progress signal from this review's gating set: a
+    ``best_gate_size`` ratchet (smallest gating set ever reached — only decreases) plus a
+    ``reviews_since_improvement`` counter that resets whenever the gate reaches a new minimum
+    and accrues otherwise. A converged review (PASS, or an explicit empty gate) clears the
+    signal. A review that emitted no gating record (``gating_shapes is None``) leaves it
+    untouched — we can't judge progress we didn't measure. This single persisted signal is
+    what ``reconcile_stalled`` reads; being persisted, it bounds effort across restarts too.
     """
     index = read_review_index(book_dir)
     entry = _index_entry(index, chapter)
     entry["draft_sha"] = draft_sha
     entry["verdict"] = verdict
-    if verdict == "PASS":
-        entry["cycles"] = 0
+    entry.pop("cycles", None)  # legacy field from the old cap — no longer used
+    if verdict == "PASS" or gating_shapes == ():
+        _clear_reconcile_signal(entry)
+    elif gating_shapes is not None:
+        size = len(gating_shapes)
+        best = entry.get("best_gate_size")
+        if not isinstance(best, int) or size < best:
+            entry["best_gate_size"] = size
+            entry["reviews_since_improvement"] = 0
+        else:
+            entry["reviews_since_improvement"] = int(entry.get("reviews_since_improvement") or 0) + 1
+        entry["last_gate"] = list(gating_shapes)
     index[f"CH{chapter:02d}"] = entry
     write_review_index(book_dir, index)
 
 
-def bump_review_cycles(book_dir: Path, chapter: int) -> int:
-    """Increment and persist ``chapter``'s reconcile-cycle count (one per revise dispatch).
-
-    Persisting the count in the sidecar — not just the in-memory tick history — lets the
-    reconcile-stall cap survive across separate ``autopilot`` invocations, so a chapter
-    nursed a couple of revises per run still escalates instead of restarting the count.
-    """
-    index = read_review_index(book_dir)
-    entry = _index_entry(index, chapter)
-    entry["cycles"] = int(entry.get("cycles") or 0) + 1
-    index[f"CH{chapter:02d}"] = entry
-    write_review_index(book_dir, index)
-    return entry["cycles"]
-
-
-def review_cycles(book_dir: Path, chapter: int) -> int:
-    """Persisted reconcile-cycle count for ``chapter`` (0 if none recorded)."""
-    entry = read_review_index(book_dir).get(f"CH{chapter:02d}")
-    return int(entry.get("cycles") or 0) if isinstance(entry, dict) else 0
+def chapter_review_entry(book_dir: Path, chapter: int) -> dict:
+    """The persisted sidecar entry for ``chapter`` (``{}`` if none) — carries the
+    reconciliation-progress signal ``reconcile_stalled`` reads."""
+    return _index_entry(read_review_index(book_dir), chapter)
 
 
 def review_state(book_dir: Path, chapter: int) -> ReviewState:
@@ -688,45 +732,19 @@ def gating_set_converging(prev: Iterable[str], curr: Iterable[str]) -> bool:
     return set(curr) <= set(prev)
 
 
-def _chapter_dispatches(history: list[dict], chapter: int) -> list[dict]:
-    """Dispatched ticks (with a command) attributed to one chapter, in order."""
-    return [h for h in history if h.get("command") and h.get("chapter") == chapter]
+def reconcile_stalled(entry: dict, *, limit: int = RECONCILE_STALL_LIMIT) -> bool:
+    """True when a chapter's tic reconciliation has stalled — its gating set is still
+    non-empty and has failed to reach a *new* minimum size across the last ``limit`` reviews.
 
-
-def detect_reconcile_stall(
-    history: list[dict],
-    chapter: int,
-    *,
-    cap: int = MAX_REVIEW_CYCLES_PER_CHAPTER,
-    window: int = 3,
-    persisted_cycles: int = 0,
-) -> bool:
-    """True when ``chapter``'s review/revise reconciliation is not converging.
-
-    Two arms, either of which trips (the loop then escalates ``quality-stall`` instead of
-    churning to ``MAX_TICKS``):
-
-    - **Cap** (cross-run): the chapter has been revised ``>= cap`` times without reaching
-      ``[X]``. ``persisted_cycles`` carries the sidecar's revise count from earlier
-      invocations so a per-run-slow stall still trips; it already includes this run's revises,
-      so the in-memory history is not re-counted.
-    - **Diminishing returns** (in-run): across the last ``window`` reviews that recorded a
-      gating set, the set never *strictly shrank* while still non-empty — stuck on the same
-      shapes, or churning between same-size sets of different identity (the moving-target
-      signature). Reviews with no gating record (e.g. a failed dispatch) are skipped so a
-      transient empty entry cannot mask a real stall.
+    Reads the single persisted progress signal ``record_review`` maintains (``last_gate`` +
+    ``reviews_since_improvement``, backed by the ``best_gate_size`` ratchet). Because the
+    ratchet only ever decreases, an oscillation that re-inflates the gate above its best (the
+    moving-target signature the old window test could be fooled by) accrues
+    ``reviews_since_improvement`` and trips here; genuine progress keeps resetting it. Being a
+    pure function of persisted state, it holds identically within a run and across restarts —
+    one signal, no separate cross-run cap. Escalate ``quality-stall`` when this is True; the
+    loop otherwise churns to ``MAX_TICKS``.
     """
-    if persisted_cycles >= cap:
-        return True
-    ticks = _chapter_dispatches(history, chapter)
-    reviews = [h for h in ticks if h.get("action") == "review" and "gating_shapes" in h]
-    recent = reviews[-window:]
-    if len(recent) >= window:
-        sets = [frozenset(h.get("gating_shapes") or ()) for h in recent]
-        progressed = any(
-            gating_set_converging(sets[i], sets[i + 1]) and len(sets[i + 1]) < len(sets[i])
-            for i in range(len(sets) - 1)
-        )
-        if sets[-1] and not progressed:
-            return True
-    return False
+    gate_nonempty = bool(entry.get("last_gate"))
+    reviews_since_improvement = int(entry.get("reviews_since_improvement") or 0)
+    return gate_nonempty and reviews_since_improvement >= limit

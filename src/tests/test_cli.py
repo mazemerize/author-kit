@@ -2597,7 +2597,13 @@ def test_autopilot_range_review_not_attributed_to_first_chapter(tmp_path, monkey
     assert result.exit_code == 0, result.output
     assert fake.dispatched == ["/authorkit.review 1-2"]  # dispatched as-is, not converted
 
-    entry = json.loads((book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    # The last dispatched-tick record (a terminal 'step' outcome line now follows it).
+    records = [
+        json.loads(l)
+        for l in (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+        if l.strip()
+    ]
+    entry = next(r for r in reversed(records) if "action" in r)
     assert entry["chapter"] is None and entry["action"] == "review"
     after = json.loads((book_dir / "runs" / "review-index.json").read_text(encoding="utf-8"))
     assert after["CH01"]["draft_sha"] == before["CH01"]["draft_sha"]  # not re-stamped by the range pass
@@ -2687,30 +2693,104 @@ def test_parse_review_verdict_falls_back_to_gating_line():
     assert autopilot_core.parse_review_verdict("prose only, no verdict") is None
 
 
-def test_detect_reconcile_stall_arms():
-    """The stall detector trips on an identity-stuck gating set, tolerates a failed (gating-less)
-    review in the window, and honors the persisted cross-run cycle cap (review-fixes #3, #6)."""
-    def rv(shapes):
-        return {"command": "/authorkit.review 1", "chapter": 1, "action": "review", "gating_shapes": shapes}
+def test_reconcile_stall_signal(tmp_path):
+    """The single persisted progress signal: a ratcheting best-gate-size resets the
+    'reviews since improvement' counter, oscillation ABOVE that floor accrues it (the
+    moving-target case the old any-shrink-in-window test could be fooled by), reconcile_stalled
+    trips at the limit, a review with no gating record leaves it untouched, and a converged
+    (empty-gate / PASS) review clears it."""
+    book_dir = tmp_path / "book"
+    limit = autopilot_core.RECONCILE_STALL_LIMIT
 
-    def rz():  # a failed review — no gating_shapes recorded
-        return {"command": "/authorkit.review 1", "chapter": 1, "action": "review"}
+    def review(chapter, gating, verdict=None):
+        autopilot_core.record_review(book_dir, chapter, draft_sha="sha", verdict=verdict, gating_shapes=gating)
+        return autopilot_core.chapter_review_entry(book_dir, chapter)
 
-    # Strictly shrinking set → converging, does not trip.
-    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a"]), rv([])], 1) is False
-    # Same set every review → stuck, trips.
-    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "b"]), rv(["a", "b"])], 1) is True
-    # Same SIZE but churning identity (moving target) → no strict shrink, trips.
-    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "c"]), rv(["a", "d"])], 1) is True
-    # A trailing failed (gating-less) review is skipped, not read as a size-0 that MASKS the
-    # stall the three real stuck reviews establish.
-    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "b"]), rv(["a", "b"]), rz()], 1) is True
-    # ...and with only two real reviews (the third skipped), the window is not yet met.
-    assert autopilot_core.detect_reconcile_stall([rv(["a", "b"]), rv(["a", "b"]), rz()], 1) is False
-    # Cross-run cap: in-memory history is empty but the sidecar carried enough revises.
-    cap = autopilot_core.MAX_REVIEW_CYCLES_PER_CHAPTER
-    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=cap) is True
-    assert autopilot_core.detect_reconcile_stall([], 1, persisted_cycles=cap - 1) is False
+    # First gated review establishes the best; a strictly smaller gate is a new minimum.
+    e = review(1, ("a", "b"))
+    assert e["best_gate_size"] == 2 and e["reviews_since_improvement"] == 0
+    assert autopilot_core.reconcile_stalled(e) is False
+    e = review(1, ("a",))
+    assert e["best_gate_size"] == 1 and e["reviews_since_improvement"] == 0
+
+    # Oscillation back above the floor (1↔2) never reaches a NEW minimum — each review accrues
+    # the counter even though it keeps 'shrinking' 2→1→2→1, and reconcile_stalled trips exactly
+    # at the limit. (This is precisely what defeated the old detector.)
+    gates = [("a", "b"), ("a",)]
+    for i in range(1, limit + 1):
+        e = review(1, gates[i % 2])
+        assert e["best_gate_size"] == 1  # ratchet never re-inflates
+        assert e["reviews_since_improvement"] == i
+        assert autopilot_core.reconcile_stalled(e) is (i >= limit)
+
+    # A review that emitted no gating record leaves the signal untouched (can't judge unmeasured
+    # progress) — neither advancing nor clearing it.
+    before = autopilot_core.chapter_review_entry(book_dir, 1)["reviews_since_improvement"]
+    e = review(1, None)
+    assert e["reviews_since_improvement"] == before
+
+    # An explicit empty gate clears the signal (converged) — a re-open starts fresh.
+    e = review(2, ("x", "y"))
+    e = review(2, ())
+    assert "reviews_since_improvement" not in e and "best_gate_size" not in e and "last_gate" not in e
+    assert autopilot_core.reconcile_stalled(e) is False
+
+    # A PASS verdict clears too, even with a non-empty gate line (verdict is authoritative).
+    review(3, ("a", "b"))
+    e = review(3, ("a",), verdict="PASS")
+    assert "reviews_since_improvement" not in e
+    assert autopilot_core.reconcile_stalled(e) is False
+
+
+def test_reconcile_stall_slow_progress_never_trips(tmp_path):
+    """Genuine slow progress — the gate shrinks by one shape each review — keeps reaching a new
+    minimum, so the counter never accrues and reconcile_stalled stays False however many cycles
+    it takes (no arbitrary cap cuts it off); a final PASS clears the signal for a clean re-open."""
+    book_dir = tmp_path / "book"
+    shapes = [f"tic-{n}" for n in range(7)]
+    for k in range(len(shapes), 0, -1):  # 7,6,5,4,3,2,1 — a new minimum each time
+        autopilot_core.record_review(book_dir, 1, draft_sha="s", verdict=None, gating_shapes=tuple(shapes[:k]))
+        e = autopilot_core.chapter_review_entry(book_dir, 1)
+        assert e["reviews_since_improvement"] == 0
+        assert autopilot_core.reconcile_stalled(e) is False
+    autopilot_core.record_review(book_dir, 1, draft_sha="s", verdict="PASS", gating_shapes=())
+    e = autopilot_core.chapter_review_entry(book_dir, 1)
+    assert autopilot_core.reconcile_stalled(e) is False
+    assert "reviews_since_improvement" not in e
+
+
+def test_log_tick_never_concatenates_records(tmp_path):
+    """log_tick guarantees each record starts on its own line even when a prior write left the
+    file without a trailing newline (crash/interleave), so a naive line-by-line parser never
+    sees two JSON records glued together."""
+    book_dir = tmp_path / "book"
+    (book_dir / "runs").mkdir(parents=True)
+    log = book_dir / "runs" / "autopilot.jsonl"
+    log.write_text('{"a": 1}', encoding="utf-8")  # a prior record, no trailing newline
+    autopilot_core.log_tick(book_dir, {"b": 2})
+    lines = [l for l in log.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert len(lines) == 2
+    assert json.loads(lines[0]) == {"a": 1}
+    assert json.loads(lines[1]) == {"b": 2}
+
+
+def test_autopilot_logs_terminal_outcome(tmp_path, monkeypatch):
+    """Terminal outcomes are recorded in autopilot.jsonl so the log alone explains why a run
+    ended — previously only dispatched ticks were logged, never the ending."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 A - a\n")
+    # Whole range already [X] → the deterministic completion check ends the run at 'done'
+    # before any directive is dispatched.
+    fake = autopilot_runner.FakeRunner([])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    outcomes = [
+        json.loads(l)
+        for l in (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+        if l.strip()
+    ]
+    assert any(o.get("outcome") == "done" for o in outcomes)
 
 
 def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, monkeypatch):
@@ -2750,47 +2830,6 @@ def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, mo
     assert "quality-stall" in records[0].read_text(encoding="utf-8")
     # Bounded: it stopped well short of the MAX_TICKS backstop.
     assert len(fake.dispatched) < 20
-
-
-def test_autopilot_capth_revise_gets_confirming_review(tmp_path, monkeypatch):
-    """The reconcile-cycle cap is judged at the confirming review, not on the revise tick that
-    reaches it: a chapter whose cap-th revise genuinely fixes the gating shapes PASSes and
-    approves instead of escalating quality-stall with the fix left unjudged."""
-    book_dir = _seed_autopilot_book(tmp_path)
-    draft_path = _seed_chapter_review(
-        book_dir, 1, draft="draft v5", review_verdict="NEEDS REVISION",
-        gating="tic-003", status_line="[R] CH01 X - first",
-    )
-    # The sidecar carries cap-1 prior revises; the next revise reaches the cap.
-    index = autopilot_core.read_review_index(book_dir)
-    index["CH01"]["cycles"] = autopilot_core.MAX_REVIEW_CYCLES_PER_CHAPTER - 1
-    autopilot_core.write_review_index(book_dir, index)
-    review_path = book_dir / "chapters" / "01" / "review.md"
-
-    def on_command(cmd):
-        if "revise" in cmd:  # the cap-th revise genuinely fixes the gating tic
-            draft_path.write_text("draft v6 (fixed)", encoding="utf-8")
-        elif "/authorkit.review" in cmd:  # the confirming review passes and approves
-            review_path.write_text(
-                "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
-                "**Status**: PASS\n**Gating Shapes**: none\n",
-                encoding="utf-8",
-            )
-            _flip_status(book_dir, "[R] CH01", "[X] CH01")
-
-    revise = autopilot_core.Directive(
-        action="revise", chapter=1, command="/authorkit.write 1 revise: fix tic-003", reason="cap-th revise"
-    )
-    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="confirm")
-    fake = autopilot_runner.FakeRunner([revise, review, review], on_command=on_command)
-    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
-    monkeypatch.chdir(tmp_path)
-    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
-    assert result.exit_code == 0, result.output
-    assert "quality-stall" not in result.output.lower()
-    assert not list((book_dir / "escalations").glob("*.md"))
-    # The PASS review reset the persisted cycle count for a fresh start if re-opened.
-    assert autopilot_core.review_cycles(book_dir, 1) == 0
 
 
 def test_autopilot_converged_with_residual_review_reaches_approved(tmp_path, monkeypatch):
@@ -3786,6 +3825,10 @@ def test_revise_reanchors_repeat_offenders_on_origin_counter_example():
     assert "carry-over" in revise
     assert "origin counter-example" in revise
     assert "replaces" in revise  # the new pair replaces the stale (failed) one
+    # Root cause of non-shrinking gates: fix a gating shape across the WHOLE draft, not just
+    # the cited spans, so its count actually drops below budget and the gate clears.
+    assert "whole-draft instance count under the ledger" in revise.lower()
+    assert "sweep the entire draft" in revise
     # The shared roster stays in sync: guardrails name the re-anchoring obligation.
     guardrails = (
         repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"

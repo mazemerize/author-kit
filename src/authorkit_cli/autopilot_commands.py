@@ -28,20 +28,20 @@ from .autopilot_core import (
     Directive,
     DirectiveError,
     all_chapters_approved,
-    bump_review_cycles,
+    chapter_review_entry,
     command_chapter,
     detect_command_churn,
     detect_no_progress,
     detect_oscillation,
-    detect_reconcile_stall,
     directive_to_obj,
     file_md5,
     is_style_review,
     kill_switch_present,
+    log_outcome,
     log_tick,
     preflight,
+    reconcile_stalled,
     record_review,
-    review_cycles,
     review_state,
     write_escalation,
 )
@@ -358,28 +358,39 @@ def _write_health_escalation(book_dir: Path) -> Path:
     )
 
 
-def _write_quality_stall_escalation(book_dir: Path, chapter: int) -> Path:
+def _write_quality_stall_escalation(
+    book_dir: Path,
+    chapter: int,
+    *,
+    best_size: int,
+    reviews_since_improvement: int,
+    gating_shapes: list[str],
+) -> Path:
     """Write a quality-stall escalation when one chapter won't converge to ``[X]``.
 
-    Raised when a chapter burns the review/revise reconciliation cap (or its gating set stops
-    shrinking) — the reviser cannot self-resolve it, so the author decides. This is the
-    exceptional path; the carry-over gating rule makes the common case converge autonomously.
+    Raised when the gating tic-set has failed to reach a new minimum across the last
+    ``reviews_since_improvement`` reviews (the single reconciliation-progress signal) — the
+    reviser cannot self-resolve it, so the author decides. The trigger names the actual
+    residual shapes and the progress numbers so the report is self-explanatory (no more
+    generic "ran the cap" wording that hid which check fired). This is the exceptional path;
+    the carry-over gating rule makes the common case converge autonomously.
     """
+    still = ", ".join(gating_shapes) if gating_shapes else "(none recorded)"
     return write_escalation(
         book_dir,
         esc_type="quality-stall",
         trigger=(
-            f"CH{chapter:02d} ran the review/revise reconciliation cap without converging to [X] "
-            "(gating findings not shrinking to zero)."
+            f"CH{chapter:02d}'s gating tic-set has not improved on its best (size {best_size}) "
+            f"across the last {reviews_since_improvement} reviews. Still gating: {still}."
         ),
         decision_needed=(
-            f"CH{chapter:02d} keeps failing review without the gating set shrinking — the reviser "
-            f"cannot self-resolve it. Inspect chapters/{chapter:02d}/review.md and either revise by "
-            "hand, adjust the plan, or record a constitution waiver for a sanctioned voice choice, "
-            "then re-run."
+            f"CH{chapter:02d} keeps failing review without the gating set shrinking below its "
+            f"best of {best_size} — the reviser cannot self-resolve it. Inspect "
+            f"chapters/{chapter:02d}/review.md and either revise by hand, adjust the plan, or "
+            "record a constitution waiver for a sanctioned voice choice, then re-run."
         ),
         today=_today(),
-        recommended_command=f"/authorkit.write {chapter} revise: <the residual review findings>",
+        recommended_command=f"/authorkit.write {chapter} revise: {still}",
         title=f"CH{chapter:02d} not converging (quality-stall)",
         slug=f"ch{chapter:02d}-quality-stall",
     )
@@ -505,6 +516,7 @@ def _run_autopilot(
         tick += 1
         if tick > MAX_TICKS:
             console.print(f"[red]Halting:[/red] safety cap of {MAX_TICKS} ticks reached.")
+            log_outcome(book_dir, run_id, tick, "max-ticks")
             raise typer.Exit(code=1)
 
         report = collect_status(book_dir, repo_root)
@@ -516,9 +528,11 @@ def _run_autopilot(
                 f"[yellow]Halting:[/yellow] open escalation(s): {ids}. "
                 "Resolve via /authorkit.discuss, then re-run."
             )
+            log_outcome(book_dir, run_id, tick, "blocked-open-escalation", escalations=report.escalation_ids)
             raise typer.Exit(code=0)
         if kill_switch_present(book_dir):
             console.print("[yellow]Halting:[/yellow] kill switch present (book/runs/STOP).")
+            log_outcome(book_dir, run_id, tick, "kill-switch")
             raise typer.Exit(code=0)
         # Under a guideline the content fingerprint makes the status-keyed
         # detectors near-impossible to trip (LLM rewrites are never
@@ -532,6 +546,7 @@ def _run_autopilot(
             console.print(
                 f"[yellow]Halting:[/yellow] loop-health trip (no progress / oscillation). Wrote {path.name}."
             )
+            log_outcome(book_dir, run_id, tick, "loop-health", escalation=path.name)
             raise typer.Exit(code=0)
 
         # Decide: deterministic completion first, else ask the planner (one retry).
@@ -549,6 +564,7 @@ def _run_autopilot(
                     console.print(
                         f"[red]Halting:[/red] planner did not return a valid directive ({exc}). Wrote {path.name}."
                     )
+                    log_outcome(book_dir, run_id, tick, "planner-failure", escalation=path.name)
                     raise typer.Exit(code=1) from exc
 
         # Terminal directives.
@@ -558,6 +574,7 @@ def _run_autopilot(
                 console.print(
                     "[dim]Next: run `authorkit autopilot chapters --range A-B` to plan, draft, and review chapters.[/dim]"
                 )
+            log_outcome(book_dir, run_id, tick, "done", reason=directive.reason)
             raise typer.Exit(code=0)
         if directive.action == "escalate":
             path = _write_planner_escalation(book_dir, directive)
@@ -565,6 +582,7 @@ def _run_autopilot(
                 f"[yellow]Escalation:[/yellow] wrote {path.name}. Resolve it (recommended command is in the "
                 "record), then re-run."
             )
+            log_outcome(book_dir, run_id, tick, "escalate", escalation=path.name, reason=directive.reason)
             raise typer.Exit(code=0)
 
         # No-op-review guard (Bug 1): if the standing review already covers this draft and
@@ -589,7 +607,7 @@ def _run_autopilot(
         # After a real review, record the reviewed-draft hash + verdict in the sidecar (so a
         # later re-review of the unchanged draft is recognized as a no-op) and log the
         # gating-shape set (so a re-opening tic gate is detectable in autopilot.jsonl). After a
-        # revise, bump the persisted reconcile-cycle count so the stall cap survives re-runs.
+        # gating set (so the reconciliation-progress signal advances — see reconcile_stalled).
         # Range/manuscript reviews have chapter=None and are skipped (not attributable to one).
         # Style reviews write style-review.md, never review.md — recording one would stamp a
         # stale craft verdict as current for the new draft hash, so they are skipped too.
@@ -598,13 +616,15 @@ def _run_autopilot(
             if directive.action == "review" and not is_style_review(directive.command):
                 draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
                 state_after = review_state(book_dir, chapter)
-                record_review(book_dir, chapter, draft_sha=file_md5(draft_path), verdict=state_after.verdict)
-                # None = the review emitted no Gating Shapes line — leave it off the tick so the
-                # stall detector skips it rather than reading it as a (falsely converged) empty set.
+                # gating_shapes: () = converged (clears the signal), a tuple = the gate,
+                # None = no Gating Shapes line (contract not followed — leaves the signal
+                # untouched rather than reading it as a falsely converged empty set).
+                record_review(
+                    book_dir, chapter, draft_sha=file_md5(draft_path),
+                    verdict=state_after.verdict, gating_shapes=state_after.gating_shapes,
+                )
                 if state_after.gating_shapes is not None:
                     gating_shapes = list(state_after.gating_shapes)
-            elif directive.action == "revise":
-                bump_review_cycles(book_dir, chapter)
 
         entry: dict = {
             "tick": tick,
@@ -627,28 +647,40 @@ def _run_autopilot(
         if commit:
             _git_checkpoint(repo_root, directive, tick)
 
-        # Convergence backstop (Bug 2): a chapter that burns the reconciliation cap or whose
-        # gating set stops shrinking is a genuine quality-stall — escalate to the author
-        # rather than churn to MAX_TICKS. Common cases converge autonomously via the review's
-        # carry-over gating rule; this fires only when the reviser cannot self-resolve.
-        # Checked only on review ticks: the verdict that decides "converged or not" is the
-        # review's, and a cap-th revise must get its confirming review (which resets the
-        # cycle count on PASS) before the cap can be read as a stall.
-        if mode == "chapters" and chapter is not None and directive.action == "review" and detect_reconcile_stall(
-            history, chapter, persisted_cycles=review_cycles(book_dir, chapter)
-        ):
-            path = _write_quality_stall_escalation(book_dir, chapter)
-            console.print(
-                f"[yellow]Escalation:[/yellow] CH{chapter:02d} not converging — wrote {path.name} "
-                "(quality-stall). Resolve it, then re-run."
-            )
-            raise typer.Exit(code=0)
+        # Convergence backstop: a chapter whose gating set stops reaching a new minimum is a
+        # genuine quality-stall — escalate to the author rather than churn to MAX_TICKS. Common
+        # cases converge autonomously via the carry-over gating rule; this fires only when the
+        # reviser cannot self-resolve. Checked only on review ticks (the review is what advances
+        # the progress signal record_review just persisted) and read from that persisted signal,
+        # so it holds across restarts without a separate cross-run cap.
+        if mode == "chapters" and chapter is not None and directive.action == "review":
+            ch_entry = chapter_review_entry(book_dir, chapter)
+            if reconcile_stalled(ch_entry):
+                path = _write_quality_stall_escalation(
+                    book_dir,
+                    chapter,
+                    best_size=int(ch_entry.get("best_gate_size") or 0),
+                    reviews_since_improvement=int(ch_entry.get("reviews_since_improvement") or 0),
+                    gating_shapes=list(ch_entry.get("last_gate") or []),
+                )
+                log_outcome(
+                    book_dir, run_id, tick, "quality-stall",
+                    chapter=chapter, escalation=path.name,
+                    gating_shapes=list(ch_entry.get("last_gate") or []),
+                )
+                console.print(
+                    f"[yellow]Escalation:[/yellow] CH{chapter:02d} not converging — wrote {path.name} "
+                    "(quality-stall). Resolve it, then re-run."
+                )
+                raise typer.Exit(code=0)
 
         if step:
             console.print("[dim]--step: stopping after one tick.[/dim]")
+            log_outcome(book_dir, run_id, tick, "step")
             raise typer.Exit(code=0)
         if mode == "plot" and tick >= max_iters:
             console.print(f"[green]AutoPilot reached --max-iters={max_iters}[/green] (plot).")
+            log_outcome(book_dir, run_id, tick, "max-iters", max_iters=max_iters)
             raise typer.Exit(code=0)
 
 

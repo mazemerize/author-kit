@@ -88,8 +88,9 @@ Return **only** a JSON object (no prose, fences optional):
      approved) prefer a range review first: `/authorkit.review A-B` for cross-chapter drift.
 
    (The harness enforces this too: it converts a no-op review into the prescribed revise, and
-   if a chapter burns the review/revise reconciliation cap without converging to `[X]` it
-   escalates `quality-stall` for you — so choose the productive step, don't spin on review.)
+   if a chapter's gating tic-set stops shrinking to a new low across several reviews without
+   converging to `[X]` it escalates `quality-stall` for you — so choose the productive step,
+   don't spin on review.)
 
 4. **Escalate** instead of acting when a decision is the author's: the story's direction is
    unsettled or the outline is exhausted; a draft contradicts a `(CONCEPT)` / `(CHxx)` fact;
