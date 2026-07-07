@@ -2832,6 +2832,56 @@ def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, mo
     assert len(fake.dispatched) < 20
 
 
+def test_autopilot_shrinking_gate_does_not_trip_loop_health(tmp_path, monkeypatch):
+    """Regression (ESC-014): a chapter whose chapters.md status stays flat while its gating set
+    shrinks 3→2→1→0 is making real progress — a review that reaches a new gating minimum counts
+    as progress, so loop-health (detect_no_progress) must NOT kill the converging reconciliation
+    before it reaches PASS."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 A - a\n")
+    chap = book_dir / "chapters" / "01"
+    chap.mkdir(parents=True)
+    draft_path = chap / "draft.md"
+    draft_path.write_text("v0", encoding="utf-8")
+    review_path = chap / "review.md"
+    gates = [["a", "b", "c"], ["a", "b"], ["a"], []]  # 3 → 2 → 1 → 0 (converged)
+    st = {"rev": 0, "review": 0}
+
+    def on_command(cmd):
+        if "revise" in cmd:  # change the draft so the next review isn't a no-op; status stays [D]
+            st["rev"] += 1
+            draft_path.write_text(f"v{st['rev']}", encoding="utf-8")
+        elif "/authorkit.review" in cmd:
+            gate = gates[min(st["review"], len(gates) - 1)]
+            st["review"] += 1
+            if gate:  # NEEDS REVISION with a shrinking gate — status deliberately left flat at [D]
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: NEEDS REVISION\n\n## Verdict\n"
+                    f"**Status**: NEEDS REVISION\n**Gating Shapes**: {', '.join(gate)}\n",
+                    encoding="utf-8",
+                )
+            else:  # converged → PASS and approve
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
+                    "**Status**: PASS\n**Gating Shapes**: none\n",
+                    encoding="utf-8",
+                )
+                _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    rv = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="review")
+    wr = autopilot_core.Directive(action="revise", chapter=1, command="/authorkit.write 1 revise: shrink the gate", reason="revise")
+    fake = autopilot_runner.FakeRunner([rv, wr, rv, wr, rv, wr, rv], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    # No loop-health escalation — the shrinking gate was recognized as progress.
+    assert "loop-health" not in result.output.lower()
+    assert not list((book_dir / "escalations").glob("*.md"))
+    # It converged: CH01 reached [X] and the run ended 'done'.
+    assert "[X] CH01" in (book_dir / "chapters.md").read_text(encoding="utf-8")
+    assert "done" in result.output.lower()
+
+
 def test_autopilot_converged_with_residual_review_reaches_approved(tmp_path, monkeypatch):
     """Complaint acceptance: a re-review whose carry-over gating shapes are all fixed but whose
     blind sweep found NEW shapes emits `Gating Shapes: none` + Status PASS, reaches [X], and the

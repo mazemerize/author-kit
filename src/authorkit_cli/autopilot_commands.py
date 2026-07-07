@@ -612,6 +612,7 @@ def _run_autopilot(
         # Style reviews write style-review.md, never review.md — recording one would stamp a
         # stale craft verdict as current for the new draft hash, so they are skipped too.
         gating_shapes: list[str] | None = None
+        gate_improved = False
         if result.ok and chapter is not None:
             if directive.action == "review" and not is_style_review(directive.command):
                 draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
@@ -625,6 +626,14 @@ def _run_autopilot(
                 )
                 if state_after.gating_shapes is not None:
                     gating_shapes = list(state_after.gating_shapes)
+                    # A review that reached a new gating minimum (reviews_since_improvement
+                    # reset to 0 — or converged, clearing the signal) is real progress even
+                    # when chapters.md status counts don't move. Fold it into status_changed
+                    # so the loop-health guards (detect_no_progress / detect_oscillation) see a
+                    # shrinking gate as progress and don't kill a converging reconciliation.
+                    gate_improved = int(chapter_review_entry(book_dir, chapter).get("reviews_since_improvement") or 0) == 0
+
+        status_changed = status_changed or gate_improved
 
         entry: dict = {
             "tick": tick,
