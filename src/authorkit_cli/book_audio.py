@@ -78,7 +78,9 @@ def resolve_audio_instructions(book_dir: Path, config: BookConfig) -> str:
             continue
         seen.add(resolved)
         if resolved.exists():
-            return resolved.read_text(encoding="utf-8").strip()
+            # utf-8-sig tolerates the BOM that Notepad on Windows adds when
+            # users edit a custom audio-instructions.txt file.
+            return resolved.read_text(encoding="utf-8-sig").strip()
 
     # Inline fallback when no template file is found anywhere.
     return "You are the narrator for an audiobook. Speak clearly with steady pacing and natural expression."
@@ -331,6 +333,10 @@ def generate_audiobook(
 
             speech_text = markdown_to_plain_text(draft.text)
             if not speech_text:
+                console.print(
+                    f"[yellow]Warning:[/yellow] CH{draft.chapter_number:02d} draft.md "
+                    "has no narratable text after markdown stripping; skipping audio generation."
+                )
                 skipped += 1
                 progress.advance(chapter_task)
                 continue
@@ -347,34 +353,41 @@ def generate_audiobook(
             chunks = _chunk_text(speech_input)
             temp_files: list[Path] = []
             prev_chunk: str | None = None
-            for idx, chunk in enumerate(chunks, start=1):
-                progress.update(
-                    chapter_task,
-                    description=f"CH{draft.chapter_number:02d}: synthesizing chunk {idx}/{len(chunks)}",
-                )
-                temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
-
-                # Give the TTS model trailing context from the previous
-                # chunk so it can maintain consistent tone and pacing
-                # across segment boundaries.
-                chunk_instructions = instructions
-                if prev_chunk is not None:
-                    tail = prev_chunk.strip().rsplit("\n\n", 1)[-1][-300:]
-                    chunk_instructions = (
-                        f"{instructions}\n\n"
-                        "Continue seamlessly from the previous passage. "
-                        "Match the tone, pace, and energy of the preceding text "
-                        f"which ended with:\n\"{tail}\""
+            try:
+                for idx, chunk in enumerate(chunks, start=1):
+                    progress.update(
+                        chapter_task,
+                        description=f"CH{draft.chapter_number:02d}: synthesizing chunk {idx}/{len(chunks)}",
                     )
+                    temp_chunk = audio_dir / f".tmp-ch{draft.chapter_number:02d}-{idx:03d}.mp3"
 
-                _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk, chunk_instructions)
-                prev_chunk = chunk
-                temp_files.append(temp_chunk)
+                    # Give the TTS model trailing context from the previous
+                    # chunk so it can maintain consistent tone and pacing
+                    # across segment boundaries.
+                    chunk_instructions = instructions
+                    if prev_chunk is not None:
+                        tail = prev_chunk.strip().rsplit("\n\n", 1)[-1][-300:]
+                        chunk_instructions = (
+                            f"{instructions}\n\n"
+                            "Continue seamlessly from the previous passage. "
+                            "Match the tone, pace, and energy of the preceding text "
+                            f"which ended with:\n\"{tail}\""
+                        )
 
-            progress.update(chapter_task, description=f"CH{draft.chapter_number:02d}: combining chunks")
-            _concat_mp3_files(temp_files, chapter_out, gap_seconds=0.8)
-            for temp in temp_files:
-                temp.unlink(missing_ok=True)
+                    try:
+                        _synthesize_openai_chunk(client, config.audio_model, config.audio_voice, chunk, temp_chunk, chunk_instructions)
+                    except Exception as exc:
+                        raise RuntimeError(
+                            f"CH{draft.chapter_number:02d}: OpenAI TTS synthesis failed on chunk {idx}/{len(chunks)}: {exc}"
+                        ) from exc
+                    prev_chunk = chunk
+                    temp_files.append(temp_chunk)
+
+                progress.update(chapter_task, description=f"CH{draft.chapter_number:02d}: combining chunks")
+                _concat_mp3_files(temp_files, chapter_out, gap_seconds=0.8)
+            finally:
+                for temp in temp_files:
+                    temp.unlink(missing_ok=True)
             _write_mp3_metadata(
                 path=chapter_out,
                 title=metadata_title,
@@ -394,20 +407,23 @@ def generate_audiobook(
     if merge_output and chapter_outputs:
         console.print("Merging chapter audio files into full audiobook...")
         merged_path = audio_dir / "audiobook-full.mp3"
+        rebuilt_merge = False
         if merged_path.exists():
             overwrite_merged = force or yes or typer.confirm("Merged audiobook exists: overwrite?", default=False)
             if overwrite_merged:
                 merged_path.unlink(missing_ok=True)
         if not merged_path.exists():
             _concat_mp3_files(chapter_outputs, merged_path, gap_seconds=1.5)
-        _write_mp3_metadata(
-            path=merged_path,
-            title=f"{config.title} (Audiobook)",
-            album=config.title,
-            artist=config.author,
-            language=config.language,
-            comment="Author Kit merged audiobook",
-        )
+            rebuilt_merge = True
+        if rebuilt_merge:
+            _write_mp3_metadata(
+                path=merged_path,
+                title=f"{config.title} (Audiobook)",
+                album=config.title,
+                artist=config.author,
+                language=config.language,
+                comment="Author Kit merged audiobook",
+            )
 
     return {
         "generated": generated,

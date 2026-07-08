@@ -1,5 +1,5 @@
-﻿#!/usr/bin/env bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 JSON_MODE=false
 REQUIRE_CHAPTERS=false
@@ -44,6 +44,7 @@ if $PATHS_ONLY; then
     echo "REPO_ROOT: $REPO_ROOT"
     echo "BOOK_DIR: $BOOK_DIR"
     echo "BOOK_CONCEPT: $BOOK_CONCEPT"
+    echo "STYLE_ANCHOR: $STYLE_ANCHOR"
     echo "OUTLINE: $OUTLINE"
     echo "CHAPTERS: $CHAPTERS"
   fi
@@ -52,26 +53,43 @@ fi
 
 if [[ ! -d "$BOOK_DIR" ]]; then
   echo "ERROR: Book directory not found: $BOOK_DIR"
-  echo "Run /authorkit.conceive first to create the book structure."
+  echo "Run /authorkit.discuss first to create the book structure."
   exit 1
 fi
 
 if [[ ! -f "$OUTLINE" ]]; then
   echo "ERROR: outline.md not found in $BOOK_DIR"
-  echo "Run /authorkit.outline first to create the book outline."
+  echo "Run /authorkit.write outline first to create the book outline."
   exit 1
 fi
 
 if $REQUIRE_CHAPTERS && [[ ! -f "$CHAPTERS" ]]; then
   echo "ERROR: chapters.md not found in $BOOK_DIR"
-  echo "Run /authorkit.chapters first to create the chapter breakdown."
+  echo "Run /authorkit.write first to create the chapter breakdown."
   exit 1
 fi
+
+dir_has_chapter_subdirs() {
+  # Only pure-numeric chapter folders (e.g. 01, 02) that contain a draft.md
+  # count as drafted chapters — this mirrors the CLI's discover_chapter_drafts
+  # convention (book/chapters/NN/draft.md) so backups like `01-old/`, stray
+  # dirs, or an empty `01/` don't make the dir look populated when
+  # build/stats/status would find nothing.
+  [[ -d "$1" ]] || return 1
+  local entry base
+  for entry in "$1"/*/; do
+    [[ -d "$entry" ]] || continue
+    base=$(basename "$entry")
+    [[ "$base" =~ ^[0-9]+$ ]] || continue
+    [[ -f "${entry}draft.md" ]] && return 0
+  done
+  return 1
+}
 
 docs=()
 [[ -f "$RESEARCH" ]] && docs+=("research.md")
 [[ -f "$CHARACTERS" ]] && docs+=("characters.md")
-if [[ -d "$CHAPTERS_DIR" ]] && find "$CHAPTERS_DIR" -mindepth 1 -maxdepth 1 -type d | head -n 1 | grep -q .; then
+if dir_has_chapter_subdirs "$CHAPTERS_DIR"; then
   docs+=("chapters/")
 fi
 if $INCLUDE_CHAPTERS && [[ -f "$CHAPTERS" ]]; then
@@ -85,14 +103,22 @@ if $JSON_MODE; then
     json_docs=$(printf '"%s",' "${docs[@]}")
     json_docs="[${json_docs%,}]"
   fi
-  printf '{"BOOK_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$BOOK_DIR" "$json_docs"
+  printf '{"BOOK_DIR":"%s","STYLE_ANCHOR":"%s","AVAILABLE_DOCS":%s}\n' "$BOOK_DIR" "$STYLE_ANCHOR" "$json_docs"
 else
   echo "BOOK_DIR:$BOOK_DIR"
+  echo "STYLE_ANCHOR:$STYLE_ANCHOR"
   echo "AVAILABLE_DOCS:"
-  check_file "$RESEARCH" "research.md"
-  check_file "$CHARACTERS" "characters.md"
-  check_dir_has_files "$CHAPTERS_DIR" "chapters/"
+  # `check_file` returns 1 when the file is missing — that's expected for an
+  # optional doc, but `set -e` would otherwise terminate the script. Disable
+  # the side effect with `|| true` so we keep printing the full doc list.
+  check_file "$RESEARCH" "research.md" || true
+  check_file "$CHARACTERS" "characters.md" || true
+  if dir_has_chapter_subdirs "$CHAPTERS_DIR"; then
+    echo "  + chapters/"
+  else
+    echo "  - chapters/"
+  fi
   if $INCLUDE_CHAPTERS; then
-    check_file "$CHAPTERS" "chapters.md"
+    check_file "$CHAPTERS" "chapters.md" || true
   fi
 fi

@@ -2,7 +2,7 @@
 
 **Book**: [BOOK TITLE]
 **Updated**: [YYYY-MM-DD]
-**Source Chapters**: [CHXX, CHYY or constitution-only]
+**Origin Chapters**: [earliest approved CHs, or constitution-only]
 
 ## Non-Negotiables (POV, Tense, Narrative Distance)
 
@@ -33,6 +33,6 @@
 
 ## Provenance
 
-- **Constitution**: `/memory/constitution.md`
-- **Approved Chapter Sources**: [CHXX, CHYY or N/A]
-- **Method**: Derived from constitution + last two approved chapter drafts before the target chapter
+- **Constitution**: `.authorkit/memory/constitution.md`
+- **Origin Chapter Sources**: [earliest approved CHs, or N/A]
+- **Method**: Derived from the fixed origin — constitution + concept voice/tone + the origin chapter(s) (a constitution `## Voice Origin` pin if set, else the earliest approved). Does not follow recent chapters.

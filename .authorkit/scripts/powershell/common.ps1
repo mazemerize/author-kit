@@ -5,7 +5,6 @@
 $AUTHORKIT_BOOK_DIR = 'book'
 $AUTHORKIT_WORLD_DIR = 'world'
 $AUTHORKIT_CHAPTERS_DIR = 'chapters'
-$AUTHORKIT_CHECKLISTS_DIR = 'checklists'
 $AUTHORKIT_DIST_DIR = 'dist'
 
 function Get-RepoRoot {
@@ -46,15 +45,6 @@ function Test-HasGit {
     }
 }
 
-function Test-BookBranch {
-    param(
-        [string]$Branch,
-        [bool]$HasGit = $true
-    )
-    # Deprecated no-op retained for compatibility with older scripts.
-    return $true
-}
-
 function Get-BookDir {
     param([string]$RepoRoot)
     Join-Path $RepoRoot $AUTHORKIT_BOOK_DIR
@@ -79,9 +69,21 @@ function Get-BookPaths {
         CHARACTERS     = Join-Path $bookDir 'characters.md'
         WORLD_DIR      = Join-Path $bookDir $AUTHORKIT_WORLD_DIR
         CHAPTERS_DIR   = Join-Path $bookDir $AUTHORKIT_CHAPTERS_DIR
-        CHECKLISTS_DIR = Join-Path $bookDir $AUTHORKIT_CHECKLISTS_DIR
         DIST_DIR       = Join-Path $bookDir $AUTHORKIT_DIST_DIR
     }
+}
+
+function Get-BookPathsJson {
+    $paths = Get-BookPaths
+    [PSCustomObject]@{
+        REPO_ROOT    = $paths.REPO_ROOT
+        BOOK_DIR     = $paths.BOOK_DIR
+        BOOK_CONCEPT = $paths.BOOK_CONCEPT
+        STYLE_ANCHOR = $paths.STYLE_ANCHOR
+        OUTLINE      = $paths.OUTLINE
+        CHAPTERS     = $paths.CHAPTERS
+        HAS_GIT      = $paths.HAS_GIT
+    } | ConvertTo-Json -Compress
 }
 
 function Test-FileExists {
@@ -95,13 +97,18 @@ function Test-FileExists {
     }
 }
 
-function Test-DirHasFiles {
-    param([string]$Path, [string]$Description)
-    if ((Test-Path -Path $Path -PathType Container) -and (Get-ChildItem -Path $Path -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer } | Select-Object -First 1)) {
-        Write-Output "  + $Description"
-        return $true
-    } else {
-        Write-Output "  - $Description"
-        return $false
-    }
+function Test-DirHasChapterSubdirs {
+    # Only pure-numeric chapter folders (e.g. 01, 02) that contain a draft.md
+    # count as drafted chapters, mirroring the CLI's discover_chapter_drafts
+    # convention (book/chapters/NN/draft.md) so backups like `01-old/` or an
+    # empty `01/` don't make the dir look populated when build/stats/status
+    # would find nothing. The ASCII [0-9] class matches the bash flavor (.NET
+    # \d would also accept non-ASCII Unicode digits).
+    param([string]$Path)
+    if (-not (Test-Path -Path $Path -PathType Container)) { return $false }
+    return [bool](Get-ChildItem -Path $Path -Directory -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -match '^[0-9]+$' -and
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'draft.md') -PathType Leaf)
+        } | Select-Object -First 1)
 }

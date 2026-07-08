@@ -3,7 +3,7 @@
 **Workspace**: `/book/`
 **Created**: [DATE]
 **Status**: Draft
-**Input**: Author description: "$ARGUMENTS"
+**Input**: Author description: "[USER_DESCRIPTION]"
 
 ## Premise *(mandatory)*
 

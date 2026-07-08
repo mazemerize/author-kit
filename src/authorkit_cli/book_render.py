@@ -14,7 +14,12 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .book_core import BookConfig, ChapterDraft
+from rich.console import Console
+
+from .book_core import BookConfig, ChapterDraft, find_repo_root
+
+# Shared Rich console for warnings emitted during render.
+console = Console()
 
 # Output formats supported by the pandoc build pipeline.
 SUPPORTED_FORMATS = {"docx", "epub"}
@@ -64,39 +69,41 @@ def build_manuscript_markdown(config: BookConfig, drafts: list[ChapterDraft]) ->
     return "".join(parts).strip() + "\n"
 
 
-def _find_repo_root(start: Path) -> Path:
-    """Find repository root from a book path."""
-    current = start.resolve()
-    for parent in [current, *current.parents]:
-        if (parent / ".authorkit").exists():
-            return parent
-    return current
+def _resolve_asset_path(book_dir: Path, configured_path: str, default_rel: str, asset_label: str) -> Path | None:
+    """Resolve configured style path with repo defaults as fallback.
 
+    Returns the first existing candidate, or ``None`` if even the default is missing.
+    Emits a warning when ``configured_path`` is set but resolves to nothing — this is
+    the silent-degrade scenario where a typo in book.toml otherwise produces a
+    default-styled output without telling the user.
+    """
+    repo_root = find_repo_root(book_dir)
 
-def _resolve_asset_path(book_dir: Path, configured_path: str, default_rel: str) -> Path | None:
-    """Resolve configured style path with repo defaults as fallback."""
-    repo_root = _find_repo_root(book_dir)
-
-    candidates: list[Path] = []
+    configured_candidates: list[Path] = []
     if configured_path:
         cfg = Path(configured_path)
-        candidates.extend(
-            [
-                cfg,
-                book_dir / cfg,
-                repo_root / cfg,
-            ]
-        )
-    candidates.append(repo_root / default_rel)
+        configured_candidates.extend([cfg, book_dir / cfg, repo_root / cfg])
+    default_candidate = repo_root / default_rel
 
     seen: set[Path] = set()
-    for candidate in candidates:
+    for candidate in configured_candidates:
         resolved = candidate.resolve()
         if resolved in seen:
             continue
         seen.add(resolved)
         if resolved.exists():
             return resolved
+
+    if configured_path:
+        console.print(
+            f"[yellow]Warning:[/yellow] {asset_label} configured as "
+            f"'{configured_path}' but no file was found at that path. "
+            f"Falling back to the bundled default."
+        )
+
+    default_resolved = default_candidate.resolve()
+    if default_resolved.exists():
+        return default_resolved
     return None
 
 
@@ -130,6 +137,7 @@ def render_formats(
                 book_dir,
                 config.reference_docx,
                 ".authorkit/templates/publishing/reference.docx",
+                "DOCX reference document",
             )
             if ref_path:
                 cmd.extend([f"--reference-doc={ref_path}"])
@@ -139,6 +147,7 @@ def render_formats(
                 book_dir,
                 config.epub_css,
                 ".authorkit/templates/publishing/epub.css",
+                "EPUB stylesheet",
             )
             if css_path:
                 cmd.extend([f"--css={css_path}"])

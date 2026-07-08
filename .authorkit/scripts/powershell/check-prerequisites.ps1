@@ -59,14 +59,7 @@ $paths = Get-BookPaths
 # If paths-only mode, output paths and exit
 if ($PathsOnly) {
     if ($Json) {
-        [PSCustomObject]@{
-            REPO_ROOT    = $paths.REPO_ROOT
-            BOOK_DIR     = $paths.BOOK_DIR
-            BOOK_CONCEPT = $paths.BOOK_CONCEPT
-            STYLE_ANCHOR = $paths.STYLE_ANCHOR
-            OUTLINE      = $paths.OUTLINE
-            CHAPTERS     = $paths.CHAPTERS
-        } | ConvertTo-Json -Compress
+        Get-BookPathsJson
     } else {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
         Write-Output "BOOK_DIR: $($paths.BOOK_DIR)"
@@ -81,20 +74,20 @@ if ($PathsOnly) {
 # Validate required directories and files
 if (-not (Test-Path $paths.BOOK_DIR -PathType Container)) {
     Write-Output "ERROR: Book directory not found: $($paths.BOOK_DIR)"
-    Write-Output "Run /authorkit.conceive first to create the book structure."
+    Write-Output "Run /authorkit.discuss first to create the book structure."
     exit 1
 }
 
 if (-not (Test-Path $paths.OUTLINE -PathType Leaf)) {
     Write-Output "ERROR: outline.md not found in $($paths.BOOK_DIR)"
-    Write-Output "Run /authorkit.outline first to create the book outline."
+    Write-Output "Run /authorkit.write outline first to create the book outline."
     exit 1
 }
 
 # Check for chapters.md if required
 if ($RequireChapters -and -not (Test-Path $paths.CHAPTERS -PathType Leaf)) {
     Write-Output "ERROR: chapters.md not found in $($paths.BOOK_DIR)"
-    Write-Output "Run /authorkit.chapters first to create the chapter breakdown."
+    Write-Output "Run /authorkit.write first to create the chapter breakdown."
     exit 1
 }
 
@@ -105,8 +98,8 @@ $docs = @()
 if (Test-Path $paths.RESEARCH) { $docs += 'research.md' }
 if (Test-Path $paths.CHARACTERS) { $docs += 'characters.md' }
 
-# Check chapters directory (only if it exists and has subdirectories)
-if ((Test-Path $paths.CHAPTERS_DIR) -and (Get-ChildItem -Path $paths.CHAPTERS_DIR -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+# Check chapters directory (only if it has numeric chapter subdirectories)
+if (Test-DirHasChapterSubdirs $paths.CHAPTERS_DIR) {
     $docs += 'chapters/'
 }
 
@@ -129,7 +122,11 @@ if ($Json) {
 
     Test-FileExists -Path $paths.RESEARCH -Description 'research.md' | Out-Null
     Test-FileExists -Path $paths.CHARACTERS -Description 'characters.md' | Out-Null
-    Test-DirHasFiles -Path $paths.CHAPTERS_DIR -Description 'chapters/' | Out-Null
+    if (Test-DirHasChapterSubdirs $paths.CHAPTERS_DIR) {
+        Write-Output "  + chapters/"
+    } else {
+        Write-Output "  - chapters/"
+    }
 
     if ($IncludeChapters) {
         Test-FileExists -Path $paths.CHAPTERS -Description 'chapters.md' | Out-Null

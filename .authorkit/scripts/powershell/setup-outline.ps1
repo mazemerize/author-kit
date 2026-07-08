@@ -26,14 +26,15 @@ $paths = Get-BookPaths
 # Ensure the book directory exists
 New-Item -ItemType Directory -Path $paths.BOOK_DIR -Force | Out-Null
 
-# Copy outline template if it exists
+# Copy outline template only if outline.md does not already exist (preserves user edits)
 $template = Join-Path $paths.REPO_ROOT '.authorkit/templates/outline-template.md'
-if (Test-Path $template) {
-    Copy-Item $template $paths.OUTLINE -Force
-    Write-Output "Copied outline template to $($paths.OUTLINE)"
-} else {
-    Write-Warning "Outline template not found at $template"
-    New-Item -ItemType File -Path $paths.OUTLINE -Force | Out-Null
+if (-not (Test-Path $paths.OUTLINE)) {
+    if (Test-Path $template) {
+        Copy-Item $template $paths.OUTLINE
+    } else {
+        Write-Warning "Outline template not found at $template"
+        New-Item -ItemType File -Path $paths.OUTLINE -Force | Out-Null
+    }
 }
 
 # Ensure chapters directory exists
