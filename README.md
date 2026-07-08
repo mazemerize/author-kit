@@ -163,9 +163,13 @@ Progress is tracked in `chapters.md` with status markers:
 
 For cross-model prose continuity, `/authorkit.write` also maintains `book/style-anchor.md`, derived from the constitution, the concept's voice & tone, plus the *earliest* approved chapters (a fixed origin, so the voice bar doesn't drift downward with recent output). Character/scene/arc *texture* is matched separately against the earliest *relevant* approved chapter, so it never lowers that bar.
 
+Drafting itself is **conditioned on the voice rather than policed by rules**: the model writes with pages of the origin prose immediately in context (so it *continues* the book instead of following style instructions about it), sees recent before→after voice pairs from `book/voice-pairs.md`, and drafts each scene in two passes — a flat content pass (events, dialogue, concrete fact; names and numbers rolled with `authorkit entropy`) followed by a voice pass that translates it into the book's register without adding any new facts.
+
 ### 4. Review what you wrote
 
-`/authorkit.review` does a few jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`); the craft review now **leads with a gating style-fidelity pass** (voice vs the fixed origin + the literary-tic audit), so a chapter that has drifted from the book's voice is not approved. Pass `N style` for that **style pass alone** (→ `chapters/NN/style-review.md`) — a fast, explicit voice check right after writing. Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep. Pass a range for both.
+`/authorkit.review` does a few jobs depending on scope. Pass a chapter for a craft review (plan adherence, constitution compliance, character/world consistency, continuity, theme integration — produces `chapters/NN/review.md`); the craft review **leads with two gating passes**: style fidelity vs the fixed origin, and a **self-learning AI-tic pass** — a blind contrast of the draft against the origin prose that discovers AI-flavoured constructions (no fixed list to go stale), then reconciles them into `book/tic-ledger.md`, the book's living tic catalog with per-chapter trends. A chapter that has drifted from the book's voice, or repeats a discovered tic shape, is not approved. Pass `N style` for the **gating passes alone** (→ `chapters/NN/style-review.md`) — a fast, explicit voice check right after writing. Pass nothing (or `all` / `manuscript`) for a manuscript-wide drift sweep. Pass a range for both.
+
+The tic defense is a loop, not a list: review **discovers** tics by contrast with the origin and remembers them in the ledger; revision fixes them and **harvests** each fix as a before→after pair into `book/voice-pairs.md`; drafting is **conditioned** on those pairs (and never sees the ledger or any tic list — pattern descriptions in a drafting context prime the very constructions they prohibit). Switch models and the ledger relearns the new model's habits within a few chapters; the shipped catalog only seeds the first entries.
 
 ```bash
 /authorkit.review 1                # Craft review of chapter 1
@@ -291,10 +295,11 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 | `authorkit check` | Check local tool availability | — | Tool status report (`git`, `claude`, `codex`, `copilot`, `python`, `pandoc`, `ffmpeg`) |
 | `authorkit version` | Print CLI and Python versions | — | Version report |
 | `authorkit status` | Project health dashboard for the current book | — | Chapter breakdown by status, parked-decision counts, world entity totals, open escalations, drift warnings |
-| `authorkit autopilot` | Run the semi-autonomous authoring loop (`chapters` / `plot`); stitches clean sessions of the four commands and halts on escalations | `chapters --range`, `plot --max-iters`, `--dry-run`, `--step`, `--commit`, `--permission-mode` | Chapter drafts/reviews or plan updates; `book/escalations/*.md`; `book/runs/autopilot.jsonl` |
+| `authorkit autopilot` | Run the semi-autonomous authoring loop (`chapters` / `plot`); stitches clean sessions of the four commands and halts on escalations | `chapters --range`, `plot --max-iters`, `--guideline`, `--dry-run`, `--step`, `--commit`, `--permission-mode` | Chapter drafts/reviews or plan updates; `book/escalations/*.md`; `book/runs/autopilot.jsonl` |
 | `authorkit book build` | Build manuscript outputs | Repeat `--format`, `--force`, `--yes`, `--quiet`, `--output-dir`, `--from-chapter`, `--to-chapter` | `dist/manuscript.md` + rendered docs |
 | `authorkit book audio` | Generate chapter audio and optional merged audiobook | `--provider`, `--voice`, `--model`, `--merge`, `--output-dir`, `--from-chapter`, `--to-chapter`, `--force`, `--yes` | `dist/audio/*.mp3` (+ optional merged file) |
 | `authorkit book stats` | Compute chapter/global manuscript metrics | `--output`, `--wpm`, `--audio-dir`, `--from-chapter`, `--to-chapter` | Table/JSON/Markdown stats (includes per-chapter estimated audio minutes) |
+| `authorkit entropy` | True-random values for drafting (the Entropy Protocol): `number` rolls within author-chosen bounds; `name` emits name-construction seeds, not finished names | `number --min --max --count --kind`, `name --culture --syllables --count`, `--json` | Values / name seeds (plain or JSON) |
 
 ---
 
@@ -306,10 +311,13 @@ Author Kit's slash-command surface is **four commands** that map to authoring ac
 authorkit autopilot chapters --range 1-8            # plan -> draft -> review each chapter in range
 authorkit autopilot plot --max-iters 10             # develop the outline / world / chapter plans
 authorkit autopilot chapters --range 1-8 --dry-run  # show the next action; change nothing
+authorkit autopilot chapters --range 1-8 \
+  --guideline "re-review every chapter against the new tic patterns, revise drafts, then re-review"
 ```
 
 - **Refuses without a seed.** `plot` needs `concept.md`; `chapters` additionally needs a filled constitution, `outline.md`, and a `chapters.md` covering the range.
 - **Bounds:** `--range` for `chapters`, `--max-iters` for `plot`. `--dry-run` previews the next directive, `--step` runs one tick, `--commit` commits after each tick.
+- **Guidelines (campaigns):** `--guideline "<directive>"` steers the planner for the run — it **overrides the default status ladder** and may re-open approved `[X]` chapters for a review/revise sweep (e.g. re-reviewing a finished manuscript against new rules). Under a guideline the loop skips the all-`[X]` auto-done (the planner owns completion) and measures progress by draft/review **content** as well as status, so a sweep over already-approved chapters isn't cut short. Available on both `chapters` and `plot`.
 - **Tool access:** workers run with `--dangerously-skip-permissions` by default (full, unattended tool access — required to write files and run the setup/world-index scripts); the loop prints a heads-up each run. Pass `--permission-mode <mode>` (e.g. `acceptEdits`, `default`) to restrict, noting tighter modes may stall on script steps.
 - **Escalations.** When a decision is the author's to make, the loop writes an `OPEN` record to `book/escalations/` and halts. Resolve it with `/authorkit.discuss` (or `/authorkit.write N revise:` / `/authorkit.research`), which closes the record; the next run resumes. The loop never resolves its own escalations.
 - **Audit & control:** every tick is logged to `book/runs/autopilot.jsonl`; drop a `book/runs/STOP` file to halt after the current tick.
@@ -500,6 +508,18 @@ speaking_rate_wpm = 170
 [stats]
 reading_wpm = 200
 # tts_cost_per_1m_chars = 0.000015   # uncomment and set to enable cost estimates in `authorkit book stats`
+
+# Per-operation model/effort overrides for `authorkit autopilot` (all optional —
+# unset means no --model/--effort flag is passed, so the agent CLI's own default applies).
+# [autopilot.planner]   # the meta-planner deciding each tick's next action
+# model = ""
+# effort = ""
+# [autopilot.review]    # dispatched /authorkit.review commands
+# model = ""
+# effort = ""
+# [autopilot.writer]    # dispatched /authorkit.write and /authorkit.research commands
+# model = ""
+# effort = ""
 ```
 
 `authorkit book build` format options:
@@ -526,6 +546,11 @@ Audio narration instructions:
 - Override with a custom file: set `instructions` in `[audio]` to your own path (absolute, relative to `book/`, or relative to repo root)
 - Instructions selection order: `[audio].instructions` config path, then default template, then built-in fallback
 - The default template follows openai.fm-style guidance covering voice, punctuation, delivery, phrasing, tone, pauses, and markdown handling
+
+`authorkit autopilot` model/effort per operation (`[autopilot.*]` in `book.toml`):
+- Point each of AutoPilot's three jobs at a different model — `planner` (decides what to do next each tick), `review` (runs `/authorkit.review`), `writer` (runs `/authorkit.write` and `/authorkit.research`) — e.g. a cheap model for planning and your strongest model for drafting.
+- Uncomment and fill in whichever `[autopilot.*]` blocks you want in `book.toml`; leave the rest as-is. There's no built-in default and no CLI flag, so anything you don't set just uses your agent CLI's normal default.
+- `model` takes whatever your AI flavor accepts (e.g. `haiku`/`sonnet`/`opus` for Claude); `effort` takes a reasoning-depth level such as `low`/`medium`/`high` (exact accepted values vary by flavor — see [docs/autopilot.md](docs/autopilot.md) for the per-flavor flag details).
 
 ---
 
@@ -566,6 +591,8 @@ Audio narration instructions:
 |   |-- research-topic-template.md
 |   |-- world-entity-frontmatter.md
 |   |-- style-anchor-template.md
+|   |-- tic-ledger-template.md         # /authorkit.review (Pass 2 bootstrap)
+|   |-- voice-pairs-template.md        # /authorkit.write (revise-time pair harvest)
 |   |-- parked-decisions-template.md   # /authorkit.discuss (park mode)
 |   |-- snapshot-template.md           # /authorkit.discuss (auto-snapshot before risky writes)
 |   |-- amendment-template.md          # /authorkit.discuss (cross-cutting change mode)
@@ -594,6 +621,8 @@ Created when you first run `/authorkit.discuss` on an empty repo (or when it ent
 book/
 |-- concept.md
 |-- style-anchor.md                  # Auto-derived from constitution + concept voice/tone + earliest approved chapters (fixed origin); managed by write prompt
+|-- tic-ledger.md                    # Living, book-specific catalog of AI-tic shapes; discovered + maintained by review (Pass 2); never loaded while drafting
+|-- voice-pairs.md                   # Before/after voice pairs harvested from revisions and author edits; the only tic knowledge drafting sees
 |-- outline.md
 |-- research.md
 |-- research/

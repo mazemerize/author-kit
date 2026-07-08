@@ -65,6 +65,7 @@ If the input is genuinely ambiguous (e.g., just a number with no context), defau
    - `characters.md` (profiles, voices)
    - `world/` files — if `world/_index.md` exists, use the Chapter Manifest to find entities from the previous chapter (carry-over context) and resolve entity names in the chapter plan or draft via the Alias Lookup. Load only matched files. Within each, treat the `## Current State` block as the canonical now-truth to write from; `## History` is provenance, not the current picture.
    - **Voice texture exemplar** — for character/scene/arc voice the style anchor leaves open (a POV character's interiority, an arc's tonal colour, a recurring character's dialogue voice), load the **earliest *relevant* approved (`[X]`) chapter**: the lowest-numbered approved draft featuring this chapter's POV/focus characters or the same arc register (use the `world/_index.md` Chapter Manifest + Alias Lookup). Match its texture, but it may only *add* what the fixed origin (step 5) leaves open — where it conflicts with the constitution or the origin, the origin wins. Pick the *earliest* relevant draft, never the most recent, so you match a representative instance, not a trailing (possibly drifted) one. Fall back to the fixed origin when no more-relevant chapter exists.
+   - **Voice pairs** — load `book/voice-pairs.md` (the **Active Pairs** section only) whenever this run will draft, revise, or refine prose. Frame the pairs positively per the shared guardrails' Voice Conditioning Protocol: *in this book, prose like the left column gets revised to the right column — write right-column prose directly.* If the file doesn't exist yet, skip silently. **Quarantine (binding)**: never load `book/tic-ledger.md` or the seed tic catalog while drafting — tic knowledge enters generation only as these pairs.
    - **Continuity & arc references** — for plot/thread/state (where an arc currently stands), choose by *relevance* to this chapter, not just `N-1`: the previous chapter draft/plan, plus the **most recent** chapter(s) featuring this chapter's POV/focus characters and the chapter that last advanced an arc converging here. This is *current-state* context for what happens; voice still grades and matches against the fixed origin (global) + the earliest-relevant exemplar (texture), never against these recent chapters.
    - `research.md` and relevant `research/` topic files (recursive scan, prefer scope `general`, `outline`, `chapter CHNN`)
    - `parked-decisions.md` — scan for OPEN decisions whose deadline is at or before this chapter. If any found, **list them inline** at the top of the run and recommend resolving via `/authorkit.discuss` (Park mode). **Do not block** — the author can proceed.
@@ -97,7 +98,7 @@ Triggered when `outline.md` doesn't exist or the input explicitly asks for outli
      - Each chapter entry: title, purpose, summary, key events/points, characters/concepts, closing beat, connections. Verify pacing (mix of high-tension and breathing-room chapters).
      - Map character arcs and thematic threads across outlined chapters. For partial/extend, note expected directions for un-outlined portions.
    - **Continuation Notes** (partial and extend only): populate the section with **Last Outlined Through**, **Open Plot Threads**, **Character Arc Positions**, **Thematic Threads In Progress**, **Notes for Next Outlining Session**. On extend, **replace** Continuation Notes entirely (do not merge with previous notes; chapter entries are the historical record). For full mode: remove the section or leave it empty with a "complete" note.
-   - **Phase 2 — Validation**: Constitution check, Completeness check, Arc check (scope-aware), Pacing check.
+   - **Phase 2 — Validation**: Constitution check, Completeness check, Arc check (scope-aware), Pacing check, **Disclosure-horizon check** (per the Disclosure Horizon Protocol): no chapter entry's summary, key events, or closing beat may prescribe disclosing a plot fact the outline assigns to a *later* chapter — a reveal, death, twist, or identity stated ahead of the chapter that owns it. Keep cross-chapter links as setups/payoffs, not spoilers. A deliberate non-linear structure (frame narrative, flash-forward prologue) is allowed only when it is an explicit, recorded structural choice for this book; otherwise flag it and resolve via `/authorkit.discuss`.
 5. Stop and report: OUTLINE path, artifacts generated (research.md, characters.md), whether research/ was consumed, scope, partial-outline reminder if applicable.
 
 After Outline mode produces an outline, **continue automatically into Chapters mode** if `chapters.md` doesn't exist and the user originally asked for a chapter. Otherwise stop and let the author decide.
@@ -154,13 +155,15 @@ For a chapter number N with no plan yet (or to overwrite an existing plan with a
    - **Voice & Style Notes**: chapter-specific style considerations
    - **Estimated Length**: target word count based on overall scope
 
-6. **Write the plan** to `BOOK_DIR/chapters/NN/plan.md`.
+6. **Disclosure-horizon check (before writing the plan)** — per the Disclosure Horizon Protocol, applied to the plan itself: no Key Revelation, closing beat, or scene beat may state or proleptically narrate a plot fact the outline assigns to a *later* chapter. A plan that prescribes a premature reveal is executed faithfully by Draft mode, so the leak must be caught here, not left for review. Keep setups as **planted foreshadowing** (an image/object/unease that pays off later without naming the payoff), not disclosure. A genuine flash-forward/frame device is allowed **only** if the concept, constitution, or outline structure records it as intended — otherwise escalate the structural question via `/authorkit.discuss` instead of planning the reveal in.
 
-7. **Update chapter status** in `chapters.md`: change `- [ ] CHNN` to `- [P] CHNN`.
+7. **Write the plan** to `BOOK_DIR/chapters/NN/plan.md`.
 
-8. **Fix stale outline entries** if step 2 found mismatches: update `outline.md` to match drafted reality.
+8. **Update chapter status** in `chapters.md`: change `- [ ] CHNN` to `- [P] CHNN`.
 
-9. **Report**: path to plan, summary of scenes/sections planned, key connections, suggested next step (continue to Draft mode for this chapter, or stop if the author wanted plan-only).
+9. **Fix stale outline entries** if step 2 found mismatches: update `outline.md` to match drafted reality.
+
+10. **Report**: path to plan, summary of scenes/sections planned, key connections, suggested next step (continue to Draft mode for this chapter, or stop if the author wanted plan-only).
 
 ## Mode: Plan + draft
 
@@ -186,7 +189,7 @@ For a chapter with an existing plan (or a plan just generated by step 1 of Plan 
 
 1. **Verify chapter plan exists** at `chapters/NN/plan.md`. If not, run Plan mode first. Verify `chapters.md` status is at least `[P]`.
 2. **Refresh style anchor** (Always-on step 5).
-3. **Load constitution + style anchor** and internalize voice/style rules.
+3. **Load constitution + style anchor** and internalize voice/style rules. **All draft modes (Full, Interactive, Scene, Continue, From-scene) use the Voice Conditioning Protocol and the two-pass scene protocol defined under Full mode** — conditioning context, Pass A content, Pass B voice, only Pass B saved.
 4. **Draft state detection**:
    - Check if `chapters/NN/draft.md` exists. If so, check for a partial-draft marker: `<!-- PARTIAL DRAFT: Scenes X-Y of Z complete -->`
    - **Full mode + complete draft**: ask user whether to overwrite or skip.
@@ -197,7 +200,16 @@ For a chapter with an existing plan (or a plan just generated by step 1 of Plan 
 
 ### Full mode
 
-Follow the scene/section breakdown from the plan. For each scene:
+**Condition the context first** (per the shared guardrails' Voice Conditioning Protocol): assemble the drafting context so the model *continues* the book rather than follows instructions about it — immediately before writing prose, place in order (1) the resolved origin excerpt(s) **verbatim** (~2–4 pages of the fixed origin from Always-on step 5's resolution), (2) the tail of the existing draft (or the previous chapter's closing scene when starting fresh), (3) a *minimal* beat sheet distilled from the plan for the scene at hand — then continue the prose from there.
+
+**Before drafting**, if this chapter introduces new names or new arbitrary numbers not already fixed by the plan/concept/outline/world, roll them with the entropy tool per the Entropy Protocol — `authorkit entropy name [--culture …]` for each new name (build a setting-fit name from the returned seed) and `authorkit entropy number --min A --max B [--kind …]` for each new arbitrary number (within context-justified bounds). Rolled values land in Pass A and become canon. (Headless-safe — runs the same under AutoPilot.)
+
+**Draft each scene in two passes** (only Pass B is ever saved to `draft.md`):
+
+- **Pass A — content**: deliberately flat camera prose — events, dialogue, concrete physical fact; no figurative language, no interiority glosses, no rhythm performance. All entropy rolls happen here. Pass A is working material only — never written to `book/`.
+- **Pass B — voice**: rewrite Pass A into the anchored voice with the origin excerpts and Active voice pairs in context. **Hard rule: Pass B adds no new facts, names, or numbers** — it is a translation of Pass A; the self-check diffs B against A to confirm.
+
+Follow the scene/section breakdown from the plan. For each scene (Pass A establishes the material; Pass B must preserve it while carrying the voice):
 
 a. **Set the stage**: establish setting/context with sensory detail (fiction) or clear framing (non-fiction).
 b. **Execute the beats**: write through each key beat in order. Each beat advances the story/argument; transitions feel natural; the emotional/intellectual progression follows the planned arc.
@@ -252,21 +264,26 @@ h. **Closing**: end with the planned closing beat. Leave the reader wanting to t
 
 ### Quality self-check (before saving any new content)
 
-- Constitution voice/style compliance
-- `book/style-anchor.md` match on POV, tense, narrative distance, cadence, diction, imagery density, dialogue profile
-- LLM tic budgets (per `.authorkit/prompts/_shared/literary-tic-catalog.md`) honored, with explicit constitution waivers noted
-- Each scene/section achieves its planned purpose
-- For Full mode or final scene: opening hook + closing beat both effective
-- Pacing varied and appropriate
-- Character voices distinct (fiction); argument clear and supported (non-fiction)
-- Word count in target range (Full mode: 10-15% variance OK)
+Run the **Analysis Passes** roster (shared guardrails) on the new prose, plus the craft items:
+
+- **Pass 1 — Style**: constitution voice/style compliance; `book/style-anchor.md` match on POV, tense, narrative distance, cadence, diction, imagery density, dialogue profile.
+- **Pass 2 — AI-Tic**: origin-contrast self-check (per the shared guardrails' Pre-output Audit — do NOT load the tic ledger or the seed catalog): no construction, sentence shape, or beat-closer recurs in the new prose that the origin never uses; nothing reads like left-column prose from the Active voice pairs; Pass B introduced no facts, names, or numbers absent from Pass A. Explicit constitution waivers noted.
+- **Pass 3/4 — Logical & quantitative consistency**: new quantities are internally consistent and arithmetically sound, and contradict no prior chapter or `world/` `## Current State` (per the Quantitative & Logical Continuity Protocol).
+- **Pass 5 — Disclosure horizon**: no premature disclosure / proleptic narration of a later chapter's content (per the Disclosure Horizon Protocol).
+- **Pass 6 — Standalone readability**: the chapter parses for a reader with only the shipped chapters — no scaffolding-only references, no transcribed `world/` exposition.
+- Each scene/section achieves its planned purpose.
+- For Full mode or final scene: opening hook + closing beat both effective.
+- Pacing varied and appropriate.
+- Character voices distinct (fiction); argument clear and supported (non-fiction).
+- Word count in target range (Full mode: 10-15% variance OK).
 
 ### Style match pass
 
 - Compare new content against constitution + `book/style-anchor.md`.
 - Also check that new content is consistent in voice with any existing author-written content in the draft.
-- Run the literary tic audit from `.authorkit/prompts/_shared/literary-tic-catalog.md`: count instances per pattern (and per 1,000 words for the density patterns marked per-1,000-words in the catalog's budget table), compare to budgets, and check `.authorkit/memory/constitution.md` + style anchor for explicit waivers before flagging anything. Rewrite any over-budget pattern in place before saving rather than emitting tic-rich prose and post-flagging. If a waiver is in effect, name it in the run report.
+- Run the tic self-check by **contrast, not by list** (the ledger and seed catalog stay quarantined from drafting): re-read the new prose against the origin excerpts and Active voice pairs already in context. Any recurring construction the origin never uses, or anything reading like left-column pair prose, gets rewritten in place before saving — the fix is whatever the origin does for the same job. Check `.authorkit/memory/constitution.md` + style anchor for explicit waivers before rewriting; if a waiver is in effect, name it in the run report.
 - Correct drift before saving.
+- **Entropy derivation**: any new name should have been built from an `authorkit entropy name` seed, and any new arbitrary number drawn from `authorkit entropy number` within context-justified bounds (per the Entropy Protocol) — not free-associated. Record new numeric facts so later chapters and review can hold the line (they are now canon).
 - If new numeric facts were introduced, verify each has rationale. If multiple values were plausible, the selected value should be context-bounded and not a repetitive default.
 
 ### Write the draft
@@ -289,24 +306,25 @@ After **Full mode** or **all scenes complete**, proceed automatically into **Rec
 Triggered when `chapters/NN/draft.md` exists and the user input includes "revise", "fix", a chapter status is `[R]`, or the input describes specific issues to address.
 
 1. **Determine revision scope** from input: specific chapter, specific issue (e.g., "fix the timeline contradiction between 3 and 7"), or analysis-driven ("address the critical issues from the last review"). If unclear, ask the author to specify.
-2. **Load context**: the draft, the plan, the chapter's review (`chapters/NN/review.md` if it exists), concept, constitution, characters, style anchor (refresh first per Always-on step 5), `world/` files for entities in this chapter (check chapter-tagged details that may need updating), adjacent chapter drafts (continuity), any analysis findings relevant to this chapter.
-3. **Identify specific changes**:
-   - From `review.md`: address critical and important issues first
-   - From analysis: continuity, consistency, pacing fixes
-   - From user input: requested changes
-4. **Plan the revision**: list each change, the affected sections of the draft, and ripple effects on other chapters.
-5. **Apply revisions** to `chapters/NN/draft.md`:
-   - Targeted edits — don't rewrite from scratch unless necessary
-   - Preserve voice consistency
-   - Follow constitution + match `book/style-anchor.md`
-   - For new or changed numeric facts: explicit rationale; context-bounded varied value if multiple plausible
-6. **Update the plan** at `chapters/NN/plan.md` if the revision changes the chapter's structure.
-7. **Update status** in `chapters.md`:
+2. **Load context**: the draft, the plan, the chapter's review (`chapters/NN/review.md` if it exists), `book/tic-ledger.md` if it exists (read-only — Revise needs each gating entry's origin counter-example in hand; the quarantine rule bars *drafting* from the ledger, not revision), concept, constitution, characters, style anchor (refresh first per Always-on step 5), `world/` files for entities in this chapter (check chapter-tagged details that may need updating), adjacent chapter drafts (continuity), any analysis findings relevant to this chapter.
+
+3. **Revise pass-by-pass (the Analysis Passes roster).** Revision is explicitly multi-pass: **walk the roster in order** — 1 Style → 2 AI-Tic → 3 In-Chapter Logic → 4 Cross-Chapter/Arc Logic → 5 Disclosure → 6 Standalone → 7 Craft — and for **each pass**:
+   - **Ingest that pass's findings** from the matching `review.md` section heading (the headings are keyed to the roster), **plus** any issue named in the invocation (`revise: <issue>`) mapped to the pass it belongs to. Critical/Important first.
+   - **Apply the fixes** as targeted edits to `chapters/NN/draft.md` — smallest change that resolves the finding; don't rewrite working sections; preserve voice; follow constitution + match `book/style-anchor.md`. For new/changed numbers or names, derive via the Entropy Protocol and keep quantities consistent with prior chapters/`world/` (Quantitative & Logical Continuity).
+   - **Drive gating shapes below budget across the WHOLE draft (Pass 2 only)**: for a shape in the review's **Gating Shapes** set, the fix target is its *whole-draft instance count under the ledger `Budget:`* — not just the quoted spans. The review's citations are a starting point, not the full set: **sweep the entire draft** for the shape yourself, fix enough instances to bring the count below budget, and confirm the post-fix count. Fixing only the cited lines is the classic non-convergence trap — blind Step A re-finds the uncited instances next review and the gate never shrinks. "Smallest change" still governs each individual rewrite; it does not license leaving other instances of a *gating* shape in place. Below-budget residual shapes keep the lighter cited-only touch.
+   - **Repeat offenders (Pass 2 only)**: before rewriting a flagged shape, check whether it is a **carry-over** — the *prior* review's `**Gating Shapes**:` line listed it too. A carry-over means a previous revise cycle already tried a fix on it and the fix didn't hold. Look up that shape's existing pair in `book/voice-pairs.md`: its "after" side is the rewrite that failed — do not produce another variation of that construction. Anchor the new fix on the ledger entry's **origin counter-example** instead: restructure the sentence or beat the way the origin does the same job, rather than substituting words within the shape the failed pair used.
+   - **Harvest voice pairs (Pass 2 fixes only)**: for each AI-Tic finding fixed, append the before→after pair to `book/voice-pairs.md` **Active Pairs** (create the file from `.authorkit/templates/voice-pairs-template.md` if missing): `- TIC-NNN (CHnn): "<original sentence>" → "<revised sentence>"`. Keep Active at ~20 pairs, newest first, preferring one instructive pair per tic shape; rotate the oldest to **Archive**. For a repeat offender, the new pair **replaces** the shape's stale pair (one instructive pair per shape — the failed rewrite is no longer instructive). These pairs are how the next draft learns — harvesting is not optional.
+   - **Re-run that pass's own check** on the edited prose before advancing, so a Style fix that introduces a tic (Pass 2), or a logic fix (Pass 4) that breaks voice (Pass 1), is caught in-loop. A pass with no findings is verified-and-skipped, never silently ignored.
+   - If no `review.md` exists (a direct `revise: <issue>`), still walk the roster but act only on the passes the issue touches, running those passes' checks yourself.
+   - **Final gate sweep (mandatory, after the last pass)**: re-check every span edited during passes 3–7 against Pass 1 (voice vs the fixed origin) and Pass 2 (tic budgets vs the ledger), then run one **whole-draft style match** — compare the full revised draft against the constitution + style anchor and fix any drift, edited or not, before reporting. The per-pass re-check only covers each pass's own remit and only the spans revise touched; drift sitting in a span the review missed and revise never edited is exactly what the whole-draft match exists to catch before the draft is saved.
+
+4. **Update the plan** at `chapters/NN/plan.md` if the revision changes the chapter's structure.
+5. **Update status** in `chapters.md`:
    - `[R]` → `[D]` (re-drafted, ready for re-review)
    - `[X]` + revision requested → `[D]`
-8. **Style match pass**: compare revised draft against constitution + style anchor; fix drift before reporting.
-9. **Check for ripple effects**: if a revision changes a fact, character detail, or plot point, identify all other chapters that reference it. List them as ripple flags for the author. Do NOT auto-edit other chapters. Recommend the **Reconcile** sub-step below to capture world/ deltas and surface downstream impact systematically.
-10. Proceed automatically into **Reconcile** mode.
+6. **Check for ripple effects**: if a revision changes a fact, character detail, or plot point, identify all other chapters that reference it. List them as ripple flags for the author. Do NOT auto-edit other chapters. Recommend the **Reconcile** sub-step below to capture world/ deltas and surface downstream impact systematically.
+7. **Report** which passes ran, their before/after status, and the fixes applied per pass.
+8. Proceed automatically into **Reconcile** mode.
 
 ## Mode: Passage Help
 
@@ -328,7 +346,7 @@ Targeted, scalpel-level refinement of a specific passage. Detected when input in
    - "opening" → first 1-3 paragraphs; "closing" → last 1-3 paragraphs
    - Can't find it → ask for clarification
 
-4. **Deliver help by mode**. All suggestion text generated below is manuscript prose — honor the budgets in `.authorkit/prompts/_shared/literary-tic-catalog.md` (patterns 7 and 13 especially creep into `stuck`/`continue` continuations):
+4. **Deliver help by mode**. All suggestion text generated below is manuscript prose, held to Pass-B grade: condition on the origin excerpts and Active voice pairs (Voice Conditioning Protocol), and run the origin-contrast self-check on every suggestion before presenting it — continuations (`stuck`/`continue`) are where AI-flavoured constructions creep in most:
    - **alternatives**: present original (quoted), then 2-3 options with one-line rationales. Each option takes a meaningfully different approach, not word swaps.
    - **improve**: analyze for clarity, impact, voice consistency, show vs tell, pacing, rhythm, character distinctiveness. Specific actionable suggestions with exact text and replacement.
    - **stuck / continue**: read draft up to where the author indicates they're stuck. Summarize what the plan expects next (if a plan exists). Write 2-3 paragraphs of continuation. Match voice and style. Offer: *"Does this direction feel right? For a full next scene, run /authorkit.write [N] continue."*
@@ -393,6 +411,10 @@ Scan the new prose for things that surfaced as new uncertainty (e.g., a characte
 - If it's a direct contradiction with an existing `(CONCEPT)` or `(CHxx)` entry, flag for `/authorkit.discuss` (Cross-cutting change) to propagate.
 - If it's a new ambiguity worth surfacing, suggest `/authorkit.discuss <topic>` to clarify.
 
+### Phase 4b: Voice-pair harvest from author edits (best-effort)
+
+If the draft shows author hand-edits since the last AI write (mixed authorship — e.g. `git log` / `git diff` on `chapters/NN/draft.md` shows changes this tool didn't produce, or content diverging from what the previous run reported writing), harvest the clearly **stylistic** small rewrites — a sentence reworded, a beat-closer replaced, a simile cut — as voice pairs in `book/voice-pairs.md` Active Pairs, in the same one-line format Revise appends but tagged `author` in place of the TIC id (create the file from `.authorkit/templates/voice-pairs-template.md` if missing). Author pairs are the highest-value conditioning examples; prefer keeping them when rotating Active down to ~20. Skip content-level edits (plot/fact changes — Phase 1 captures those). Interactive runs: list the candidate pairs and confirm before saving. Unattended runs (`[AUTOPILOT-UNATTENDED]`): save clearly-stylistic pairs and report them; when in doubt whether an edit is stylistic, skip it.
+
 ### Phase 5: Rebuild the world index
 
 Run `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root. This regenerates the Entity Registry, Alias Lookup, and Chapter Manifest.
@@ -424,6 +446,9 @@ Run `{{SCRIPT_BUILD_WORLD_INDEX}}` from repo root. This regenerates the Entity R
 ### Ambiguity Scan
 - Direct contradictions surfaced: [N] (each with proposed `/authorkit.discuss` follow-up)
 - New ambiguities worth clarifying: [N]
+
+### Voice Pairs
+- Pairs harvested this run: [N] ([TIC-refs and/or author-tagged]; 0 if none)
 
 ### Index Stats
 - Entities indexed: [N]

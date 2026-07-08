@@ -783,7 +783,7 @@ def test_init_injects_shared_generation_guardrails_and_keeps_shared_asset_unrend
 
         write_prompt = Path(".codex/prompts/authorkit.write.md").read_text(encoding="utf-8")
         assert "## Shared Generation Guardrails" in write_prompt
-        assert "### Name Originality Protocol" in write_prompt
+        assert "### Entropy Protocol" in write_prompt
 
         assert Path(".authorkit/prompts/_shared/generation-guardrails.md").exists()
         assert not Path(".codex/prompts/generation-guardrails.md").exists()
@@ -827,7 +827,7 @@ def test_init_renders_discuss_prompt_for_all_ai_flavors():
             assert path.exists(), f"Expected rendered discuss prompt at {path}"
             body = path.read_text(encoding="utf-8")
             assert "## Shared Generation Guardrails" in body, f"Guardrails missing in {path}"
-            assert "### Name Originality Protocol" in body, f"Name protocol missing in {path}"
+            assert "### Entropy Protocol" in body, f"Entropy protocol missing in {path}"
             assert "Clarifications" in body, f"Clarifications section reference missing in {path}"
 
 
@@ -1788,6 +1788,29 @@ def test_parse_book_config_rejects_string_typed_numeric_fields(tmp_path):
         raise AssertionError("Expected BookConfigError for string-typed cost")
 
 
+def test_parse_book_config_rejects_scalar_autopilot_sections(tmp_path):
+    """A scalar where an ``[autopilot.<bucket>]`` table belongs (e.g.
+    ``planner = "haiku"`` under ``[autopilot]``) must raise BookConfigError,
+    not leak an AttributeError past the CLI's friendly error handling."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text(
+        '[book]\ntitle = "Test"\n[autopilot]\nplanner = "haiku"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(book_core.BookConfigError, match="autopilot.planner"):
+        book_core.parse_book_config(book_dir)
+
+    # The whole section as a scalar is equally friendly (top-level key, before
+    # any [table] header so it stays a root key).
+    (book_dir / "book.toml").write_text(
+        'autopilot = "haiku"\n[book]\ntitle = "Test"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(book_core.BookConfigError, match="autopilot"):
+        book_core.parse_book_config(book_dir)
+
+
 def test_book_build_surfaces_friendly_error_for_malformed_toml(tmp_path, monkeypatch):
     """`authorkit book build` must translate `BookConfigError` into a friendly
     Typer message (exit code 2) instead of crashing with a raw traceback.
@@ -2445,6 +2468,497 @@ def test_autopilot_loop_health_oscillation_escalates(tmp_path, monkeypatch):
     assert "loop-health" in records[0].read_text(encoding="utf-8")
 
 
+# --- Review-currency gate & tic-gate convergence (Bug 1 + Bug 2) --------------
+
+
+def _seed_chapter_review(book_dir, n, *, draft, review_verdict, gating="none", status_line, record_sha=True):
+    """Create chapters/NN/{draft,review}.md, set CH0N's chapters.md row, and (optionally)
+    the review-index sidecar so ``review_state`` sees the review as current for the draft."""
+    chap = book_dir / "chapters" / f"{n:02d}"
+    chap.mkdir(parents=True, exist_ok=True)
+    draft_path = chap / "draft.md"
+    draft_path.write_text(draft, encoding="utf-8")
+    (chap / "review.md").write_text(
+        f"# Chapter Review: Chapter {n:02d}\n\n**Overall Assessment**: {review_verdict}\n\n"
+        f"## Verdict\n**Status**: {review_verdict}\n**Gating Shapes**: {gating}\n",
+        encoding="utf-8",
+    )
+    (book_dir / "chapters.md").write_text(f"# Chapters\n\n- {status_line}\n", encoding="utf-8")
+    if record_sha:
+        verdict = "NEEDS_REVISION" if "NEEDS" in review_verdict.upper() else "PASS"
+        autopilot_core.write_review_index(
+            book_dir, {f"CH{n:02d}": {"draft_sha": autopilot_core.file_md5(draft_path), "verdict": verdict}}
+        )
+    return draft_path
+
+
+def _flip_status(book_dir, old, new):
+    path = book_dir / "chapters.md"
+    path.write_text(path.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
+
+
+def test_review_state_currency(tmp_path):
+    """review_state is `current` only while the sidecar hash matches the draft on disk."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="v0", review_verdict="NEEDS REVISION", status_line="[R] CH01 X - first"
+    )
+
+    state = autopilot_core.review_state(book_dir, 1)
+    assert state.exists and state.current and state.verdict == "NEEDS_REVISION"
+
+    # Draft changes (a revise) → the standing review is stale, so not a no-op anymore.
+    draft_path.write_text("v1", encoding="utf-8")
+    assert autopilot_core.review_state(book_dir, 1).current is False
+
+    # No sidecar entry (e.g. a hand-run review) degrades safely to not-current.
+    autopilot_core.write_review_index(book_dir, {})
+    assert autopilot_core.review_state(book_dir, 1).current is False
+
+    # No review at all.
+    assert autopilot_core.review_state(book_dir, 2).exists is False
+
+
+def test_autopilot_converts_noop_review_to_revise(tmp_path, monkeypatch):
+    """Bug 1: a stubborn planner asking to re-review an unchanged NEEDS-REVISION draft is
+    converted to the prescribed revise — never two identical reviews in a row — and the loop
+    still terminates (does not run to MAX_TICKS)."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="draft v0", review_verdict="NEEDS REVISION", status_line="[R] CH01 X - first"
+    )
+    review_path = book_dir / "chapters" / "01" / "review.md"
+
+    def on_command(cmd):
+        if "revise" in cmd:  # mutate the draft (so the next review is real) and re-draft
+            draft_path.write_text("draft v1", encoding="utf-8")
+            _flip_status(book_dir, "[R] CH01", "[D] CH01")
+        elif "/authorkit.review" in cmd:  # a real review this time: approve to terminate
+            review_path.write_text(
+                "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
+                "**Status**: PASS\n**Gating Shapes**: none\n",
+                encoding="utf-8",
+            )
+            _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="stub")
+    fake = autopilot_runner.FakeRunner([review, review, review, review], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "done" in result.output.lower()
+
+    # First dispatch was the CONVERTED revise, not a re-review of the current draft.
+    assert fake.dispatched[0].startswith("/authorkit.write 1 revise")
+    assert fake.dispatched[1] == "/authorkit.review 1"
+    # No two consecutive identical review commands ever slipped through.
+    for a, b in zip(fake.dispatched, fake.dispatched[1:]):
+        assert not (a == b == "/authorkit.review 1")
+
+    # The conversion is visible in autopilot.jsonl (planner asked review, harness ran revise).
+    log_lines = (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+    first = json.loads(log_lines[0])
+    assert first["planner_action"] == "review" and first["action"] == "revise" and first["chapter"] == 1
+
+
+def test_autopilot_reviews_when_draft_changed_since_review(tmp_path, monkeypatch):
+    """Bug 1 negative: when the draft changed since the last review (sidecar stale), the guard
+    dispatches a real review — it does not convert."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="v0", review_verdict="NEEDS REVISION", status_line="[D] CH01 X - first"
+    )
+    draft_path.write_text("v1 — edited since review", encoding="utf-8")  # sidecar now stale
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="real")
+    fake = autopilot_runner.FakeRunner([review])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched == ["/authorkit.review 1"]  # not converted
+
+
+def test_autopilot_range_review_not_attributed_to_first_chapter(tmp_path, monkeypatch):
+    """Review-fix #1: a range review (`/authorkit.review 1-2`) is dispatched as-is — never
+    converted to a single-chapter revise — and is not recorded against CH01's sidecar, even
+    when CH01's standing review is current + NEEDS_REVISION (which WOULD convert a single review)."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    _seed_chapter_review(book_dir, 1, draft="v0", review_verdict="NEEDS REVISION", status_line="[R] CH01 A - a")
+    (book_dir / "chapters.md").write_text("# Chapters\n\n- [R] CH01 A - a\n- [R] CH02 B - b\n", encoding="utf-8")
+    before = json.loads((book_dir / "runs" / "review-index.json").read_text(encoding="utf-8"))
+
+    rng = autopilot_core.Directive(action="review", chapter=None, command="/authorkit.review 1-2", reason="drift")
+    fake = autopilot_runner.FakeRunner([rng])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-2", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched == ["/authorkit.review 1-2"]  # dispatched as-is, not converted
+
+    # The last dispatched-tick record (a terminal 'step' outcome line now follows it).
+    records = [
+        json.loads(l)
+        for l in (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+        if l.strip()
+    ]
+    entry = next(r for r in reversed(records) if "action" in r)
+    assert entry["chapter"] is None and entry["action"] == "review"
+    after = json.loads((book_dir / "runs" / "review-index.json").read_text(encoding="utf-8"))
+    assert after["CH01"]["draft_sha"] == before["CH01"]["draft_sha"]  # not re-stamped by the range pass
+
+
+def test_gating_findings_convergence():
+    """Bug 2 spec: the gate set is exactly {shapes >= budget}; below-budget residuals never
+    gate; a revise that drops a shape below budget shrinks it to the converged-with-residual
+    fixed point; a revise that worsens a tolerated shape past budget re-gates it (soundness)."""
+    # Fixed draft, blind discovery surfaces a DIFFERENT below-budget residual each cycle.
+    g1 = autopilot_core.gating_findings({"tic-003": 3, "blind-a": 1})
+    g2 = autopilot_core.gating_findings({"tic-003": 3, "blind-b": 1})
+    assert g1 == g2 == {"tic-003"}  # stable, non-growing — the residuals never gate
+    assert autopilot_core.gating_set_converging(g1, g2)
+
+    # A revise brings the shape below budget → empty gating set (converged-with-residual).
+    g3 = autopilot_core.gating_findings({"tic-003": 0, "blind-c": 2})
+    assert g3 == set() and g3 < g1  # strictly shrank
+
+    # A revise that WORSENS a previously-tolerated shape (2 -> 4) past budget re-gates it.
+    g4 = autopilot_core.gating_findings({"tic-003": 0, "tic-050": 4})
+    assert g4 == {"tic-050"}
+    assert autopilot_core.gating_set_converging({"a"}, {"a"}) is True
+    assert autopilot_core.gating_set_converging({"a"}, {"a", "c"}) is False
+
+
+def test_gating_set_stable_across_repeated_reviews():
+    """Bug 2 simulation: repeated reviews of a fixed draft return a stable, non-growing gating
+    set even as blind discovery injects a brand-new below-budget shape every cycle."""
+    seen = [
+        frozenset(autopilot_core.gating_findings({"tic-003": 3, f"blind-{i}": 1}))
+        for i in range(6)
+    ]
+    assert all(s == seen[0] for s in seen)  # identical across every review
+    assert all(autopilot_core.gating_set_converging(seen[0], s) for s in seen)  # never grows
+
+
+def test_command_chapter_ignores_ranges():
+    """A single-chapter command yields its number; a range/manuscript review yields None so it
+    is not misattributed to its first chapter (review-fix #1)."""
+    assert autopilot_core.command_chapter("/authorkit.review 7") == 7
+    assert autopilot_core.command_chapter("/authorkit.review 15") == 15
+    assert autopilot_core.command_chapter("/authorkit.write 12 revise: fix voice") == 12
+    assert autopilot_core.command_chapter("/authorkit.review 5-10") is None
+    assert autopilot_core.command_chapter("/authorkit.review 5 - 10") is None
+    # Multi-digit ranges: backtracking must not split "15" into "1" + a passing lookahead.
+    assert autopilot_core.command_chapter("/authorkit.review 15-20") is None
+    assert autopilot_core.command_chapter("/authorkit.review 12 - 20") is None
+    assert autopilot_core.command_chapter("/authorkit.review all") is None
+    assert autopilot_core.command_chapter(None) is None
+
+
+def test_parse_review_verdict_prefers_status_and_skips_template():
+    """The authoritative `## Verdict` Status line wins over a stale/templated Overall
+    Assessment header, and an unfilled `[PASS / NEEDS REVISION]` value is treated as unparsed
+    (review-fix #2)."""
+    # Header left as the literal template, Status correctly filled PASS → PASS (not churn).
+    body = (
+        "**Overall Assessment**: [PASS / NEEDS REVISION]\n\n"
+        "## Verdict\n**Status**: PASS - ready to move on\n"
+    )
+    assert autopilot_core.parse_review_verdict(body) == "PASS"
+    # A real NEEDS REVISION is still read.
+    assert autopilot_core.parse_review_verdict("**Status**: NEEDS REVISION - see issues\n") == "NEEDS_REVISION"
+    # Fully templated review → unparsed (None), so the guard won't wrongly convert.
+    assert autopilot_core.parse_review_verdict("**Overall Assessment**: [PASS / NEEDS REVISION]\n") is None
+
+
+def test_parse_gating_shapes_absent_vs_none_vs_template():
+    """An ABSENT or unfilled-template Gating Shapes line is None (contract not followed —
+    never mistaken for convergence); an explicit `none` is the empty gate (review-fix / complaint)."""
+    assert autopilot_core.parse_gating_shapes("a review with no such line") is None
+    assert autopilot_core.parse_gating_shapes("**Gating Shapes**: none\n") == ()
+    # Unfilled `[…]`/template placeholder → treated as absent, not as a shape list.
+    assert autopilot_core.parse_gating_shapes("**Gating Shapes**: [REQUIRED, comma-separated ids]\n") is None
+    assert autopilot_core.parse_gating_shapes("**Gating Shapes**: TIC-059, TIC-066\n") == ("tic-059", "tic-066")
+
+
+def test_parse_review_verdict_falls_back_to_gating_line():
+    """When the prose heading is missing/templated, the machine-readable Gating Shapes line is
+    the fallback verdict: `none` -> PASS (converged), non-empty -> NEEDS_REVISION."""
+    assert autopilot_core.parse_review_verdict("## Verdict\n**Gating Shapes**: none\n") == "PASS"
+    assert autopilot_core.parse_review_verdict("## Verdict\n**Gating Shapes**: TIC-1\n") == "NEEDS_REVISION"
+    # A present heading still wins over the gating line (it reflects ALL gating passes).
+    assert autopilot_core.parse_review_verdict("**Status**: NEEDS REVISION\n**Gating Shapes**: none\n") == "NEEDS_REVISION"
+    # Neither a heading nor a gating line → unknown.
+    assert autopilot_core.parse_review_verdict("prose only, no verdict") is None
+
+
+def test_reconcile_stall_signal(tmp_path):
+    """The single persisted progress signal: a ratcheting best-gate-size resets the
+    'reviews since improvement' counter, oscillation ABOVE that floor accrues it (the
+    moving-target case the old any-shrink-in-window test could be fooled by), reconcile_stalled
+    trips at the limit, a review with no gating record leaves it untouched, and a converged
+    (empty-gate / PASS) review clears it."""
+    book_dir = tmp_path / "book"
+    limit = autopilot_core.RECONCILE_STALL_LIMIT
+
+    def review(chapter, gating, verdict=None):
+        autopilot_core.record_review(book_dir, chapter, draft_sha="sha", verdict=verdict, gating_shapes=gating)
+        return autopilot_core.chapter_review_entry(book_dir, chapter)
+
+    # First gated review establishes the best; a strictly smaller gate is a new minimum.
+    e = review(1, ("a", "b"))
+    assert e["best_gate_size"] == 2 and e["reviews_since_improvement"] == 0
+    assert autopilot_core.reconcile_stalled(e) is False
+    e = review(1, ("a",))
+    assert e["best_gate_size"] == 1 and e["reviews_since_improvement"] == 0
+
+    # Oscillation back above the floor (1↔2) never reaches a NEW minimum — each review accrues
+    # the counter even though it keeps 'shrinking' 2→1→2→1, and reconcile_stalled trips exactly
+    # at the limit. (This is precisely what defeated the old detector.)
+    gates = [("a", "b"), ("a",)]
+    for i in range(1, limit + 1):
+        e = review(1, gates[i % 2])
+        assert e["best_gate_size"] == 1  # ratchet never re-inflates
+        assert e["reviews_since_improvement"] == i
+        assert autopilot_core.reconcile_stalled(e) is (i >= limit)
+
+    # A review that emitted no gating record leaves the signal untouched (can't judge unmeasured
+    # progress) — neither advancing nor clearing it.
+    before = autopilot_core.chapter_review_entry(book_dir, 1)["reviews_since_improvement"]
+    e = review(1, None)
+    assert e["reviews_since_improvement"] == before
+
+    # An explicit empty gate clears the signal (converged) — a re-open starts fresh.
+    e = review(2, ("x", "y"))
+    e = review(2, ())
+    assert "reviews_since_improvement" not in e and "best_gate_size" not in e and "last_gate" not in e
+    assert autopilot_core.reconcile_stalled(e) is False
+
+    # A PASS verdict clears too, even with a non-empty gate line (verdict is authoritative).
+    review(3, ("a", "b"))
+    e = review(3, ("a",), verdict="PASS")
+    assert "reviews_since_improvement" not in e
+    assert autopilot_core.reconcile_stalled(e) is False
+
+
+def test_reconcile_stall_slow_progress_never_trips(tmp_path):
+    """Genuine slow progress — the gate shrinks by one shape each review — keeps reaching a new
+    minimum, so the counter never accrues and reconcile_stalled stays False however many cycles
+    it takes (no arbitrary cap cuts it off); a final PASS clears the signal for a clean re-open."""
+    book_dir = tmp_path / "book"
+    shapes = [f"tic-{n}" for n in range(7)]
+    for k in range(len(shapes), 0, -1):  # 7,6,5,4,3,2,1 — a new minimum each time
+        autopilot_core.record_review(book_dir, 1, draft_sha="s", verdict=None, gating_shapes=tuple(shapes[:k]))
+        e = autopilot_core.chapter_review_entry(book_dir, 1)
+        assert e["reviews_since_improvement"] == 0
+        assert autopilot_core.reconcile_stalled(e) is False
+    autopilot_core.record_review(book_dir, 1, draft_sha="s", verdict="PASS", gating_shapes=())
+    e = autopilot_core.chapter_review_entry(book_dir, 1)
+    assert autopilot_core.reconcile_stalled(e) is False
+    assert "reviews_since_improvement" not in e
+
+
+def test_log_tick_never_concatenates_records(tmp_path):
+    """log_tick guarantees each record starts on its own line even when a prior write left the
+    file without a trailing newline (crash/interleave), so a naive line-by-line parser never
+    sees two JSON records glued together."""
+    book_dir = tmp_path / "book"
+    (book_dir / "runs").mkdir(parents=True)
+    log = book_dir / "runs" / "autopilot.jsonl"
+    log.write_text('{"a": 1}', encoding="utf-8")  # a prior record, no trailing newline
+    autopilot_core.log_tick(book_dir, {"b": 2})
+    lines = [l for l in log.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert len(lines) == 2
+    assert json.loads(lines[0]) == {"a": 1}
+    assert json.loads(lines[1]) == {"b": 2}
+
+
+def test_autopilot_logs_terminal_outcome(tmp_path, monkeypatch):
+    """Terminal outcomes are recorded in autopilot.jsonl so the log alone explains why a run
+    ended — previously only dispatched ticks were logged, never the ending."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 A - a\n")
+    # Whole range already [X] → the deterministic completion check ends the run at 'done'
+    # before any directive is dispatched.
+    fake = autopilot_runner.FakeRunner([])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    outcomes = [
+        json.loads(l)
+        for l in (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+        if l.strip()
+    ]
+    assert any(o.get("outcome") == "done" for o in outcomes)
+
+
+def test_autopilot_escalates_quality_stall_on_nonconverging_chapter(tmp_path, monkeypatch):
+    """Bug 2 backstop: a chapter whose gating set never shrinks across reviews escalates a
+    quality-stall (human override) instead of churning to MAX_TICKS."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="draft v0", review_verdict="NEEDS REVISION",
+        gating="tic-003, tic-009", status_line="[R] CH01 X - first",
+    )
+    review_path = book_dir / "chapters" / "01" / "review.md"
+    counter = {"n": 0}
+
+    def on_command(cmd):
+        if "revise" in cmd:  # edits the draft but never fixes the tics
+            counter["n"] += 1
+            draft_path.write_text(f"draft v{counter['n']}", encoding="utf-8")
+            _flip_status(book_dir, "[R] CH01", "[D] CH01")
+        elif "/authorkit.review" in cmd:  # same two shapes gate every time — no progress
+            review_path.write_text(
+                "# Review\n\n**Overall Assessment**: NEEDS REVISION\n\n## Verdict\n"
+                "**Status**: NEEDS REVISION\n**Gating Shapes**: tic-003, tic-009\n",
+                encoding="utf-8",
+            )
+            _flip_status(book_dir, "[D] CH01", "[R] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="stuck")
+    fake = autopilot_runner.FakeRunner([review] * 30, on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "quality-stall" in result.output.lower() or "not converging" in result.output.lower()
+
+    records = list((book_dir / "escalations").glob("*.md"))
+    assert len(records) == 1
+    assert "quality-stall" in records[0].read_text(encoding="utf-8")
+    # Bounded: it stopped well short of the MAX_TICKS backstop.
+    assert len(fake.dispatched) < 20
+
+
+def test_autopilot_shrinking_gate_does_not_trip_loop_health(tmp_path, monkeypatch):
+    """Regression (ESC-014): a chapter whose chapters.md status stays flat while its gating set
+    shrinks 3→2→1→0 is making real progress — a review that reaches a new gating minimum counts
+    as progress, so loop-health (detect_no_progress) must NOT kill the converging reconciliation
+    before it reaches PASS."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 A - a\n")
+    chap = book_dir / "chapters" / "01"
+    chap.mkdir(parents=True)
+    draft_path = chap / "draft.md"
+    draft_path.write_text("v0", encoding="utf-8")
+    review_path = chap / "review.md"
+    gates = [["a", "b", "c"], ["a", "b"], ["a"], []]  # 3 → 2 → 1 → 0 (converged)
+    st = {"rev": 0, "review": 0}
+
+    def on_command(cmd):
+        if "revise" in cmd:  # change the draft so the next review isn't a no-op; status stays [D]
+            st["rev"] += 1
+            draft_path.write_text(f"v{st['rev']}", encoding="utf-8")
+        elif "/authorkit.review" in cmd:
+            gate = gates[min(st["review"], len(gates) - 1)]
+            st["review"] += 1
+            if gate:  # NEEDS REVISION with a shrinking gate — status deliberately left flat at [D]
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: NEEDS REVISION\n\n## Verdict\n"
+                    f"**Status**: NEEDS REVISION\n**Gating Shapes**: {', '.join(gate)}\n",
+                    encoding="utf-8",
+                )
+            else:  # converged → PASS and approve
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
+                    "**Status**: PASS\n**Gating Shapes**: none\n",
+                    encoding="utf-8",
+                )
+                _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    rv = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="review")
+    wr = autopilot_core.Directive(action="revise", chapter=1, command="/authorkit.write 1 revise: shrink the gate", reason="revise")
+    fake = autopilot_runner.FakeRunner([rv, wr, rv, wr, rv, wr, rv], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    # No loop-health escalation — the shrinking gate was recognized as progress.
+    assert "loop-health" not in result.output.lower()
+    assert not list((book_dir / "escalations").glob("*.md"))
+    # It converged: CH01 reached [X] and the run ended 'done'.
+    assert "[X] CH01" in (book_dir / "chapters.md").read_text(encoding="utf-8")
+    assert "done" in result.output.lower()
+
+
+def test_autopilot_converged_with_residual_review_reaches_approved(tmp_path, monkeypatch):
+    """Complaint acceptance: a re-review whose carry-over gating shapes are all fixed but whose
+    blind sweep found NEW shapes emits `Gating Shapes: none` + Status PASS, reaches [X], and the
+    loop completes — the planner advances rather than dispatching yet another revise."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 A - a\n")
+    chap = book_dir / "chapters" / "01"
+    chap.mkdir(parents=True)
+    (chap / "draft.md").write_text("revised draft", encoding="utf-8")
+
+    def on_command(cmd):
+        # Prior gate (tic-003) is fixed; the fresh blind sweep names a new residual (blind-9)
+        # which is seeded, NOT gated → converged-with-residual → PASS.
+        (chap / "review.md").write_text(
+            "# Review\n\n**Overall Assessment**: PASS\n\n"
+            "Pass 2: converged-with-residual — new residual shape blind-9 seeded to the ledger.\n\n"
+            "## Verdict\n**Status**: PASS - ready to move on\n**Gating Shapes**: none\n",
+            encoding="utf-8",
+        )
+        _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="re-review")
+    fake = autopilot_runner.FakeRunner([review, review], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "done" in result.output.lower()
+    assert fake.dispatched == ["/authorkit.review 1"]  # a single review, no revise churn
+    assert "[X] CH01" in (book_dir / "chapters.md").read_text(encoding="utf-8")
+    assert autopilot_core.review_state(book_dir, 1).verdict == "PASS"  # parsed as converged, not failing
+
+
+def test_autopilot_converging_chapter_reaches_approved_within_cap(tmp_path, monkeypatch):
+    """Complaint acceptance #5: a tic-heavy chapter whose gating set shrinks each revise
+    terminates at [X] within the reconciliation cap — the loop converges, it does not escalate."""
+    book_dir = _seed_autopilot_book(tmp_path)
+    draft_path = _seed_chapter_review(
+        book_dir, 1, draft="v0", review_verdict="NEEDS REVISION",
+        gating="tic-a, tic-b", status_line="[R] CH01 A - a",
+    )
+    review_path = book_dir / "chapters" / "01" / "review.md"
+    st = {"gate": ["tic-a", "tic-b"], "v": 0}
+
+    def on_command(cmd):
+        if "revise" in cmd:  # each revise fixes one gating shape and re-drafts
+            if st["gate"]:
+                st["gate"].pop()
+            st["v"] += 1
+            draft_path.write_text(f"v{st['v']}", encoding="utf-8")
+            _flip_status(book_dir, "[R] CH01", "[D] CH01")
+        elif "/authorkit.review" in cmd:  # re-review reports the shrinking carry-over set
+            if st["gate"]:
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: NEEDS REVISION\n\n## Verdict\n"
+                    f"**Status**: NEEDS REVISION\n**Gating Shapes**: {', '.join(st['gate'])}\n",
+                    encoding="utf-8",
+                )
+                _flip_status(book_dir, "[D] CH01", "[R] CH01")
+            else:  # gate empty → converged → PASS
+                review_path.write_text(
+                    "# Review\n\n**Overall Assessment**: PASS\n\n## Verdict\n"
+                    "**Status**: PASS\n**Gating Shapes**: none\n",
+                    encoding="utf-8",
+                )
+                _flip_status(book_dir, "[D] CH01", "[X] CH01")
+
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="converge")
+    fake = autopilot_runner.FakeRunner([review] * 12, on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+    assert result.exit_code == 0, result.output
+    assert "done" in result.output.lower()
+    assert "[X] CH01" in (book_dir / "chapters.md").read_text(encoding="utf-8")
+    assert not list((book_dir / "escalations").glob("*.md"))  # converged, never escalated
+
+
 def test_autopilot_kill_switch_halts(tmp_path, monkeypatch):
     """A book/runs/STOP sentinel halts the loop before any dispatch."""
     book_dir = _seed_autopilot_book(tmp_path)
@@ -2593,6 +3107,126 @@ def test_claude_runner_permission_flags(tmp_path):
 
     mode = autopilot_runner.ClaudeRunner(tmp_path, permission_mode="acceptEdits")._command_argv("/authorkit.write 1")
     assert mode[-2:] == ["--permission-mode", "acceptEdits"]
+
+
+def _autopilot_config(**buckets) -> book_core.AutopilotConfig:
+    """Build an AutopilotConfig for tests, defaulting unset buckets to (None, None)."""
+    empty = book_core.AutopilotOpConfig(model=None, effort=None)
+    return book_core.AutopilotConfig(
+        planner=buckets.get("planner", empty),
+        review=buckets.get("review", empty),
+        writer=buckets.get("writer", empty),
+    )
+
+
+def test_runner_model_effort_unset_by_default(tmp_path):
+    """No [autopilot.*] config -> no --model/--effort (or flavor-equivalent) flags,
+    for every flavor -- identical argv to before this feature existed."""
+    for cls in (autopilot_runner.ClaudeRunner, autopilot_runner.CodexRunner, autopilot_runner.CopilotRunner):
+        agent_runner = cls(tmp_path)
+        planner_argv = agent_runner._planner_argv("prompt")
+        writer_argv = agent_runner._command_argv("/authorkit.write 1", "writer")
+        review_argv = agent_runner._command_argv("/authorkit.review 1", "review")
+        for argv in (planner_argv, writer_argv, review_argv):
+            assert "--model" not in argv
+            assert "--effort" not in argv
+            assert "-m" not in argv
+            assert "-c" not in argv
+
+
+def test_claude_runner_model_effort_per_bucket(tmp_path):
+    """Each bucket's book.toml override lands on the matching invocation only."""
+    models = _autopilot_config(
+        planner=book_core.AutopilotOpConfig(model="haiku", effort="low"),
+        review=book_core.AutopilotOpConfig(model="sonnet", effort="medium"),
+        writer=book_core.AutopilotOpConfig(model="opus", effort="high"),
+    )
+    agent_runner = autopilot_runner.ClaudeRunner(tmp_path, models=models)
+
+    planner_argv = agent_runner._planner_argv("prompt")
+    assert planner_argv[-4:] == ["--model", "haiku", "--effort", "low"]
+
+    review_argv = agent_runner._command_argv("/authorkit.review 1", "review")
+    assert review_argv[-4:] == ["--model", "sonnet", "--effort", "medium"]
+
+    writer_argv = agent_runner._command_argv("/authorkit.write 1", "writer")
+    assert writer_argv[-4:] == ["--model", "opus", "--effort", "high"]
+
+
+def test_claude_runner_model_only_omits_effort_flag(tmp_path):
+    """Setting only model (not effort) injects --model alone."""
+    models = _autopilot_config(writer=book_core.AutopilotOpConfig(model="opus", effort=None))
+    argv = autopilot_runner.ClaudeRunner(tmp_path, models=models)._command_argv("/authorkit.write 1", "writer")
+    assert "--model" in argv and "opus" in argv
+    assert "--effort" not in argv
+
+
+def test_codex_runner_model_effort_flags(tmp_path):
+    """Codex uses -m for model and -c model_reasoning_effort=... for effort."""
+    models = _autopilot_config(writer=book_core.AutopilotOpConfig(model="gpt-5.5", effort="high"))
+    argv = autopilot_runner.CodexRunner(tmp_path, models=models)._command_argv("/authorkit.write 1", "writer")
+    assert "-m" in argv
+    assert argv[argv.index("-m") + 1] == "gpt-5.5"
+    assert "-c" in argv
+    assert argv[argv.index("-c") + 1] == 'model_reasoning_effort="high"'
+
+
+def test_copilot_runner_model_effort_flags(tmp_path):
+    """Copilot uses --model/--effort, both confirmed real flags."""
+    models = _autopilot_config(review=book_core.AutopilotOpConfig(model="claude-sonnet-4.6", effort="medium"))
+    argv = autopilot_runner.CopilotRunner(tmp_path, models=models)._command_argv("/authorkit.review 1", "review")
+    assert argv[-4:] == ["--model", "claude-sonnet-4.6", "--effort", "medium"]
+
+
+def test_book_config_parses_autopilot_section(tmp_path):
+    """[autopilot.*] parses per-bucket model/effort; absent section is all-None."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text(
+        "[autopilot.planner]\n"
+        'model = "haiku"\n'
+        'effort = "low"\n'
+        "[autopilot.review]\n"
+        'model = "sonnet"\n',
+        encoding="utf-8",
+    )
+    config = book_core.parse_book_config(book_dir)
+    assert config.autopilot.planner.model == "haiku"
+    assert config.autopilot.planner.effort == "low"
+    assert config.autopilot.review.model == "sonnet"
+    assert config.autopilot.review.effort is None
+    assert config.autopilot.writer.model is None
+    assert config.autopilot.writer.effort is None
+
+
+def test_book_config_autopilot_defaults_to_unset(tmp_path):
+    """No [autopilot] section at all -> every field is None (no defaults)."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text('[book]\ntitle = "T"\n', encoding="utf-8")
+    config = book_core.parse_book_config(book_dir)
+    for bucket in (config.autopilot.planner, config.autopilot.review, config.autopilot.writer):
+        assert bucket.model is None
+        assert bucket.effort is None
+
+
+def test_autopilot_dispatch_tags_review_vs_writer_op(tmp_path, monkeypatch):
+    """The dispatch loop tags review actions with op='review' and everything
+    else (plan/draft/revise/research) with op='writer'."""
+    _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 The Arrival - First\n")
+    plan = autopilot_core.Directive(action="plan", chapter=1, command="/authorkit.write 1 plan", reason="x")
+    review = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="x")
+    revise = autopilot_core.Directive(action="revise", chapter=1, command="/authorkit.write 1 revise", reason="x")
+    fake = autopilot_runner.FakeRunner([plan, review, revise])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched_ops == ["writer"]
+
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1", "--step"])
+    assert result.exit_code == 0, result.output
+    assert fake.dispatched_ops == ["writer", "review"]
 
 
 def test_escalation_record_title_and_slug_are_concise(tmp_path):
@@ -2791,3 +3425,531 @@ def test_unattended_mode_wired_into_guardrails_and_discuss():
     assert "AUTOPILOT-UNATTENDED" in discuss
     # The runtime directive AutoPilot appends keys on the same marker the prompts read.
     assert "AUTOPILOT-UNATTENDED" in autopilot_runner.UNATTENDED_DIRECTIVE
+
+
+# --- Entropy tool (code-driven names & numbers) ------------------------------
+
+import authorkit_cli.entropy as entropy  # noqa: E402
+
+
+def test_entropy_roll_numbers_respects_bounds_and_kinds():
+    """roll_numbers honors the inclusive bounds, count, and per-kind output shape."""
+    ints = entropy.roll_numbers("int", 3, 40, count=50)
+    assert len(ints) == 50
+    assert all(isinstance(v, int) and 3 <= v <= 40 for v in ints)
+
+    flts = entropy.roll_numbers("float", 0, 1, count=20)
+    assert all(isinstance(v, float) and 0.0 <= v <= 1.0 for v in flts)
+
+    years = entropy.roll_numbers("year", 1900, 1901, count=10)
+    assert all(v in (1900, 1901) for v in years)
+
+    times = entropy.roll_numbers("time", 9, 17, count=10)
+    assert all(len(t) == 5 and t[2] == ":" and 9 <= int(t[:2]) <= 17 for t in times)
+
+    with pytest.raises(ValueError):
+        entropy.roll_numbers("int", 10, 1)  # max < min
+    with pytest.raises(ValueError):
+        entropy.roll_numbers("bogus", 1, 2)  # bad kind
+
+
+def test_entropy_fractional_bounds_stay_inclusive():
+    """Fractional bounds never produce out-of-range values: int/year bounds are
+    ceil/floor'd (not truncated toward zero), floats are clamped after rounding."""
+    ints = entropy.roll_numbers("int", 2.7, 9.9, count=50)
+    assert all(3 <= v <= 9 for v in ints)  # int(2.7)=2 would escape the range
+
+    negs = entropy.roll_numbers("int", -9.9, -2.7, count=50)
+    assert all(-9 <= v <= -3 for v in negs)  # int(-2.7)=-2 would escape the range
+
+    with pytest.raises(ValueError):
+        entropy.roll_numbers("int", 2.7, 2.9)  # no integers in the range
+
+    flts = entropy.roll_numbers("float", 0, 0.999, count=200)
+    assert all(0.0 <= v <= 0.999 for v in flts)  # round(0.9985, 2) == 1.0 must be clamped
+
+
+def test_entropy_name_seed_is_scaffold_not_finished_name():
+    """make_name_seed returns construction scaffolding (skeleton/initial/length),
+    honors a known culture, and falls back to generic for an unknown one."""
+    import random
+
+    seed = entropy.make_name_seed("norse", syllables=2, rng=random.Random(1))
+    assert seed.culture == "norse"
+    assert seed.skeleton.count("-") == 1  # two syllables
+    assert seed.initial.isupper() and len(seed.initial) == 1
+    assert seed.length_target >= 3
+
+    assert entropy.make_name_seed("klingon").culture == "generic"  # unknown -> generic
+
+
+def test_entropy_number_cli_json_and_bounds(monkeypatch):
+    """`authorkit entropy number --json` emits a stable shape within bounds."""
+    result = runner.invoke(cli.app, ["entropy", "number", "--min", "5", "--max", "9", "--count", "4", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["kind"] == "int" and len(payload["values"]) == 4
+    assert all(5 <= v <= 9 for v in payload["values"])
+
+    bad = runner.invoke(cli.app, ["entropy", "number", "--min", "9", "--max", "5"])
+    assert bad.exit_code != 0
+
+
+def test_entropy_name_cli_varies_across_calls():
+    """`authorkit entropy name` produces seeds (not stock names) that vary."""
+    seeds = set()
+    for _ in range(8):
+        result = runner.invoke(cli.app, ["entropy", "name", "--culture", "latin", "--count", "1", "--json"])
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["culture"] == "latin"
+        seeds.add(payload["seeds"][0]["scaffold"])
+    assert len(seeds) > 1  # true randomness: not all identical
+
+
+def test_entropy_name_json_reports_resolved_culture():
+    """An unknown culture falls back to the generic bank — the JSON's top-level culture
+    must report the resolved bank, not echo the raw option (no self-contradictory payload)."""
+    result = runner.invoke(cli.app, ["entropy", "name", "--culture", "klingon", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["culture"] == "generic"
+    assert all(s["culture"] == "generic" for s in payload["seeds"])
+
+
+# --- AutoPilot planner guidelines (--guideline campaigns) --------------------
+
+
+def test_autopilot_guideline_threads_into_planner_and_skips_auto_done(tmp_path, monkeypatch):
+    """--guideline reaches the planner and suppresses the all-[X] auto-done so a
+    re-review campaign over approved chapters is not ended before it starts."""
+    # Whole range already approved: without a guideline this would auto-`done`.
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 The Arrival - First\n")
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="campaign")]
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-1", "--guideline", "re-review CH1 against the new tic patterns", "--dry-run"],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    # Planner was consulted (not short-circuited to done) and got the guideline.
+    assert payload["directive"]["action"] == "review"
+    assert "tic patterns" in fake.planner_inputs[0]["guideline"]
+
+
+def test_autopilot_guideline_progress_is_content_aware(tmp_path, monkeypatch):
+    """Under a guideline, a draft rewrite counts as progress even when chapter
+    statuses don't move, so loop-health doesn't misfire on a re-review sweep."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 The Arrival - First\n")
+    draft = book_dir / "chapters" / "01" / "draft.md"
+    draft.parent.mkdir(parents=True, exist_ok=True)
+    draft.write_text("# Chapter 01\n\nOriginal prose.\n", encoding="utf-8")
+
+    calls = {"n": 0}
+
+    def on_command(_cmd):
+        # Each tick rewrites the draft (status stays [X]); content fingerprint moves.
+        calls["n"] += 1
+        draft.write_text(f"# Chapter 01\n\nRevised prose {calls['n']}.\n", encoding="utf-8")
+
+    # Four revise ticks: status never changes. Without content-aware progress
+    # this trips no-progress; with it, each tick registers progress. The issue
+    # text varies per tick (as a real planner's would) so the command-churn
+    # guard doesn't read the sequence as a stall.
+    revises = [
+        autopilot_core.Directive(
+            action="revise", chapter=1, command=f"/authorkit.write 1 revise: issue {n}", reason="x"
+        )
+        for n in range(1, 5)
+    ]
+    done = autopilot_core.Directive(action="done", reason="campaign swept")
+    fake = autopilot_runner.FakeRunner([*revises, done], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-1", "--guideline", "revise then re-review every chapter"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" not in result.output.lower()
+    assert "done" in result.output.lower()
+    assert calls["n"] >= 4
+
+
+def test_autopilot_guideline_review_only_sweep_registers_progress(tmp_path, monkeypatch):
+    """A re-review sweep touches review.md but not the draft or the [X] status.
+    The content fingerprint folds in review.md, so an advancing sweep across
+    already-approved chapters registers progress and does not trip loop-health."""
+    book_dir = _seed_autopilot_book(
+        tmp_path,
+        chapters_md=(
+            "# Chapters\n\n"
+            "- [X] CH01 A - x\n- [X] CH02 B - x\n- [X] CH03 C - x\n- [X] CH04 D - x\n"
+        ),
+    )
+    for n in range(1, 5):
+        d = book_dir / "chapters" / f"{n:02d}" / "draft.md"
+        d.parent.mkdir(parents=True, exist_ok=True)
+        d.write_text(f"# Chapter {n:02d}\n\nProse.\n", encoding="utf-8")
+
+    calls = {"n": 0}
+
+    def on_command(_cmd):
+        # Each tick re-reviews the next chapter: writes review.md, leaves the
+        # draft and the [X] status untouched. Only the review fingerprint moves.
+        calls["n"] += 1
+        rv = book_dir / "chapters" / f"{calls['n']:02d}" / "review.md"
+        rv.write_text(f"# Review {calls['n']}\n\nPASS.\n", encoding="utf-8")
+
+    # The sweep advances to a different chapter (a different command) each tick.
+    reviews = [
+        autopilot_core.Directive(action="review", chapter=n, command=f"/authorkit.review {n}", reason="sweep")
+        for n in range(1, 5)
+    ]
+    done = autopilot_core.Directive(action="done", reason="campaign swept")
+    fake = autopilot_runner.FakeRunner([*reviews, done], on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-4", "--guideline", "re-review every chapter against the new tics"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" not in result.output.lower()
+    assert "done" in result.output.lower()
+    assert calls["n"] >= 4
+
+
+def test_autopilot_guideline_command_churn_trips_loop_health(tmp_path, monkeypatch):
+    """Under a guideline, byte-changing rewrites always register as 'progress',
+    so a planner stuck re-dispatching the exact same command must be caught by
+    the command-churn guard instead of running to the MAX_TICKS cap."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [X] CH01 The Arrival - First\n")
+    rv = book_dir / "chapters" / "01" / "review.md"
+    rv.parent.mkdir(parents=True, exist_ok=True)
+
+    calls = {"n": 0}
+
+    def on_command(_cmd):
+        # Every tick rewrites review.md with different bytes: content-aware
+        # progress says "moving", but the command never changes — a stall.
+        calls["n"] += 1
+        rv.write_text(f"# Review sweep {calls['n']}\n\nPASS.\n", encoding="utf-8")
+
+    stuck = autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="sweep")
+    fake = autopilot_runner.FakeRunner([stuck] * 8, on_command=on_command)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-1", "--guideline", "re-review every chapter"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" in result.output.lower()
+    assert calls["n"] == 4  # tripped right after the churn window, not at MAX_TICKS
+
+
+def test_detect_command_churn_alternating_reviews():
+    """Churn also catches a planner ping-ponging between two review commands (the
+    same-command rule misses it, and under a guideline the status-keyed detectors are
+    blind), while a healthy review→revise reconciliation and a multi-chapter sweep
+    never trip it."""
+    def rv(cmd):
+        return {"command": cmd, "action": "review"}
+
+    def wr(cmd):
+        return {"command": cmd, "action": "revise"}
+
+    ping = [rv("/authorkit.review 1"), rv("/authorkit.review 2")] * 2
+    assert autopilot_core.detect_command_churn(ping) is True
+    # A review→revise cycle interleaves revise ticks — bounded by reconcile-stall, not churn.
+    cycle = [
+        rv("/authorkit.review 3"), wr("/authorkit.write 3 revise: apply the standing review"),
+        rv("/authorkit.review 3"), wr("/authorkit.write 3 revise: apply the standing review"),
+    ]
+    assert autopilot_core.detect_command_churn(cycle) is False
+    # A healthy sweep advances to a different chapter each tick.
+    sweep = [rv(f"/authorkit.review {n}") for n in (1, 2, 3, 4)]
+    assert autopilot_core.detect_command_churn(sweep) is False
+    # The exact same command window-times in a row still trips regardless of action mix.
+    assert autopilot_core.detect_command_churn([wr("/authorkit.write 1 revise: x")] * 4) is True
+
+
+def test_style_reviews_never_stamp_the_craft_sidecar():
+    """`/authorkit.review N style` writes style-review.md, so it is neither a craft-review
+    no-op nor a sidecar-stampable review (ReviewState is craft-only by contract)."""
+    assert autopilot_core.is_style_review("/authorkit.review 3 style") is True
+    assert autopilot_core.is_style_review("/authorkit.review 3 STYLE") is True
+    assert autopilot_core.is_style_review("/authorkit.review 3") is False
+    assert autopilot_core.is_style_review("/authorkit.write 3 revise: fix style drift") is False
+    assert autopilot_core.is_style_review(None) is False
+
+
+def test_content_fingerprint_scope(tmp_path):
+    """The guideline progress fingerprint covers style-review.md (a style sweep is progress)
+    and only pure-numeric chapter dirs (a backup like 01-old/ can't register progress)."""
+    book_dir = tmp_path / "book"
+    for rel in ("chapters/01/draft.md", "chapters/01/style-review.md", "chapters/01-old/draft.md"):
+        path = book_dir / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(rel, encoding="utf-8")
+    fp = autopilot_commands._content_fingerprint(book_dir)
+    entries = {(chapter, name) for chapter, name, _ in fp}
+    assert ("01", "draft.md") in entries
+    assert ("01", "style-review.md") in entries  # style sweeps register as progress
+    assert all(chapter == "01" for chapter, _ in entries)  # 01-old/ excluded
+
+
+def test_autopilot_guideline_brief_is_mode_scoped():
+    """The guideline addendum defers to the planner prompt's canonical rules and
+    never authorizes chapter work from plot mode."""
+    chapters = autopilot_commands._mode_brief("chapters", (1, 4), 20, "re-review everything")
+    plot = autopilot_commands._mode_brief("plot", None, 20, "re-check the outline")
+    assert "AUTHOR GUIDELINES ARE ACTIVE" in chapters
+    assert "AUTHOR GUIDELINES ARE ACTIVE" in plot
+    # Plot mode keeps its invariant: guidelines never open chapters/NN/.
+    assert "off-limits" in plot
+    assert "re-open" not in plot and "re-open" not in chapters  # semantics live in the prompt file
+
+
+def test_autopilot_plan_prompt_documents_guidelines_and_escalations():
+    """The planner prompt explains author guidelines and the new escalation types."""
+    repo_root = Path(__file__).resolve().parents[2]
+    plan = (repo_root / ".authorkit" / "prompts" / "authorkit.autopilot-plan.md").read_text(encoding="utf-8")
+    assert "Author Guidelines" in plan
+    assert "re-open" in plan and "[X]" in plan
+    for esc in ("numeric-contradiction", "disclosure-leak", "scaffolding-gap"):
+        assert esc in plan
+        assert esc in autopilot_core.ESCALATION_TYPES
+
+
+# --- Review passes / tic catalog / writer strictness (prompt content) --------
+
+
+def test_analysis_passes_roster_is_shared_source_of_truth():
+    """The canonical Analysis Passes roster lives in the shared guardrails and the
+    review command renders the same named passes."""
+    repo_root = Path(__file__).resolve().parents[2]
+    akit = repo_root / ".authorkit"
+    guardrails = (akit / "prompts" / "_shared" / "generation-guardrails.md").read_text(encoding="utf-8")
+    review = (akit / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    assert "Analysis Passes" in guardrails
+    for pass_name in (
+        "Style Fidelity",
+        "AI-Tic Audit",
+        "In-Chapter Logical Consistency",
+        "Cross-Chapter & Plot-Arc Logical Consistency",
+        "Disclosure Horizon",
+        "Standalone Readability",
+    ):
+        assert pass_name in guardrails, f"roster missing {pass_name}"
+        assert pass_name in review, f"review missing pass {pass_name}"
+
+
+def test_new_tic_patterns_in_catalog():
+    """The catalog keeps the looping-echo and creed-maxim patterns (and budget rows)
+    but is framed as a bootstrap seed for book/tic-ledger.md, not a normative gate."""
+    repo_root = Path(__file__).resolve().parents[2]
+    catalog = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "literary-tic-catalog.md"
+    ).read_text(encoding="utf-8")
+    assert "Looping self-echo" in catalog
+    assert "Creed / trade-maxim" in catalog
+    assert "competence tag" in catalog
+    assert "| 23 |" in catalog and "| 24 |" in catalog
+    # Seed framing: the ledger is normative, this file only bootstraps it and
+    # is quarantined from drafting.
+    assert "bootstrap seed" in catalog
+    assert "book/tic-ledger.md" in catalog
+    assert "Never load this file while drafting" in catalog
+    assert "normative for any command" not in catalog
+
+
+def test_guardrails_define_entropy_disclosure_continuity_protocols():
+    """The shared guardrails carry the entropy, continuity, and disclosure protocols
+    and reference the entropy CLI."""
+    repo_root = Path(__file__).resolve().parents[2]
+    guardrails = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"
+    ).read_text(encoding="utf-8")
+    assert "Entropy Protocol" in guardrails
+    assert "authorkit entropy name" in guardrails and "authorkit entropy number" in guardrails
+    assert "Quantitative & Logical Continuity Protocol" in guardrails
+    assert "Disclosure Horizon Protocol" in guardrails
+    # The disclosure horizon binds planning, not just prose (a plan that
+    # prescribes a premature reveal is executed faithfully downstream).
+    assert "binds planning" in guardrails
+
+
+def test_disclosure_horizon_is_enforced_at_planning_not_just_review():
+    """Plan and Outline modes must run the disclosure-horizon check so a
+    proleptic reveal is caught at the plan, not left to slip through to review."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    # Both plan-producing modes reference the shared protocol by name.
+    assert write.count("Disclosure Horizon Protocol") >= 2
+    assert "Disclosure-horizon check" in write  # Outline Phase 2 validation
+    assert "Disclosure-horizon check (before writing the plan)" in write  # single-chapter Plan mode
+
+
+def test_review_has_logic_disclosure_standalone_passes_and_manuscript_passes():
+    """The review command exposes the new chapter passes and manuscript detection passes."""
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    # Chapter-craft passes
+    assert "Pass 3 — In-Chapter Logical Consistency" in review
+    assert "Pass 4 — Cross-Chapter & Plot-Arc Logical Consistency" in review
+    assert "Pass 5 — Disclosure Horizon" in review
+    assert "Pass 6 — Standalone Readability" in review
+    # Manuscript detection passes
+    assert "Quantitative Continuity Ledger" in review
+    assert "Premature Disclosure" in review
+    assert "Scaffolding Leakage" in review
+
+
+def test_write_revise_is_pass_structured():
+    """Revise walks the Analysis Passes roster and re-verifies each pass."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    assert "Revise pass-by-pass" in write
+    assert "Re-run that pass's own check" in write
+    assert "authorkit entropy" in write  # entropy wired into drafting
+
+
+def test_guardrails_define_tic_ledger_voice_pairs_and_conditioning():
+    """The shared guardrails carry the self-learning tic defense (ledger + pairs,
+    with the generation-side quarantine) and the voice conditioning protocol."""
+    repo_root = Path(__file__).resolve().parents[2]
+    guardrails = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"
+    ).read_text(encoding="utf-8")
+    assert "Tic Ledger & Voice Pairs" in guardrails
+    assert "book/tic-ledger.md" in guardrails
+    assert "book/voice-pairs.md" in guardrails
+    assert "MUST NOT load" in guardrails  # quarantine rule is binding
+    assert "bootstrap seed" in guardrails
+    assert "Voice Conditioning Protocol" in guardrails
+    assert "Pass A" in guardrails and "Pass B" in guardrails
+    # Ledger lifecycle is defined (decay to retirement).
+    assert "dormant" in guardrails and "retired" in guardrails
+
+
+def test_write_prompt_quarantines_tic_lists_and_conditions_on_voice():
+    """Drafting never loads the tic catalog or ledger; it conditions on origin
+    prose + voice pairs, drafts scenes in two passes, and harvests pairs on revise."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    # Quarantine: no catalog path anywhere in the write prompt.
+    assert "literary-tic-catalog" not in write
+    # Generation-side conditioning artifacts.
+    assert "book/voice-pairs.md" in write
+    assert "Active Pairs" in write
+    assert "Voice Conditioning Protocol" in write
+    # Two-stage drafting, all draft modes.
+    assert "Pass A — content" in write
+    assert "Pass B — voice" in write
+    assert "no new facts, names, or numbers" in write
+    # Pair harvesting on revise and reconcile.
+    assert "Harvest voice pairs" in write
+    assert "voice-pairs-template.md" in write
+    assert "tagged `author`" in write  # author-edit harvest during reconcile (one canonical tag)
+    # Revise's final sweep covers the WHOLE draft, not just edited spans — drift in a span
+    # the review missed and revise never touched is still caught before saving.
+    assert "whole-draft style match" in write
+
+
+def test_revise_reanchors_repeat_offenders_on_origin_counter_example():
+    """Revise loads the tic ledger (revision is not quarantined — only drafting is) and,
+    for a carry-over gating shape (a failed prior fix, whose harvested voice pair is the
+    rewrite that didn't hold), re-anchors on the ledger's origin counter-example instead
+    of retrying a variant of that pair."""
+    repo_root = Path(__file__).resolve().parents[2]
+    write = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    revise = write.split("## Mode: Revise", 1)[1].split("## Mode: Passage Help", 1)[0]
+    assert "book/tic-ledger.md" in revise  # Load Context cites the ledger explicitly
+    assert "Repeat offenders" in revise
+    assert "carry-over" in revise
+    assert "origin counter-example" in revise
+    assert "replaces" in revise  # the new pair replaces the stale (failed) one
+    # Root cause of non-shrinking gates: fix a gating shape across the WHOLE draft, not just
+    # the cited spans, so its count actually drops below budget and the gate clears.
+    assert "whole-draft instance count under the ledger" in revise.lower()
+    assert "sweep the entire draft" in revise
+    # The shared roster stays in sync: guardrails name the re-anchoring obligation.
+    guardrails = (
+        repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md"
+    ).read_text(encoding="utf-8")
+    assert "failed prior fix" in guardrails
+    assert "origin counter-example" in guardrails
+
+
+def test_review_pass2_is_blind_discovery_with_ledger_reconciliation():
+    """Pass 2 discovers tics by blind contrast against the origin and maintains
+    book/tic-ledger.md (bootstrapped from the seed catalog on first run)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    assert "Tic Discovery & Contrast" in review
+    assert "Step A — blind discovery" in review
+    assert "Step B — ledger reconciliation" in review
+    assert "book/tic-ledger.md" in review
+    assert "tic-ledger-template.md" in review  # bootstrap path
+    assert "Status: seed" in review
+    # The blind step must not receive the ledger or the seed catalog.
+    assert "no ledger and no seed catalog" in review
+    # Per-entry budgets: zero-budget forms gate on sight; long chapters count per 1k words.
+    assert "`Budget:`" in review
+    assert "Critical and gating at one instance" in review
+    assert "0.75/1k" in review
+    # Legacy waivers naming a seed-catalog pattern number stay binding.
+    assert "pattern *number*" in review
+
+
+def test_discuss_constitution_mode_records_tic_waivers_on_ledger():
+    """Constitution mode frames tic overrides as waivers recorded on the ledger."""
+    repo_root = Path(__file__).resolve().parents[2]
+    discuss = (repo_root / ".authorkit" / "prompts" / "authorkit.discuss.md").read_text(encoding="utf-8")
+    assert "Tic Waivers" in discuss
+    assert "book/tic-ledger.md" in discuss
+
+
+def test_init_copies_tic_ledger_and_voice_pairs_templates_and_keeps_seed_catalog():
+    """Init ships the new templates, and the demoted seed catalog stays at its
+    original path so re-install never deletes it from existing projects."""
+    with isolated_filesystem():
+        result = runner.invoke(
+            cli.app,
+            [
+                "init",
+                ".",
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--here",
+                "--force",
+                "--ignore-agent-tools",
+                "--no-git",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert Path(".authorkit/templates/tic-ledger-template.md").exists()
+        assert Path(".authorkit/templates/voice-pairs-template.md").exists()
+        manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
+        assert ".authorkit/templates/tic-ledger-template.md" in manifest["managed_paths"]
+        assert ".authorkit/templates/voice-pairs-template.md" in manifest["managed_paths"]
+        # Seed catalog still shipped at its original path (re-install safety).
+        assert ".authorkit/prompts/_shared/literary-tic-catalog.md" in manifest["managed_paths"]
+        # Rendered claude write prompt: guardrails injected, catalog quarantined.
+        # The injected guardrails block precedes the command body (which starts
+        # at "## User Input"); the catalog path may appear only in guardrails.
+        rendered_write = Path(".claude/commands/authorkit.write.md").read_text(encoding="utf-8")
+        assert "Tic Ledger & Voice Pairs" in rendered_write  # via injected guardrails
+        write_body = rendered_write.split("## User Input", 1)[1]
+        assert "literary-tic-catalog" not in write_body
+        # Rendered review prompt bootstraps the ledger.
+        rendered_review = Path(".claude/commands/authorkit.review.md").read_text(encoding="utf-8")
+        assert "tic-ledger-template.md" in rendered_review

@@ -267,6 +267,28 @@ Each writes a `loop-health` escalation and halts.
 - **Unchanged:** `write`, `review`, `research`, and the rest of `discuss`. `review`
   still owns the `[X]`/`[R]` transition.
 
+## Per-operation model/effort
+
+AutoPilot makes three kinds of LLM calls per run: the **planner** (decides each
+tick's next action), dispatched **review** commands (`/authorkit.review`), and
+dispatched **writer** commands (`/authorkit.write`, `/authorkit.research`).
+Each can be pointed at a different model/effort via an optional
+`[autopilot.planner|review|writer]` section in `book.toml` — see the README's
+`book.toml` docs for the user-facing usage. All fields are unset by default:
+no built-in default, no CLI flag, so an untouched `book.toml` behaves exactly
+as before this feature existed.
+
+Flag syntax by flavor (only emitted when a value is actually set):
+
+| Flavor | Model flag | Effort flag | Notes |
+|---|---|---|---|
+| Claude | `--model <alias\|id>` | `--effort <low\|medium\|high\|xhigh\|max>` | Both confirmed to work with headless `claude -p`. |
+| Codex | `-m <id>` | `-c model_reasoning_effort="<level>"` (`minimal\|low\|medium\|high\|xhigh`) | No dedicated effort flag exists; several upstream Codex CLI issues report `model_reasoning_effort` occasionally being ignored — treat as best-effort. |
+| Copilot | `--model=<id>` | `--effort=<level>` (`low\|medium\|high\|xhigh\|max`) | `--model` is confirmed to work with headless `-p`; `--effort` alongside `-p` is undocumented upstream and should be spot-checked before relying on it. |
+
+Codex/Copilot's base invocation (not just these flags) is still marked "needs
+live validation" below — see Open questions.
+
 ## Rollout
 
 See [`autopilot-implementation.md`](autopilot-implementation.md) for the detailed, phased build plan.
@@ -295,12 +317,11 @@ See [`autopilot-implementation.md`](autopilot-implementation.md) for the detaile
 - **Escalation storage:** a separate `book/escalations/` directory (current plan) vs.
   folding loop-raised items into `parked-decisions.md` with a `blocks: autopilot`
   flag. Separate keeps blocking (hard) vs. soft semantics clean; folding reuses more.
-- **Planner model:** default is the installed AI flavor for the repo. A cheaper/
-  smaller model for the (status-only) planner is a possible later optimization.
 - **Headless invocation per flavor:** AutoPilot needs a per-agent recipe to run a
   command in a fresh non-interactive session (e.g. `claude -p …`, `codex exec …`,
   Copilot equivalent). This is the main implementation detail to pin down for the
-  multi-AI story.
+  multi-AI story — the base invocation (not just model/effort) is still unvalidated
+  for Codex/Copilot.
 - **Unattended notifications:** mechanism for surfacing an escalation when no one is
   watching (Phase 4).
 

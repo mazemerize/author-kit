@@ -1,24 +1,38 @@
-# Literary Tic Catalog
+# Literary Tic Catalog (bootstrap seed)
 
-A catalog of LLM-typical literary tics — constructions that signal AI prose even
-when each instance is grammatically correct and individually defensible. Most
-fail through repetition: one instance is voice; a dozen is a verbal tell.
+A reference catalog of LLM-typical literary tics — constructions that signal AI
+prose even when each instance is grammatically correct and individually
+defensible. Most fail through repetition: one instance is voice; a dozen is a
+verbal tell.
 
-This catalog is normative for any command that generates manuscript prose or
-audits it. Treat the budgets as defaults; honor explicit constitution overrides.
+**This file is a bootstrap seed, not a normative gate.** The living, normative
+tic catalog for a book is `book/tic-ledger.md`, which `/authorkit.review`
+(Pass 2 — AI-Tic Audit) maintains by blind contrast against the fixed voice
+origin — discovering the tics the *current* model actually produces in *this*
+book, tracking their per-chapter trends, and retiring shapes that stop
+occurring. This seed's role is limited to review's first run on a book: its
+high-signal patterns become the ledger's initial `Status: seed` hypotheses,
+which the discovery pass then confirms or retires. Once `book/tic-ledger.md`
+exists, the ledger — not this file — is what review checks and what severity is
+mapped from.
 
-## Constitution Override
+**Never load this file while drafting.** Pattern descriptions in the drafting
+context prime the constructions they prohibit; tic knowledge reaches generation
+only as contrastive pairs in `book/voice-pairs.md` (see the shared guardrails'
+*Tic Ledger & Voice Pairs* and *Voice Conditioning Protocol*).
+
+## Constitution Waivers
 
 If `.authorkit/memory/constitution.md` (or `book/style-anchor.md`'s **Avoid** /
-**Imagery Density** sections) explicitly permits a pattern listed here — by
-naming the pattern, raising its budget, or stating a voice/genre rationale —
-defer to the constitution. Note the override at the top of any review that
-involves the affected pattern (e.g., *"Polysyndeton waived by constitution
-§II (McCarthy-inflected register)"*). Absent an explicit waiver, the budgets
-below apply.
-
-A book's constitution can also tighten a budget (e.g., zero negations). Treat
-tightening as binding; honor it without further checks.
+**Imagery Density** sections) explicitly sanctions a pattern listed here — by
+naming it by example or description with a voice/genre rationale — review
+records the waiver on the matching `book/tic-ledger.md` entry's `Waiver:` field
+and reports (never flags) the shape (e.g., *"Polysyndeton waived by
+constitution §II (McCarthy-inflected register)"*). A legacy waiver that names a
+pattern *number* from this catalog ("waive pattern 13") remains binding —
+resolve the number here. A constitution can also ban
+a shape outright; treat that as binding regardless of trend. Vague register
+language ("literary style") is neither a waiver nor a ban.
 
 ## The Patterns
 
@@ -368,47 +382,125 @@ of evidence.
 interpretation into dialogue, a named emotion, or an open question.
 **Budget:** at most **two per chapter**.
 
+### 23. Looping self-echo — antimetabole / anadiplosis / confirming echo
+
+A phrase repeated within or across clauses — inverted, handed off, or confirmed — to
+manufacture gravitas the sentence has not earned. Three sibling forms:
+
+- **Antimetabole** (invert and repeat): "for a man who weighs his nods has learned that
+  nods are weighed."
+- **Anadiplosis** (end-word becomes the next clause's start): "because that was his trade
+  and his trade was to trust nothing he had not summed himself."
+- **Confirming echo / competence tag** (posit a rare skill as a condition, then immediately
+  confirm the character has it): "a man might read the health of the whole world in those
+  rolls if he knew the hand, and Crescens knew the hand."
+
+**Why it fails:** the rhetorical loop *sounds* like hard-won wisdom, but the repetition is
+doing the work an image or an action should. It is one of the highest-signal markers of
+LLM literary pastiche (McCarthy / King-James inflection), and it survives line-level review
+because each clause is grammatical and "resonant."
+
+**Fix:** say the thing once, plainly, and trust it; or replace the loop with a concrete
+detail. **Budget:** at most **one per chapter** across all three forms; the competence-tag
+form ("…if he knew X, and he knew X") is **budget 0**.
+
+### 24. Creed / trade-maxim characterization
+
+Narration summing a character up through a portable, essential-truth maxim — usually about
+their profession or fundamental nature — instead of showing them act.
+
+Examples:
+- "his trade was to trust nothing he had not summed himself"
+- "to record what was and add nothing to it was the whole of his trade"
+- "she was a woman who kept her debts in her head and her grief in her hands"
+
+**Why it fails:** it is the aphoristic-character gesture in narration form — cousin of
+pattern 1 (the relative-clause version) and pattern 10 (aphorism in dialogue). One is a
+thesis statement; a habit of them turns every figure into a proverb about themselves. The
+"…was the whole of his trade/work/life" closer also trips pattern 21 (trailing minimizer).
+
+**Fix:** let the character's actions and choices establish the creed; cut the summary.
+**Budget:** at most **one per character per chapter**, and **never** the "…was the whole of
+his X" closer absent an explicit constitution waiver.
+
+### 25. Participial / absolute-phrase scene-setting openers
+
+Sentences (especially paragraph or scene openers) led by a stacked present-participle or
+absolute phrase instead of a subject and verb.
+
+Examples:
+- "Standing at the window, she watched the harbour fill."
+- "Hands trembling, he set the cup down."
+- "The lamp guttering, the room half in shadow, they waited."
+
+**Why it fails:** one is fine; as a default opening move it gives every beat the same
+front-loaded, slightly breathless shape, and the participle often dangles or implies a
+simultaneity that isn't real.
+
+**Budget:** at most **three per 1,000 words**, and no more than **two consecutive**
+sentences or paragraph openers built this way.
+
+### 26. Correlative simultaneity — "at once X and Y" / "both X and Y"
+
+Rendering mixed feeling through a correlative pair rather than a concrete, particular
+reaction.
+
+Examples:
+- "she felt at once afraid and exhilarated"
+- "his voice was both gentle and final"
+- "it was at once an apology and a threat"
+
+**Why it fails:** it is the model's default formula for ambivalence — tidy, abstract, and
+interchangeable across characters and scenes. It names the poles instead of dramatizing the
+tension.
+
+**Fix:** show the contradiction in behaviour or pick the dominant note. **Budget:** at most
+**two per chapter**.
+
+### 27. Partitioned interiority — "part of her" / "some part of him"
+
+Locating feeling in a fractional self instead of naming it or showing it.
+
+Examples:
+- "part of her wanted to stay"
+- "some part of him already knew"
+- "a small part of her hated him for it"
+
+**Why it fails:** sibling of pattern 14 (vague "something" interiority). It simulates
+psychological depth by splitting the character into committee members, and the device
+becomes a verbal habit for any moment of hesitation.
+
+**Fix:** name the feeling, or show the hesitation as an action or a beat of dialogue.
+**Budget:** at most **two per chapter**.
+
 ## How to Apply
 
-**At generation time** (`/authorkit.write` draft / revise / passage help):
-- Internalize the budgets before writing. Don't draft tic-rich prose and clean
-  it up after — write within budget on the first pass.
-- **Calibrate against the project's own corpus, not just this catalog.** The
-  budgets catch known patterns; they do not certify fidelity. If the project
-  has pre-existing prose (earlier chapters, the author's prior work), read it
-  before drafting and match how *that hand* delivers description, dialogue
-  attribution, interiority, and exposition. A chapter can pass every budget
-  here and still read as AI-authored against the corpus — typically through
-  poised low-affect cadence, silent POV analysis where the corpus uses
-  conversation, or restraint-measuring closers (patterns 21–22). When a
-  recurring corpus-vs-draft mismatch is found, name it in the book's
-  constitution so it binds future drafting; fidelity to the corpus outranks
-  polish. *(Lesson from the Ab Imo Pectore CH13–CH15 fidelity passes,
-  2026-06-11.)*
-- The "Style match pass" and "Quality self-check" steps count every pattern,
-  with dedicated attention to the zero / near-zero budget patterns and the
-  per-1,000-words density patterns — both identifiable from the budget table
-  below, so this list never needs updating when patterns are added.
-- If a constitution waiver is in effect, name it in the run report so the
-  author sees which budget was bypassed.
+**Seeding only** (`/authorkit.review` Pass 2, first run on a book): when
+`book/tic-ledger.md` does not exist, create it from
+`.authorkit/templates/tic-ledger-template.md` and seed `Status: seed` entries
+from the high-signal patterns here (7, 13, 21, 22, 23, 24 and the zero-budget
+forms of 3, 14, 15, 23, 24). Seeds are hypotheses: the blind discovery pass
+confirms the ones this book's drafts actually exhibit (they become `active`
+with a quoted instance and an origin counter-example) and retires the rest
+after 2 unconfirmed reviews. After seeding, this file is out of the loop.
 
-**At review time** (`/authorkit.review`):
-- Count instances per pattern, per chapter (and per 1,000 words for density
-  patterns).
-- Compare against the budgets. Patterns over budget become findings under the
-  **LLM Tic Audit** dimension.
-- Cite specific line references (or paragraph-anchored quotes) for every flag.
-- Severity triage lives in the review prompt, not here: this catalog owns the
-  patterns and budgets; the consuming command maps overages onto its own
-  severity ladder.
-- Manuscript-wide drift: track cumulative density across drafted chapters —
-  a pattern can sit at budget in every chapter and still mark voice drift in
-  aggregate. The cross-chapter threshold is defined in the review prompt.
+**Why the ledger outranks this catalog.** These budgets catch *known* patterns
+of the models this file was written against; they do not certify fidelity, and
+a chapter can respect every budget here and still read as AI-authored against
+the book's own corpus — typically through poised low-affect cadence, silent POV
+analysis where the corpus uses conversation, or restraint-measuring closers
+(patterns 21–22). The ledger exists precisely because tics are model- and
+book-specific: discovery by contrast against the fixed origin finds what this
+list cannot name in advance, and the trend/decay lifecycle keeps the ledger
+describing the model currently drafting. *(Lesson from the Ab Imo Pectore
+CH13–CH15 fidelity passes, 2026-06-11.)*
 
-**Constitution waivers must be explicit.** A vague "literary register" line in
-the constitution does not waive a pattern. The constitution must name the
-pattern by number, by example, or by description ("polysyndeton is part of
-the voice"). Otherwise the budgets apply.
+**The budgets below live on through the ledger, not this file.** At bootstrap
+each seeded entry copies its pattern's budget into the ledger's `Budget:` field
+(zero-budget forms stay 0 — flag on sight); from then on the *ledger's*
+per-entry budget is the live threshold review enforces, and this table is only
+consulted again when seeding a rediscovered pattern. Severity and gating are
+defined in the review prompt's Pass 2 severity mapping.
 
 ## Quick-reference budget table
 
@@ -435,3 +527,8 @@ the voice"). Otherwise the budgets apply.
 | 20 | Em-dash interruptions | 4 per 1,000 words, max 2 per paragraph |
 | 21 | Composure beats / trailing minimizers | 1 per chapter as narration closer; dialogue exempt; high-signal |
 | 22 | Decoder narration ("understood X as Y") | 2 per chapter |
+| 23 | Looping self-echo (antimetabole/anadiplosis/confirming echo) | 1 per chapter; competence-tag form 0; high-signal |
+| 24 | Creed / trade-maxim characterization | 1 per character per chapter; "the whole of his X" closer 0; high-signal |
+| 25 | Participial / absolute-phrase openers | 3 per 1,000 words; max 2 consecutive |
+| 26 | Correlative simultaneity ("at once X and Y") | 2 per chapter |
+| 27 | Partitioned interiority ("part of her") | 2 per chapter |

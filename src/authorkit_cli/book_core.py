@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # Canonical directory names relative to the project root.
@@ -28,6 +28,29 @@ class ChapterDraft:
     chapter_number: int
     draft_path: Path
     text: str
+
+
+@dataclass(slots=True)
+class AutopilotOpConfig:
+    """Optional per-operation model/effort override for one AutoPilot bucket.
+
+    Both fields are ``None`` unless the author explicitly set them in
+    ``book.toml`` — there is no built-in default. ``None`` means "pass no
+    flag; let the agent CLI use its own default", not "use some default
+    model/effort" chosen by Author Kit.
+    """
+
+    model: str | None = None
+    effort: str | None = None
+
+
+@dataclass(slots=True)
+class AutopilotConfig:
+    """Per-operation ``[autopilot.*]`` overrides for AutoPilot's three call sites."""
+
+    planner: AutopilotOpConfig = field(default_factory=AutopilotOpConfig)
+    review: AutopilotOpConfig = field(default_factory=AutopilotOpConfig)
+    writer: AutopilotOpConfig = field(default_factory=AutopilotOpConfig)
 
 
 @dataclass(slots=True)
@@ -48,6 +71,7 @@ class BookConfig:
     speaking_rate_wpm: int
     reading_wpm: int
     tts_cost_per_1m_chars: float | None
+    autopilot: AutopilotConfig = field(default_factory=AutopilotConfig)
 
 
 def normalize_name(value: str) -> str:
@@ -132,6 +156,34 @@ def _coerce_optional_float(value: object, *, field: str, config_path: Path) -> f
     )
 
 
+def _ensure_table(value, *, field: str, config_path: Path) -> dict:
+    """Coerce a config section to a table, erroring like the numeric coercers.
+
+    A scalar where a table belongs (``planner = "haiku"`` instead of
+    ``[autopilot.planner]`` / ``model = "haiku"``) must raise BookConfigError,
+    not leak an AttributeError past the CLI's friendly error handling.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    raise BookConfigError(
+        f"`{field}` in {config_path} must be a TOML table (`[{field}]` section), got {value!r}.",
+        config_path=config_path,
+    )
+
+
+def _parse_autopilot_op(raw: dict) -> AutopilotOpConfig:
+    """Parse one ``[autopilot.<bucket>]`` table into an AutopilotOpConfig.
+
+    Free-string passthrough, same as the audio fields — an absent key or an
+    empty/whitespace string both resolve to ``None`` (no flag injected).
+    """
+    model = str(raw.get("model") or "").strip() or None
+    effort = str(raw.get("effort") or "").strip() or None
+    return AutopilotOpConfig(model=model, effort=effort)
+
+
 def parse_book_config(book_dir: Path) -> BookConfig:
     """Load book metadata from book.toml with safe defaults.
 
@@ -161,6 +213,7 @@ def parse_book_config(book_dir: Path) -> BookConfig:
     build_section = raw.get("build", {})
     audio_section = raw.get("audio", {})
     stats_section = raw.get("stats", {})
+    autopilot_section = _ensure_table(raw.get("autopilot"), field="autopilot", config_path=config_path)
 
     title = normalize_name(str(book_section.get("title") or book_dir.name))
     author = normalize_name(str(book_section.get("author") or "Unknown Author"))
@@ -195,6 +248,17 @@ def parse_book_config(book_dir: Path) -> BookConfig:
         tts_cost_per_1m_chars=_coerce_optional_float(
             stats_section.get("tts_cost_per_1m_chars"),
             field="stats.tts_cost_per_1m_chars", config_path=config_path,
+        ),
+        autopilot=AutopilotConfig(
+            planner=_parse_autopilot_op(
+                _ensure_table(autopilot_section.get("planner"), field="autopilot.planner", config_path=config_path)
+            ),
+            review=_parse_autopilot_op(
+                _ensure_table(autopilot_section.get("review"), field="autopilot.review", config_path=config_path)
+            ),
+            writer=_parse_autopilot_op(
+                _ensure_table(autopilot_section.get("writer"), field="autopilot.writer", config_path=config_path)
+            ),
         ),
     )
 

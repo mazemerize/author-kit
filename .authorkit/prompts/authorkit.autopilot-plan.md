@@ -36,7 +36,7 @@ Return **only** a JSON object (no prose, fences optional):
   "command": "/authorkit.write 7",
   "reason": "one sentence: why this is the next step",
   "escalation": {
-    "type": "story-fork | contradiction | outline-exhausted | quality-stall | structural | parked-overdue | grounding-gap",
+    "type": "story-fork | contradiction | outline-exhausted | quality-stall | structural | parked-overdue | grounding-gap | numeric-contradiction | disclosure-leak | scaffolding-gap",
     "decision_needed": "the specific question for the author",
     "options": ["option A", "option B"],
     "recommended_command": "/authorkit.discuss \"resolve <ESC-ID>: <decision>\""
@@ -52,7 +52,11 @@ Return **only** a JSON object (no prose, fences optional):
 
 1. Read the inputs: the mode brief, the status JSON (the `chapter_statuses` map, drift flags,
    open parked decisions, open escalations, world counts), and — in plot mode — the read-only
-   plan-layer context (concept, outline, world index, research index).
+   plan-layer context (concept, outline, world index, research index). In **chapters mode** the
+   status JSON also carries a `chapter_reviews` map: for each chapter that has a review, its
+   `current` (does the standing `review.md` already cover the *current* draft, or has the draft
+   changed since?) and `verdict` (`PASS` / `NEEDS_REVISION`). Use it so you never re-dispatch a
+   review that would be a pure no-op.
 
 2. **plot mode** — book-level scaffolding only; **never touch `chapters/NN/`** (no chapter
    plans, no drafts — that is chapters mode). Pick the highest applicable step:
@@ -73,10 +77,20 @@ Return **only** a JSON object (no prose, fences optional):
    - `[ ]` pending, no plan → `/authorkit.write N plan` (plan only). Use `research` first only
      when the chapter needs grounding you lack (`/authorkit.research "for chapter N, ..."`).
    - `[P]` planned, no draft → `/authorkit.write N` (draft).
-   - `[D]` drafted → `/authorkit.review N`.
+   - `[D]` drafted → `/authorkit.review N` — **but first check `chapter_reviews["N"]`.** If it is
+     `current: true` with `verdict: "NEEDS_REVISION"`, the standing review already covers this
+     exact draft, so re-reviewing is a no-op: dispatch its prescribed revise
+     (`/authorkit.write N revise: <the review's issues>`) instead. Only dispatch
+     `/authorkit.review N` when the chapter has no review yet or the draft changed since the last
+     one (`chapter_reviews["N"]` absent or `current: false`).
    - `[R]` needs revision → `/authorkit.write N revise: <the review's issues>`.
    - All in-range chapters `[X]` → `done`. Periodically (a part finished, or several chapters
      approved) prefer a range review first: `/authorkit.review A-B` for cross-chapter drift.
+
+   (The harness enforces this too: it converts a no-op review into the prescribed revise, and
+   if a chapter's gating tic-set stops shrinking to a new low across several reviews without
+   converging to `[X]` it escalates `quality-stall` for you — so choose the productive step,
+   don't spin on review.)
 
 4. **Escalate** instead of acting when a decision is the author's: the story's direction is
    unsettled or the outline is exhausted; a draft contradicts a `(CONCEPT)` / `(CHxx)` fact;
@@ -84,6 +98,28 @@ Return **only** a JSON object (no prose, fences optional):
    deadline; a chapter keeps failing review; or material grounding is missing.
 
 5. Emit exactly one directive.
+
+## Author Guidelines (when present)
+
+If the input includes an `## Author Guidelines (high priority)` section, the operator has
+set a **campaign** for this run. It **overrides the default status ladder** and may direct
+work the ladder would never pick on its own.
+
+- **Follow the guideline first.** It takes precedence over the ladder. Example: *"re-review
+  every chapter against the new tic patterns, revise drafts to comply, then re-review"* — a
+  review/revise sweep across the whole range.
+- **You MAY re-open approved `[X]` chapters** when the guideline calls for it (a manuscript
+  re-review/revise). This is the one case where touching `[X]` chapters is allowed; stay
+  within the range otherwise. **Chapters mode only** — in plot mode a guideline steers
+  scaffolding work (outline, world, research) and never authorizes touching `chapters/NN/`.
+- **Track campaign progress from status + content each tick** (the flag is not persisted, so
+  re-derive where the sweep is up to). Pick the lowest chapter the campaign has not yet
+  processed; dispatch its next campaign step (`/authorkit.review N`, then
+  `/authorkit.write N revise: <guideline>` if it needs changes, then re-review).
+- **Emit `done` only when the guideline has been applied across the whole range** — not when
+  chapters happen to be `[X]` (they may already have been before the campaign began).
+- Genuine forks still escalate; the new escalation types `numeric-contradiction`,
+  `disclosure-leak`, and `scaffolding-gap` exist for issues those review passes surface.
 
 ## Key Rules
 

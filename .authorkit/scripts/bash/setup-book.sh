@@ -183,6 +183,18 @@ speaking_rate_wpm = 170
 [stats]
 reading_wpm = 200
 # tts_cost_per_1m_chars = 0.000015   # uncomment and set to enable cost estimates in `authorkit book stats`
+
+# Per-operation model/effort overrides for autopilot (all optional — unset means
+# no --model/--effort flag is passed, so the agent CLI's own default applies).
+# [autopilot.planner]   # the meta-planner deciding each tick's next action
+# model = ""
+# effort = ""
+# [autopilot.review]    # dispatched /authorkit.review commands
+# model = ""
+# effort = ""
+# [autopilot.writer]    # dispatched /authorkit.write and /authorkit.research commands
+# model = ""
+# effort = ""
 EOF
 else
   # File exists — preserve all user customizations. Only update the four [book]
