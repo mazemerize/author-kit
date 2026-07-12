@@ -3953,3 +3953,95 @@ def test_init_copies_tic_ledger_and_voice_pairs_templates_and_keeps_seed_catalog
         # Rendered review prompt bootstraps the ledger.
         rendered_review = Path(".claude/commands/authorkit.review.md").read_text(encoding="utf-8")
         assert "tic-ledger-template.md" in rendered_review
+
+
+def test_catalog_new_patterns_and_budget_table():
+    """Tic-catalog expansion (patterns 28-47): every pattern heading has a budget-table
+    row, the class/weighting preamble exists, the volatile lexical entry is marked, and
+    the bootstrap seeding list names the new high-signal patterns."""
+    repo_root = Path(__file__).resolve().parents[2]
+    catalog = (repo_root / ".authorkit" / "prompts" / "_shared" / "literary-tic-catalog.md").read_text(encoding="utf-8")
+
+    headings = {int(m.group(1)) for m in re.finditer(r"^### (\d+)\.", catalog, re.M)}
+    assert headings == set(range(1, 48)), f"Expected patterns 1-47, got {sorted(headings)}"
+
+    table_rows = {
+        int(n)
+        for m in re.finditer(r"^\| (\d+)(?:\+(\d+))? \|", catalog, re.M)
+        for n in m.groups()
+        if n
+    }
+    assert set(range(1, 48)) <= table_rows, (
+        f"Budget table missing rows for patterns {sorted(set(range(1, 48)) - table_rows)}"
+    )
+
+    assert "## Pattern Classes & Weighting" in catalog
+    assert "**Volatility: high**" in catalog or "**Volatility:** high" in catalog or "`Volatility: high`" in catalog
+    # New high-signal seeds are named in the How to Apply seeding list
+    assert re.search(r"7, 13, 21, 22, 23, 24, 29, 33, 35, 36, 41", catalog), (
+        "Seeding list must name the new high-signal patterns 29/33/35/36/41"
+    )
+    # The user-requested zero-budget summary-closer boilerplate is present and greppable
+    assert "that was the whole of it" in catalog
+
+
+def test_review_prompt_literal_sweep_and_cluster_rules():
+    """Review Pass 2 reinforcement: literal Grep sweep for zero-budget phrase shapes,
+    cluster escalator, tic-load gating label, persistence check, softened seed retirement."""
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+
+    assert "Literal sweep" in review and "Grep" in review, "Step B must mandate the literal Grep sweep"
+    assert "Cluster escalator" in review, "Severity mapping must include the co-occurrence cluster rule"
+    assert "Tic-load index" in review and "`tic-load`" in review, (
+        "Tic-load gating must be defined and emitted as the synthetic `tic-load` label"
+    )
+    assert "Persistence check" in review and "3 or more consecutive reviewed chapters" in review
+    assert "retire after 4 reviews" in review, "Seed retirement must be softened to 4 reviews"
+    assert "never retire" in review, "Zero-budget phrase-class seeds must never retire"
+
+
+def test_ledger_template_class_field_and_lifecycle():
+    """Ledger template: optional Class field present, lifecycle softened to 4 reviews,
+    zero-budget phrase seeds exempt from retirement."""
+    repo_root = Path(__file__).resolve().parents[2]
+    template = (repo_root / ".authorkit" / "templates" / "tic-ledger-template.md").read_text(encoding="utf-8")
+
+    assert "**Class**:" in template, "Entry template must carry the optional Class field"
+    assert "after 4 reviews" in template, "Seed retirement must say 4 reviews"
+    assert "never retire" in template, "Zero-budget phrase-class seeds must be exempt from retirement"
+
+
+def test_parse_gating_shapes_accepts_tic_load_label():
+    """The synthetic tic-load gating label must round-trip through the AutoPilot gate
+    parser like any TIC id, and must not collide with the explicit-none vocabulary."""
+    parsed = autopilot_core.parse_gating_shapes("**Gating Shapes**: tic-load, TIC-059")
+    assert parsed == ("tic-load", "tic-059")
+
+    only_load = autopilot_core.parse_gating_shapes("**Gating Shapes**: tic-load")
+    assert only_load == ("tic-load",)
+    assert "tic-load" not in autopilot_core._GATING_NONE
+
+    # And it shrinks like any shape: dropping tic-load converges.
+    assert autopilot_core.gating_set_converging(("tic-load", "tic-059"), ("tic-059",))
+    assert not autopilot_core.gating_set_converging(("tic-059",), ("tic-059", "tic-load"))
+
+
+def test_guardrails_quarantine_unchanged_and_pass2_reinforced():
+    """The drafting quarantine must survive the Pass 2 reinforcement, and the roster's
+    Pass 2 paragraph must describe the literal sweep, tic-load, and zero-budget Grep-on-revise."""
+    repo_root = Path(__file__).resolve().parents[2]
+    guardrails = (repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md").read_text(encoding="utf-8")
+
+    assert "Quarantine rule (binding)" in guardrails
+    assert "MUST NOT load" in guardrails, "Drafting quarantine wording must remain intact"
+    assert "literal sweep" in guardrails.lower(), "Pass 2 roster must mention the literal sweep"
+    assert "tic-load" in guardrails, "Pass 2 roster must mention the tic-load compounding gate"
+    assert "Greps the whole draft" in guardrails, (
+        "Revise must be told to Grep the whole draft for zero-budget phrase shapes"
+    )
+
+    write_prompt = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    assert "Grep the whole draft" in write_prompt, (
+        "write.md Revise must sweep zero-budget phrase shapes by literal search"
+    )

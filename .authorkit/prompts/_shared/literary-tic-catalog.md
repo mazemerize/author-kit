@@ -34,6 +34,33 @@ resolve the number here. A constitution can also ban
 a shape outright; treat that as binding regardless of trend. Vague register
 language ("literary style") is neither a waiver nor a ban.
 
+## Pattern Classes & Weighting
+
+Patterns 28+ carry a **`Class:`** field; patterns 1–27 predate it and are all
+implicitly `constructional`. The classes calibrate how much weight a match
+deserves — three principles from the published detection research (stylometric
+studies, Wikipedia's *Signs of AI writing* field guide):
+
+- **Density over presence.** A single instance of any non-zero-budget shape is
+  voice, not a tell. The signal is clustering — several shapes in one
+  paragraph, or one shape recurring across a manuscript. Budgets, the cluster
+  rule, and the tic-load index (review Pass 2's severity mapping) encode this;
+  never flag an isolated under-budget instance as if it were diagnostic.
+- **Structure over vocabulary.** `structural` and `constructional` tells
+  (clause symmetry, scene-shape repetition, negation-correction, tailing
+  appositives) are stable across model generations; `lexical` tells rotate
+  fast — "delve" was the canonical tell of 2023–24 and has already faded.
+  Entries marked **`Volatility: high`** are never seeded into a new ledger by
+  default, are weighted lower in severity judgment, and retire faster; they
+  enter a book's ledger only when blind discovery confirms them in *this*
+  book's drafts.
+- **`phrase`-class zero-budget entries are exact strings.** They are verified
+  by literal search (Grep, case-insensitive, with pronoun/tense variants) in
+  review Step B's targeted sweep — not by read-through alone. This is the one
+  place mechanical matching outperforms model judgment: these are
+  training-corpus clichés, stable across models precisely because they come
+  from the corpus, not the model.
+
 ## The Patterns
 
 ### 1. "The [noun] of a [noun] who [past habitual]" — character-by-aphorism
@@ -212,9 +239,12 @@ Examples:
 - "She did not run. She walked, with the gait of someone who knew they were
   being watched."
 - "Not the green of the lagoon, but a thinner colour."
+- Additive variant — "not just X, but Y" / "It's not X, it's Y": same hinge,
+  manufacturing an illusion of insight without adding information.
 
 **Fix:** lead with the positive. Drop the negated clause entirely.
-**Budget:** at most **two per chapter** unless the constitution waives.
+**Budget:** at most **two per chapter** unless the constitution waives; the
+additive "not just X, but Y" form counts toward the same budget.
 
 ### 14. Vague interiority — "something" as emotional load-bearer
 
@@ -243,6 +273,10 @@ The same small set of body responses rotating as emotional shorthand.
 Examples:
 - "her chest tightened" / "his stomach dropped" / "her breath caught"
 - "his heart hammered" / "her jaw clenched" / "his knuckles whitened"
+- The genre-corpus set: "a shiver/chill ran down her spine," "his blood ran
+  cold," "her heart skipped a beat," "a lump formed in her throat,"
+  "butterflies in her stomach," "tears welled up," "his heart sank/swelled,"
+  "her legs were like lead," "every muscle screamed in protest"
 - Sibling form — agentive body parts: "her hand found the rail," "his eyes
   found hers"
 
@@ -282,10 +316,14 @@ Examples:
 - "It was in the floorboards, in the curtains, in the quiet between them."
 
 **Why it fails:** Concrete-concrete-abstract is the model's default rhetorical
-figure. Litanies repeated across a chapter become a metronome.
+figure. Litanies repeated across a chapter become a metronome. The same
+applies to suspiciously clean tricolons with parallel rhythm or alliteration
+("fast, cheap, and out of control") — real human triplets are lumpier and less
+symmetrical.
 
 **Budget:** at most **one anaphoric litany per chapter**; lists whose third
-item goes abstract, at most **two per chapter**.
+item goes abstract, at most **two per chapter**; polished parallel tricolons
+count toward the same budget.
 
 ### 18. Personified atmosphere
 
@@ -360,7 +398,9 @@ survives line-level review: every sentence is grammatical, economical, and
 Character-voiced terseness in dialogue ("Your call. The whole of it.") is
 exempt — the ban is on narration measuring itself.
 **Budget:** at most **one per chapter** as a narration beat-closer, never the
-same phrasing twice in a manuscript.
+same phrasing twice in a manuscript. The "(and) that was the whole of it" /
+"and that was all (of it)" phrasing family: **budget 0** — pure summary-closer
+boilerplate, greppable exact strings (see pattern 29).
 
 ### 22. Decoder narration — POV-as-analyst
 
@@ -435,10 +475,14 @@ Examples:
 
 **Why it fails:** one is fine; as a default opening move it gives every beat the same
 front-loaded, slightly breathless shape, and the participle often dangles or implies a
-simultaneity that isn't real.
+simultaneity that isn't real. The mirror form — a sentence that *ends* by bolting on a
+vague "-ing" clause to manufacture significance ("…, cementing its legacy," "…, the lamp
+guttering as if in answer") — is the same tic tailing instead of fronting. So is the
+habitual fronted-adverbial opener ("As the sun dipped below the horizon, she…").
 
-**Budget:** at most **three per 1,000 words**, and no more than **two consecutive**
-sentences or paragraph openers built this way.
+**Budget:** at most **three per 1,000 words** counted across fronted, tailing, and
+fronted-adverbial forms, and no more than **two consecutive** sentences or paragraph
+openers built this way.
 
 ### 26. Correlative simultaneity — "at once X and Y" / "both X and Y"
 
@@ -473,16 +517,420 @@ becomes a verbal habit for any moment of hesitation.
 **Fix:** name the feeling, or show the hesitation as an action or a beat of dialogue.
 **Budget:** at most **two per chapter**.
 
+### 28. Vocabulary canon — the rotating "AI word" list
+
+**Class:** lexical · **Volatility: high**
+
+Words overused to the point of self-parody in AI prose. The list rotates
+model-to-model and season-to-season — "delve" was the 2023–24 canon and has
+largely faded — so treat this entry as a living sample, not a fixed ban list.
+
+Examples (current sample):
+- delve, tapestry, testament (to), palpable, myriad, plethora, intricate,
+  nuanced, liminal, gossamer, thrum/thrumming, ministrations, sentinel,
+  "a symphony of," nestled, ever-present, unspoken
+- Puffery adjectives: profound, remarkable, storied, vibrant, unwavering,
+  enduring, iconic
+
+**Why it fails:** each word is legitimate; density betrays the statistical
+mean. Because the list goes stale fast, weight this entry below the
+structural patterns — a manuscript can be scrubbed of every canon word and
+still read as AI-authored.
+
+**Fix:** replace with the plain word or a specific image.
+**Budget:** at most **two canon hits per 1,000 words**. Never seeded by
+default — enters a ledger only via blind discovery.
+
+### 29. Stock-phrase canon — greppable corpus clichés
+
+**Class:** phrase
+
+Exact strings inherited from the mass of genre fiction in every model's
+training corpus — stable across model generations precisely because they come
+from the corpus, not the model. Review Step B verifies these by literal
+search (case-insensitive, pronoun/tense variants), not read-through.
+
+Examples (the greppable set):
+- "little did (she|he|they) know"
+- "the air was thick with"
+- "a wave of [emotion] washed over"
+- "hung in the air"
+- "sent a shiver down" / "sent shivers down"
+- "heart skipped a beat"
+- "in that moment"
+- "without waiting for a response"
+- "despite (herself|himself)"
+- "worried her bottom lip"
+- "knuckles turning white" / "knuckles whitening" (dense form of 15's sibling)
+- "(and) that was the whole of it" / "and that was all (of it)" —
+  summary-closer boilerplate; also trips patterns 21 and 24
+
+**Why it fails:** these are the most recognizable AI-prose tells in
+circulation; a single instance reads as boilerplate to any editor who has
+seen model output.
+
+**Fix:** cut or replace with the scene's own concrete detail.
+**Budget: 0** — flag on sight, every instance.
+
+### 30. Rhetorical question → self-answer
+
+**Class:** constructional
+
+The narration poses a question and immediately answers it for effect.
+
+Examples:
+- "Was it worth it? Perhaps. But the cost…"
+- "What changed? The math did."
+- "The result? Total chaos."
+
+**Why it fails:** manufactured drama — a human writer would state the fact.
+In narration it reads as the model performing thoughtfulness.
+
+**Fix:** state the fact; keep genuine open questions genuinely open.
+**Budget:** at most **one per chapter** in narration; dialogue exempt.
+
+### 31. Hedging stacks
+
+**Class:** constructional
+
+Multiple hedges piled into a single clause, defensively rather than for
+genuine epistemic texture.
+
+Examples:
+- "perhaps, in some way, she had almost known"
+- "it seemed, somehow, as if it might"
+- "a little like something that could have been grief"
+
+**Why it fails:** one hedge is POV texture (pattern 9 covers hedged
+numerics); stacked hedges add no information and blur every observation into
+the same soft focus.
+
+**Fix:** keep at most one hedge per clause; commit the rest.
+**Budget:** at most **two stacked-hedge clauses per 1,000 words**.
+
+### 32. False-balance seesaw
+
+**Class:** constructional
+
+Hedge-and-pivot constructions that grant every observation an equal and
+opposite counter-observation, resolving nothing.
+
+Examples:
+- "It was X. And yet it was also Y."
+- "not without its dangers"
+- "While she trusted him, she also knew better."
+
+**Why it fails:** feels safe, avoids commitment, and rarely resolves the
+tension it stages. Reflexive even-handedness is a deep model habit — humans
+play favorites.
+
+**Fix:** pick the dominant note, or dramatize the contradiction in action.
+**Budget:** at most **two per chapter**.
+
+### 33. Filter words — perception routed through the POV verb
+
+**Class:** constructional
+
+Experience narrated through the viewpoint character's perception verbs
+instead of rendered directly.
+
+Examples:
+- "she saw the door open" (vs "the door opened")
+- "he heard the floor creak" / "she felt the cold settle"
+- "she noticed / watched / realized / seemed to"
+
+**Why it fails:** each filter adds narrative distance the scene didn't ask
+for; in density the reader watches the character watching instead of being
+in the scene. (Deliberate distance sanctioned by the constitution is a
+waiver case.)
+
+**Fix:** cut the filter and render the perception directly.
+**Budget:** at most **five per 1,000 words** combined.
+
+### 34. Dialogue tags doing emotional labor
+
+**Class:** constructional
+
+The tag carries the emotion the line and beat should carry.
+
+Examples:
+- "she said, her voice heavy with the weight of unshed tears"
+- "he breathed" / "she managed" / "he gritted" as speech verbs
+- "she said softly, sadly"
+
+**Why it fails:** the tag explains what the dialogue was supposed to show;
+adverb and non-speech-verb tags are the model's shortcut to feeling. Cousin
+of pattern 45 (every line getting a gesture beat).
+
+**Fix:** "said/asked" plus a concrete action beat, or rewrite the line so it
+carries its own tone.
+**Budget:** at most **three per chapter**.
+
+### 35. Ocular agency — eyes and gazes doing the acting
+
+**Class:** constructional
+
+Emotion delegated to autonomous eyes. Sibling of pattern 15's agentive body
+parts.
+
+Examples:
+- "her eyes glinted with mischief" / "his eyes darkened"
+- "her eyes flashed" / "his gaze hardened"
+- "her gaze swept the room"
+
+**Why it fails:** eyes can't glint with an abstraction; the construction is
+stock shorthand that tells the emotion while pretending to show it.
+
+**Fix:** give the character an action, a line, or a named feeling.
+**Budget:** at most **two per chapter**; the "eyes glinted with [abstraction]"
+form: **budget 0**.
+
+### 36. Portentous one-liner scene enders
+
+**Class:** structural
+
+Every scene or section break landing on a short, vaguely ominous line for
+"impact." Extends pattern 19 (chapter-ending codas) down to scene level.
+
+Examples:
+- "She would remember that later."
+- "Then the lights went out."
+- "'Then we're already too late.'" (curt cliffhanger dialogue closer)
+
+**Why it fails:** one is an ending; a habit is a drumbeat. When every scene
+exits on the same clipped portent, the device stops landing and the seams
+show.
+
+**Fix:** let some scenes end mid-gesture, on a plain fact, or simply stop.
+**Budget:** at most **one scene per chapter** may end this way.
+
+### 37. Templated scene shape
+
+**Class:** structural
+
+Scenes built on the same beat-skeleton: orienting weather/light opener →
+dialogue exchange → interior gloss → exit beat, at roughly uniform length.
+
+Examples:
+- Three consecutive scenes opening on light/weather ("The morning came grey…")
+- Every scene closing on a short interior summary before the break
+- Scene lengths within ±15% of each other across a chapter
+
+**Why it fails:** chapters become interchangeable; the reader feels the
+template before they can name it. Scene-shape uniformity is among the most
+durable structural tells — it survives line-level revision entirely.
+
+**Fix:** vary entry point (in medias res, mid-dialogue), length, and exit;
+let one scene run long and another cut off early.
+**Budget:** **three or more same-shaped scenes in a chapter** is a finding.
+
+### 38. Over-neat resolution
+
+**Class:** structural
+
+Every tension raised inside a scene or chapter is resolved inside it —
+conflicts settled through mutual understanding a little too often, no
+residue, ambiguity, or open contradiction carried forward.
+
+**Why it fails:** real accounts have loose ends and unresolved friction; the
+model's drive toward closure files every edge smooth. This is the
+fiction-shaped version of compulsive summarizing.
+
+**Fix:** leave at least one raised tension genuinely open past the chapter;
+let a conflict end unresolved or badly.
+**Budget:** review-judged — habitual (most scenes resolving clean) is
+**Important**; a single tidy scene is not a finding.
+
+### 39. Sermonizing antagonist — TED-talk aphorism chains
+
+**Class:** constructional
+
+Villains, mentors, and authority figures speaking in chained, quotable
+soundbites. The antagonist-flavored escalation of pattern 10.
+
+Examples:
+- "Power isn't taken. It's conceded. And you, my dear, have been conceding
+  all your life."
+- Mentor speeches built from three consecutive aphorisms
+
+**Why it fails:** the character stops being a person with wants and becomes
+a theme-delivery mechanism; chained epigrams are pure model register.
+
+**Fix:** give the speaker a concrete, self-interested point; cut the chain
+to one line at most.
+**Budget:** at most **one aphoristic line per chapter** for any single
+antagonist/mentor figure; **chains of two or more consecutive aphorisms:
+budget 0**.
+
+### 40. Metronomic rhythm — uniform cadence
+
+**Class:** structural
+
+Sentences and paragraphs of near-uniform length and identical internal shape;
+no digression, interruption, fragment, or run-on — no burstiness.
+
+**Why it fails:** stylometric studies converge on rhythmic uniformity as one
+of the most durable AI signals — more stable than any word list. Human
+writing has uneven rhythm: a paragraph that sprawls, a sentence that snaps.
+
+**Fix:** during revision, deliberately vary — fuse two sentences, break one,
+let a paragraph run past its natural stop, or end one early.
+**Budget:** review-judged — the reviewer contrasts the draft's cadence
+variance against the origin's; markedly flatter than the origin is a
+finding (**Important**; chapter-wide flatness **Critical**).
+
+### 41. Stated moral — theme over-explanation
+
+**Class:** structural
+
+The narration articulates the story's lesson outright, usually via a
+character "finally understanding" it.
+
+Examples:
+- "She finally understood that grief was just love with nowhere to go."
+- "In the end, it had never been about the money."
+- "He realized, at last, what his father had tried to tell him."
+
+**Why it fails:** the fiction-writing version of the essay's compulsive
+conclusion — the model states the significance instead of trusting the
+story to have earned it. One of the highest-measured AI-vs-human deltas in
+narrative studies.
+
+**Fix:** cut the statement; if the scene hasn't made the point, fix the
+scene.
+**Budget:** at most **one per chapter**, and never in the chapter's final
+paragraph (there it also trips pattern 19).
+
+### 42. Therapy-speak dialogue
+
+**Class:** structural
+
+Characters naming their feelings and motives with counselor precision.
+
+Examples:
+- "I think I'm pushing you away because I'm scared of being left first."
+- "You're not angry at me. You're angry at what I represent."
+
+**Why it fails:** real people mostly don't have this articulacy about
+themselves in the moment — and when every character does, they all share one
+voice. Kin of pattern 22 (decoder narration) moved into quoted speech.
+
+**Fix:** let characters misname, deflect, or half-say the feeling; put the
+insight in subtext or in the wrong mouth.
+**Budget:** at most **one per chapter**.
+
+### 43. No-silence dialogue
+
+**Class:** structural
+
+Every question gets answered; nobody evades, interrupts, trails off, changes
+the subject, or talks past anyone. Exchanges are grammatically complete and
+perfectly cooperative.
+
+**Why it fails:** models are not trained to generate silence — evasion and
+non-answer are among the deepest human tells. A scene where everyone answers
+the question asked reads as an interview transcript.
+
+**Fix:** let at least one line per scene dodge, interrupt, or die
+unfinished; let a question hang.
+**Budget:** review-judged — a chapter whose dialogue scenes are uniformly
+cooperative is a finding (**Important**).
+
+### 44. Epithet slop — elegant variation for names
+
+**Class:** constructional
+
+Synonym-cycling to avoid repeating a name or pronoun.
+
+Examples:
+- "the older man" / "the redhead" / "the taller of the two"
+- "the detective" for a POV character we know by name
+
+**Why it fails:** a repetition-penalty artifact. Names and pronouns are
+invisible; epithets make the reader re-derive who is speaking and imply a
+distance from the POV that isn't intended.
+
+**Fix:** use the name or the pronoun.
+**Budget:** at most **two per chapter** (epithets carrying genuine POV
+information — a stranger's-eye view before a name is known — are exempt).
+
+### 45. Dialogue-beat metronome
+
+**Class:** structural
+
+Every line of speech arrives with an attached gesture, expression, or
+micro-action tag.
+
+Examples:
+- "…she said, eyes narrowing." / "…he replied, running a hand through his
+  hair." — on every consecutive line
+- Alternating tag-beat-tag-beat through an entire exchange
+
+**Why it fails:** beats exist to pace dialogue; attached to every line they
+become wallpaper and the exchange reads as choreographed. Cousin of pattern
+34.
+
+**Fix:** strip beats until they mark only shifts — a decision, a lie, a
+turn.
+**Budget:** review-judged density — an exchange of six or more consecutive
+tagged lines is a finding.
+
+### 46. Importance inflation and copulative avoidance
+
+**Class:** constructional
+
+Narration asserting significance ("puffery"), often while dodging plain
+"was/is" for grander verbs.
+
+Examples:
+- "a moment that would change everything"
+- "in ways she couldn't yet understand"
+- "the house stood as a testament to…" / "the scar served as a reminder"
+- "people always said…" / "everyone in town knew…" (unearned crowd authority)
+
+**Why it fails:** telling the reader a moment is significant instead of
+making it feel significant; "stood as / served as / marked" is the model
+dodging the plain copula to sound writerly.
+
+**Fix:** plain verbs, earned significance; cut the crowd chorus or name who
+actually said it.
+**Budget:** at most **two per chapter** combined.
+
+### 47. Pathetic-fallacy default and reflex sensory register
+
+**Class:** structural
+
+Weather and setting reliably mirroring the character's inner state, and the
+same sensory channel (usually smell) as the reflex scene-opener.
+
+Examples:
+- Storm breaking at the argument's climax; rain at the funeral; sun on the
+  reconciliation — every time
+- "The air smelled of rain and old paper" as the default orienting beat
+
+**Why it fails:** used once it's a device; used habitually the world becomes
+the protagonist's mood ring, and the recurring sensory register becomes a
+verbal habit (smell-imagery density is a measured AI-vs-human delta).
+
+**Fix:** let the weather disagree with the mood; rotate or cut the sensory
+opener.
+**Budget:** at most **two mirroring instances per chapter**; sensory-opener
+repetition counts toward pattern 37's scene-shape finding.
+
 ## How to Apply
 
 **Seeding only** (`/authorkit.review` Pass 2, first run on a book): when
 `book/tic-ledger.md` does not exist, create it from
 `.authorkit/templates/tic-ledger-template.md` and seed `Status: seed` entries
-from the high-signal patterns here (7, 13, 21, 22, 23, 24 and the zero-budget
-forms of 3, 14, 15, 23, 24). Seeds are hypotheses: the blind discovery pass
-confirms the ones this book's drafts actually exhibit (they become `active`
-with a quoted instance and an origin counter-example) and retires the rest
-after 2 unconfirmed reviews. After seeding, this file is out of the loop.
+from the high-signal patterns here (7, 13, 21, 22, 23, 24, 29, 33, 35, 36, 41
+and the zero-budget forms of 3, 14, 15, 21, 23, 24, 29, 35, 39). Seeds are
+hypotheses: the blind discovery pass confirms the ones this book's drafts
+actually exhibit (they become `active` with a quoted instance and an origin
+counter-example) and retires the rest after 4 unconfirmed reviews — except
+zero-budget `phrase`-class seeds, which never retire (dormant at most): their
+literal Step B sweep costs nothing regardless of ledger status.
+`Volatility: high` entries (28) are never seeded — they enter a ledger only
+via blind discovery. After seeding, this file is out of the loop.
 
 **Why the ledger outranks this catalog.** These budgets catch *known* patterns
 of the models this file was written against; they do not certify fidelity, and
@@ -525,10 +973,30 @@ defined in the review prompt's Pass 2 severity mapping.
 | 18 | Personified atmosphere | 2 per 1,000 words; no repeated noun-verb pair |
 | 19 | Epiphany cadence closer | "for the first time" 1 per chapter; ≤2 consecutive coda endings |
 | 20 | Em-dash interruptions | 4 per 1,000 words, max 2 per paragraph |
-| 21 | Composure beats / trailing minimizers | 1 per chapter as narration closer; dialogue exempt; high-signal |
+| 21 | Composure beats / trailing minimizers | 1 per chapter as narration closer; "that was the whole of it" family 0; dialogue exempt; high-signal |
 | 22 | Decoder narration ("understood X as Y") | 2 per chapter |
 | 23 | Looping self-echo (antimetabole/anadiplosis/confirming echo) | 1 per chapter; competence-tag form 0; high-signal |
 | 24 | Creed / trade-maxim characterization | 1 per character per chapter; "the whole of his X" closer 0; high-signal |
 | 25 | Participial / absolute-phrase openers | 3 per 1,000 words; max 2 consecutive |
 | 26 | Correlative simultaneity ("at once X and Y") | 2 per chapter |
 | 27 | Partitioned interiority ("part of her") | 2 per chapter |
+| 28 | Vocabulary canon (lexical, volatile) | 2 hits per 1,000 words; never seeded |
+| 29 | Stock-phrase canon (greppable exact strings) | 0 |
+| 30 | Rhetorical question → self-answer | 1 per chapter; dialogue exempt |
+| 31 | Hedging stacks | 2 per 1,000 words |
+| 32 | False-balance seesaw | 2 per chapter |
+| 33 | Filter words (saw/heard/felt/noticed…) | 5 per 1,000 words |
+| 34 | Dialogue tags doing emotional labor | 3 per chapter |
+| 35 | Ocular agency ("eyes glinted…") | 2 per chapter; "glinted with [abstraction]" 0 |
+| 36 | Portentous one-liner scene enders | 1 scene per chapter |
+| 37 | Templated scene shape | ≥3 same-shaped scenes per chapter is a finding |
+| 38 | Over-neat resolution | review-judged; habitual = Important |
+| 39 | Sermonizing antagonist / aphorism chains | 1 per chapter; chains of ≥2 aphorisms 0 |
+| 40 | Metronomic rhythm | review-judged vs origin cadence |
+| 41 | Stated moral / theme over-explanation | 1 per chapter; never in final paragraph |
+| 42 | Therapy-speak dialogue | 1 per chapter |
+| 43 | No-silence dialogue | review-judged; uniformly cooperative chapter = Important |
+| 44 | Epithet slop ("the older man") | 2 per chapter; genuine-POV epithets exempt |
+| 45 | Dialogue-beat metronome | ≥6 consecutive tagged lines is a finding |
+| 46 | Importance inflation / copulative avoidance | 2 per chapter combined |
+| 47 | Pathetic fallacy / reflex sensory register | 2 mirroring instances per chapter |
