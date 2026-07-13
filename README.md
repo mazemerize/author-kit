@@ -383,6 +383,8 @@ For a deeper verification pass (consistency between world/ and the manuscript, d
 
 Findings are rated by severity (Critical, High, Medium, Low) with specific file paths and actionable recommendations.
 
+The AI-tic gate (review Pass 2) also applies three density rules beyond per-shape budgets: a chapter-wide **tic-load** index that gates when many below-budget tics compound, a **cluster** rule for paragraphs carrying several distinct shapes, and a **persistence** check for shapes recurring below budget across consecutive chapters. All three thresholds default to 3 and can be tightened or relaxed per book via the `[review]` table in `book/book.toml` (see the baseline below).
+
 ### Entity body: Current State + History
 
 Each world/ entity file keeps its body in two parts so it stays legible as the book grows:
@@ -508,6 +510,12 @@ speaking_rate_wpm = 170
 [stats]
 reading_wpm = 200
 # tts_cost_per_1m_chars = 0.000015   # uncomment and set to enable cost estimates in `authorkit book stats`
+
+# Tic-gate density thresholds for /authorkit.review Pass 2 (all optional; lower = stricter).
+# [review]
+# tic_load_threshold = 3.0     # chapter-wide compounding load that gates (sum of instances/budget)
+# cluster_min_shapes = 3       # distinct tic shapes in one paragraph that make a cluster finding
+# persistence_chapters = 3     # consecutive chapters a below-budget tic may recur before flagged
 
 # Per-operation model/effort overrides for `authorkit autopilot` (all optional —
 # unset means no --model/--effort flag is passed, so the agent CLI's own default applies).
