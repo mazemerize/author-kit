@@ -4000,6 +4000,20 @@ def test_review_prompt_literal_sweep_and_cluster_rules():
     assert "retire after 4 reviews" in review, "Seed retirement must be softened to 4 reviews"
     assert "never retire" in review, "Zero-budget phrase-class seeds must never retire"
 
+    # The three density thresholds are tunable per book via book.toml [review];
+    # the prompt must name the keys and their defaults, and the setup scripts must
+    # document them in the generated book.toml.
+    for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+        assert key in review, f"review.md must name the configurable threshold {key}"
+    assert "`[review]`" in review or "[review]" in review, "review.md must point at book.toml's [review] table"
+    for script in (
+        repo_root / ".authorkit" / "scripts" / "bash" / "setup-book.sh",
+        repo_root / ".authorkit" / "scripts" / "powershell" / "setup-book.ps1",
+    ):
+        body = script.read_text(encoding="utf-8")
+        for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+            assert key in body, f"{script.name} must document {key} in the generated book.toml"
+
 
 def test_ledger_template_class_field_and_lifecycle():
     """Ledger template: optional Class field present, lifecycle softened to 4 reviews,

@@ -199,8 +199,10 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
    chapter by default (per 1,000 words in long chapters), **any single instance for a
    zero-budget form** — or on a rising active ledger
    entry; density also compounds — a paragraph carrying 3+ distinct shapes is a cluster
-   finding, and a chapter-wide **tic-load** (Σ instances÷budget) ≥ 3.0 gates even with every
-   shape individually under budget — but on a *re-review* only the prior review's still-over-budget gating shapes gate,
+   finding, and a chapter-wide **tic-load** (Σ instances÷budget) at/above the configured
+   threshold gates even with every shape individually under budget (thresholds tunable per
+   book in `book/book.toml` `[review]`: `cluster_min_shapes`, `tic_load_threshold`,
+   `persistence_chapters` — all default 3) — but on a *re-review* only the prior review's still-over-budget gating shapes gate,
    plus any regression the last revise introduced; freshly-discovered non-regression shapes
    are logged and reported as non-gating residual/seeds, not blockers, so the blind pass can
    keep finding new tics without re-opening the gate every cycle. The gate clears
