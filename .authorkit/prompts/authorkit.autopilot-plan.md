@@ -56,7 +56,10 @@ Return **only** a JSON object (no prose, fences optional):
    status JSON also carries a `chapter_reviews` map: for each chapter that has a review, its
    `current` (does the standing `review.md` already cover the *current* draft, or has the draft
    changed since?) and `verdict` (`PASS` / `NEEDS_REVISION`). Use it so you never re-dispatch a
-   review that would be a pure no-op.
+   review that would be a pure no-op. During an author-guideline campaign each entry also
+   carries `guideline_current`: was this chapter's last review dispatched under the **active
+   campaign** (same guideline text + same review rules)? It is the campaign's persisted
+   progress marker — trust it over any inference from file timestamps or content.
 
 2. **plot mode** — book-level scaffolding only; **never touch `chapters/NN/`** (no chapter
    plans, no drafts — that is chapters mode). Pick the highest applicable step:
@@ -112,12 +115,20 @@ work the ladder would never pick on its own.
   re-review/revise). This is the one case where touching `[X]` chapters is allowed; stay
   within the range otherwise. **Chapters mode only** — in plot mode a guideline steers
   scaffolding work (outline, world, research) and never authorizes touching `chapters/NN/`.
-- **Track campaign progress from status + content each tick** (the flag is not persisted, so
-  re-derive where the sweep is up to). Pick the lowest chapter the campaign has not yet
-  processed; dispatch its next campaign step (`/authorkit.review N`, then
-  `/authorkit.write N revise: <guideline>` if it needs changes, then re-review).
-- **Emit `done` only when the guideline has been applied across the whole range** — not when
-  chapters happen to be `[X]` (they may already have been before the campaign began).
+- **Track campaign progress with `chapter_reviews["N"].guideline_current` — never re-derive
+  it from file timestamps or content.** A chapter is **campaign-processed** iff
+  `guideline_current: true` AND `current: true` (the campaign reviewed this exact draft). A
+  review that is current and PASS but `guideline_current: false` **predates the campaign and
+  still needs its campaign review** — the stamp is the truth, not the verdict's age. The
+  harness stamps it when a review dispatches under the campaign and it persists across ticks
+  and restarts, so an interrupted campaign resumes where it left off instead of starting
+  over. Pick the **lowest in-range chapter that is not campaign-processed** and dispatch its
+  next campaign step: `/authorkit.review N`; then, when that review needs changes
+  (`guideline_current: true`, `verdict: NEEDS_REVISION`),
+  `/authorkit.write N revise: <the review's issues>`, then re-review.
+- **Emit `done` when every in-range chapter is campaign-processed with a PASS verdict** — not
+  when chapters happen to be `[X]` (they may already have been before the campaign began),
+  and never while any in-range chapter's `guideline_current` is false or missing.
 - Genuine forks still escalate; the new escalation types `numeric-contradiction`,
   `disclosure-leak`, and `scaffolding-gap` exist for issues those review passes surface.
 

@@ -4059,3 +4059,145 @@ def test_guardrails_quarantine_unchanged_and_pass2_reinforced():
     assert "Grep the whole draft" in write_prompt, (
         "write.md Revise must sweep zero-budget phrase shapes by literal search"
     )
+
+
+# --- Campaign currency (guideline_sha stamps) ---------------------------------
+
+
+def test_campaign_sha_identity(tmp_path):
+    """The campaign identity is the guideline text + the review rules in force: empty
+    guideline -> None; same inputs stable; either the text or any review-prompt copy
+    changing produces a new sha (an authorkit upgrade invalidates old stamps)."""
+    prompt = tmp_path / ".authorkit" / "prompts" / "authorkit.review.md"
+    prompt.parent.mkdir(parents=True)
+    prompt.write_text("# Review rules v1\n", encoding="utf-8")
+
+    assert autopilot_core.campaign_sha("", tmp_path) is None
+    assert autopilot_core.campaign_sha("   ", tmp_path) is None
+
+    base = autopilot_core.campaign_sha("re-review all chapters", tmp_path)
+    assert base is not None
+    assert autopilot_core.campaign_sha("re-review all chapters", tmp_path) == base
+
+    assert autopilot_core.campaign_sha("different campaign", tmp_path) != base
+
+    prompt.write_text("# Review rules v2 (upgraded)\n", encoding="utf-8")
+    assert autopilot_core.campaign_sha("re-review all chapters", tmp_path) != base
+
+
+def test_record_review_stamps_and_preserves_guideline_sha(tmp_path):
+    """A campaign review stamps guideline_sha in the sidecar; a later non-campaign
+    review updates the entry but leaves the stamp in place (unchanged rules don't
+    un-process a chapter)."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+
+    autopilot_core.record_review(
+        book_dir, 1, draft_sha="d1", verdict="PASS", gating_shapes=(), guideline_sha="camp-a"
+    )
+    entry = autopilot_core.chapter_review_entry(book_dir, 1)
+    assert entry["guideline_sha"] == "camp-a"
+
+    autopilot_core.record_review(book_dir, 1, draft_sha="d2", verdict="PASS", gating_shapes=())
+    entry = autopilot_core.chapter_review_entry(book_dir, 1)
+    assert entry["draft_sha"] == "d2"
+    assert entry["guideline_sha"] == "camp-a"
+
+
+def test_autopilot_campaign_sweep_completes_without_byte_changes(tmp_path, monkeypatch):
+    """Regression for the stalled re-review campaign: every chapter already has a
+    current-looking review, the campaign re-reviews each and the workers change no
+    bytes (they re-confirm a PASS under the new rules). The first-time guideline
+    stamp must count as progress so the sweep reaches done instead of tripping
+    loop-health, and each chapter's sidecar entry must carry the campaign sha."""
+    book_dir = _seed_autopilot_book(
+        tmp_path,
+        chapters_md=(
+            "# Chapters\n\n"
+            "- [X] CH01 A - x\n- [X] CH02 B - x\n- [X] CH03 C - x\n- [X] CH04 D - x\n"
+        ),
+    )
+    for n in range(1, 5):
+        chap = book_dir / "chapters" / f"{n:02d}"
+        chap.mkdir(parents=True, exist_ok=True)
+        (chap / "draft.md").write_text(f"# Chapter {n:02d}\n\nProse.\n", encoding="utf-8")
+        (chap / "review.md").write_text(
+            f"# Review CH{n:02d}\n\n**Status**: PASS\n\n**Gating Shapes**: none\n",
+            encoding="utf-8",
+        )
+
+    # Workers do nothing: no draft or review bytes change all run.
+    reviews = [
+        autopilot_core.Directive(action="review", chapter=n, command=f"/authorkit.review {n}", reason="sweep")
+        for n in range(1, 5)
+    ]
+    done = autopilot_core.Directive(action="done", reason="campaign swept")
+    fake = autopilot_runner.FakeRunner([*reviews, done])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-4", "--guideline", "re-review every chapter against the new tics"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" not in result.output.lower()
+    assert "done" in result.output.lower()
+    assert len(fake.dispatched) == 4
+
+    repo_root = tmp_path
+    expected = autopilot_core.campaign_sha("re-review every chapter against the new tics", repo_root)
+    for n in range(1, 5):
+        entry = autopilot_core.chapter_review_entry(book_dir, n)
+        assert entry.get("guideline_sha") == expected, f"CH{n:02d} missing campaign stamp"
+
+
+def test_autopilot_campaign_exposes_guideline_current_to_planner(tmp_path, monkeypatch):
+    """After a campaign review stamps a chapter, the next planner tick's status JSON
+    must show chapter_reviews[N].guideline_current true for it and false for
+    unswept chapters — the persisted marker fresh planner sessions rely on."""
+    book_dir = _seed_autopilot_book(
+        tmp_path,
+        chapters_md="# Chapters\n\n- [X] CH01 A - x\n- [X] CH02 B - x\n",
+    )
+    for n in (1, 2):
+        chap = book_dir / "chapters" / f"{n:02d}"
+        chap.mkdir(parents=True, exist_ok=True)
+        (chap / "draft.md").write_text(f"# Chapter {n:02d}\n\nProse.\n", encoding="utf-8")
+        (chap / "review.md").write_text(
+            f"# Review CH{n:02d}\n\n**Status**: PASS\n\n**Gating Shapes**: none\n",
+            encoding="utf-8",
+        )
+
+    directives = [
+        autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="sweep"),
+        autopilot_core.Directive(action="review", chapter=2, command="/authorkit.review 2", reason="sweep"),
+        autopilot_core.Directive(action="done", reason="campaign swept"),
+    ]
+    fake = autopilot_runner.FakeRunner(directives)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-2", "--guideline", "re-review all"],
+    )
+    assert result.exit_code == 0, result.output
+
+    # Tick 1: nothing swept yet. Tick 2: CH1 stamped, CH2 not yet.
+    first = json.loads(fake.planner_inputs[0]["status_json"])["chapter_reviews"]
+    assert first["1"]["guideline_current"] is False
+    assert first["2"]["guideline_current"] is False
+    second = json.loads(fake.planner_inputs[1]["status_json"])["chapter_reviews"]
+    assert second["1"]["guideline_current"] is True
+    assert second["2"]["guideline_current"] is False
+
+
+def test_autopilot_plan_prompt_uses_persisted_campaign_marker():
+    """The planner prompt must direct campaign tracking through guideline_current and
+    must no longer tell the planner to re-derive sweep progress from content."""
+    repo_root = Path(__file__).resolve().parents[2]
+    prompt = (repo_root / ".authorkit" / "prompts" / "authorkit.autopilot-plan.md").read_text(encoding="utf-8")
+    assert "guideline_current" in prompt
+    assert "campaign-processed" in prompt
+    assert "the flag is not persisted" not in prompt, (
+        "the old re-derive-from-content rule is what made campaign sweeps oscillate"
+    )

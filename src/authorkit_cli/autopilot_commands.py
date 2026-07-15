@@ -33,6 +33,7 @@ from .autopilot_core import (
     detect_command_churn,
     detect_no_progress,
     detect_oscillation,
+    campaign_sha,
     directive_to_obj,
     file_md5,
     is_style_review,
@@ -256,29 +257,48 @@ def _completion_check(mode: str, book_dir: Path, chapter_range: tuple[int, int] 
     return None
 
 
-def _chapter_reviews_obj(book_dir: Path, report) -> dict:
+def _chapter_reviews_obj(book_dir: Path, report, campaign: str | None = None) -> dict:
     """Per-chapter review currency/verdict for the planner status JSON.
 
     Lets the planner pick ``revise`` over a no-op ``review`` itself (see the ladder in
     authorkit.autopilot-plan.md). Only chapters that already have a review are listed, so
     the payload stays compact. The loop's ``_resolve_review_noop`` guard is the hard
     guarantee; this is cooperation that avoids wasting a planner→convert round-trip.
+
+    Under a guideline campaign (``campaign`` = the run's ``campaign_sha``) each entry also
+    carries ``guideline_current``: was this chapter's last review dispatched under *this*
+    campaign (same guideline text + same review rules)? This is the persisted campaign
+    progress marker — without it every fresh planner session re-derived sweep progress
+    from file evidence, disagreed with the previous session's reading, and oscillated.
     """
     out: dict[str, dict] = {}
     for chapter in report.chapter_statuses:
         state = review_state(book_dir, chapter)
         if state.exists:
-            out[str(chapter)] = {"current": state.current, "verdict": state.verdict}
+            entry: dict = {"current": state.current, "verdict": state.verdict}
+            if campaign is not None:
+                entry["guideline_current"] = (
+                    chapter_review_entry(book_dir, chapter).get("guideline_sha") == campaign
+                )
+            out[str(chapter)] = entry
     return out
 
 
 def _plan_once(
-    runner, prompt: str, report, brief: str, context: str = "", guideline: str = "", *, book_dir: Path | None = None
+    runner,
+    prompt: str,
+    report,
+    brief: str,
+    context: str = "",
+    guideline: str = "",
+    *,
+    book_dir: Path | None = None,
+    campaign: str | None = None,
 ) -> Directive:
     """Run the planner against the current status and return its directive."""
     status_obj = status_report_to_obj(report)
     if book_dir is not None:
-        status_obj["chapter_reviews"] = _chapter_reviews_obj(book_dir, report)
+        status_obj["chapter_reviews"] = _chapter_reviews_obj(book_dir, report, campaign)
     status_json = to_json(status_obj)
     return runner.run_planner(prompt, status_json, brief, context=context, guideline=guideline)
 
@@ -490,6 +510,11 @@ def _run_autopilot(
     # Under a guideline campaign the all-[X] auto-done would end a re-review sweep
     # before it starts, and status-only progress would misfire when re-reviews don't
     # move statuses — so the planner owns 'done' and progress folds in draft content.
+    # `campaign` (guideline text + review rules, see campaign_sha) is the run's identity:
+    # each campaign review stamps its chapter's sidecar entry, and the planner reads the
+    # stamps back as chapter_reviews[N].guideline_current — persisted sweep progress, so
+    # fresh planner sessions stop re-deriving (and disagreeing about) where the sweep is.
+    campaign = campaign_sha(guideline, repo_root)
     if guideline and not dry_run:
         console.print(f"[dim]Author guideline active:[/dim] {guideline[:160]}")
     # chapter_reviews is a chapters-mode field (per the planner prompt's contract);
@@ -500,7 +525,7 @@ def _run_autopilot(
     if dry_run:
         report = collect_status(book_dir, repo_root)
         directive = (None if guideline else _completion_check(mode, book_dir, chapter_range)) or _plan_once(
-            runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir
+            runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir, campaign=campaign
         )
         console.print(
             to_json({"mode": mode, "tick": 1, "directive": directive_to_obj(directive)}),
@@ -555,10 +580,10 @@ def _run_autopilot(
         directive = None if guideline else _completion_check(mode, book_dir, chapter_range)
         if directive is None:
             try:
-                directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir)
+                directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir, campaign=campaign)
             except (DirectiveError, RuntimeError):
                 try:
-                    directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir)
+                    directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir, campaign=campaign)
                 except (DirectiveError, RuntimeError) as exc:
                     path = _write_planner_failure_escalation(book_dir, str(exc))
                     console.print(
@@ -613,16 +638,26 @@ def _run_autopilot(
         # stale craft verdict as current for the new draft hash, so they are skipped too.
         gating_shapes: list[str] | None = None
         gate_improved = False
+        campaign_progress = False
         if result.ok and chapter is not None:
             if directive.action == "review" and not is_style_review(directive.command):
                 draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
                 state_after = review_state(book_dir, chapter)
+                # A campaign review that stamps a chapter for the first time IS the sweep's
+                # progress, even when the worker changed no bytes (re-confirming a PASS
+                # under the new rules) — without this the loop-health guards read a
+                # legitimate campaign step as a stalled tick.
+                if campaign is not None:
+                    campaign_progress = (
+                        chapter_review_entry(book_dir, chapter).get("guideline_sha") != campaign
+                    )
                 # gating_shapes: () = converged (clears the signal), a tuple = the gate,
                 # None = no Gating Shapes line (contract not followed — leaves the signal
                 # untouched rather than reading it as a falsely converged empty set).
                 record_review(
                     book_dir, chapter, draft_sha=file_md5(draft_path),
                     verdict=state_after.verdict, gating_shapes=state_after.gating_shapes,
+                    guideline_sha=campaign,
                 )
                 if state_after.gating_shapes is not None:
                     gating_shapes = list(state_after.gating_shapes)
@@ -633,7 +668,7 @@ def _run_autopilot(
                     # shrinking gate as progress and don't kill a converging reconciliation.
                     gate_improved = int(chapter_review_entry(book_dir, chapter).get("reviews_since_improvement") or 0) == 0
 
-        status_changed = status_changed or gate_improved
+        status_changed = status_changed or gate_improved or campaign_progress
 
         entry: dict = {
             "tick": tick,

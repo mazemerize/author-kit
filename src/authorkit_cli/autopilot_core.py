@@ -487,6 +487,42 @@ def file_md5(path: Path) -> str | None:
         return None
 
 
+# Every location the review rules can live in this repo (the source prompt plus each
+# flavor's rendered copy). campaign_sha folds ALL that exist into the campaign identity, so
+# an authorkit upgrade (re-init rewrites the renders) or a hand-edit to any copy invalidates
+# the stamps and a re-run of the same guideline text does a full re-sweep.
+_REVIEW_PROMPT_CANDIDATES = (
+    Path(".authorkit") / "prompts" / "authorkit.review.md",
+    Path(".claude") / "commands" / "authorkit.review.md",
+    Path(".github") / "prompts" / "authorkit.review.prompt.md",
+    Path(".codex") / "prompts" / "authorkit.review.md",
+)
+
+
+def campaign_sha(guideline: str, repo_root: Path) -> str | None:
+    """The identity of a guideline campaign: md5 of the guideline text **plus the review
+    rules in force** (every existing review-prompt copy, in fixed order).
+
+    This is what ``record_review`` stamps per chapter and what makes campaign progress
+    deterministic across the loop's clean planner sessions: a chapter is campaign-processed
+    iff its stamp equals the active campaign's sha. Hashing the prompts in means "reviewed
+    under these rules", not "reviewed under this sentence" — re-running the same guideline
+    text after an upgrade re-sweeps; re-running it unchanged resumes where it left off.
+    ``None`` when no guideline is active (nothing gets stamped).
+    """
+    text = (guideline or "").strip()
+    if not text:
+        return None
+    digest = hashlib.md5(text.encode("utf-8"))
+    for rel in _REVIEW_PROMPT_CANDIDATES:
+        path = repo_root / rel
+        try:
+            digest.update(path.read_bytes())
+        except OSError:
+            continue
+    return digest.hexdigest()
+
+
 # The authoritative verdict is the ``## Verdict`` **Status** line; the top
 # **Overall Assessment** header is a fallback (they can disagree when a draft is
 # half-filled from the template).
@@ -638,11 +674,20 @@ def record_review(
     draft_sha: str | None,
     verdict: str | None,
     gating_shapes: tuple[str, ...] | None = None,
+    guideline_sha: str | None = None,
 ) -> None:
     """Record that ``chapter``'s review covered the draft hashed ``draft_sha`` (with ``verdict``).
 
     Called by the loop right after a ``review`` dispatch — ``review`` never edits the draft,
     so the current draft hash *is* the reviewed draft's hash.
+
+    ``guideline_sha`` (the active ``campaign_sha``, when a guideline campaign is running)
+    stamps the entry as reviewed-under-this-campaign — the planner reads it back as
+    ``chapter_reviews[N].guideline_current`` so a fresh planner session can tell a standing
+    PASS that *predates* the campaign from one the campaign itself produced (re-deriving
+    that from file mtimes is what made re-review sweeps oscillate and stall). ``None``
+    (no campaign) leaves any existing stamp untouched: a plain re-review under unchanged
+    rules doesn't un-process a chapter.
 
     Also maintains the reconciliation-progress signal from this review's gating set: a
     ``best_gate_size`` ratchet (smallest gating set ever reached — only decreases) plus a
@@ -656,6 +701,8 @@ def record_review(
     entry = _index_entry(index, chapter)
     entry["draft_sha"] = draft_sha
     entry["verdict"] = verdict
+    if guideline_sha is not None:
+        entry["guideline_sha"] = guideline_sha
     entry.pop("cycles", None)  # legacy field from the old cap — no longer used
     if verdict == "PASS" or gating_shapes == ():
         _clear_reconcile_signal(entry)
