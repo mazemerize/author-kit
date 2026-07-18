@@ -164,6 +164,12 @@ speaking_rate_wpm = 170
 reading_wpm = 200
 # tts_cost_per_1m_chars = 0.000015   # uncomment and set to enable cost estimates in `authorkit book stats`
 
+# Tic-gate density thresholds for /authorkit.review Pass 2 (all optional; lower = stricter).
+# [review]
+# tic_load_threshold = 3.0     # chapter-wide compounding load that gates (sum of instances/budget)
+# cluster_min_shapes = 3       # distinct tic shapes in one paragraph that make a cluster finding
+# persistence_chapters = 3     # consecutive chapters a below-budget tic may recur before flagged
+
 # Per-operation model/effort overrides for autopilot (all optional -- unset means
 # no --model/--effort flag is passed, so the agent CLI's own default applies).
 # [autopilot.planner]   # the meta-planner deciding each tick's next action

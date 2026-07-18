@@ -3953,3 +3953,284 @@ def test_init_copies_tic_ledger_and_voice_pairs_templates_and_keeps_seed_catalog
         # Rendered review prompt bootstraps the ledger.
         rendered_review = Path(".claude/commands/authorkit.review.md").read_text(encoding="utf-8")
         assert "tic-ledger-template.md" in rendered_review
+
+
+def test_catalog_new_patterns_and_budget_table():
+    """Tic-catalog expansion (patterns 28-47): every pattern heading has a budget-table
+    row, the class/weighting preamble exists, the volatile lexical entry is marked, and
+    the bootstrap seeding list names the new high-signal patterns."""
+    repo_root = Path(__file__).resolve().parents[2]
+    catalog = (repo_root / ".authorkit" / "prompts" / "_shared" / "literary-tic-catalog.md").read_text(encoding="utf-8")
+
+    headings = {int(m.group(1)) for m in re.finditer(r"^### (\d+)\.", catalog, re.M)}
+    assert headings == set(range(1, 48)), f"Expected patterns 1-47, got {sorted(headings)}"
+
+    table_rows = {
+        int(n)
+        for m in re.finditer(r"^\| (\d+)(?:\+(\d+))? \|", catalog, re.M)
+        for n in m.groups()
+        if n
+    }
+    assert set(range(1, 48)) <= table_rows, (
+        f"Budget table missing rows for patterns {sorted(set(range(1, 48)) - table_rows)}"
+    )
+
+    assert "## Pattern Classes & Weighting" in catalog
+    assert "**Volatility: high**" in catalog or "**Volatility:** high" in catalog or "`Volatility: high`" in catalog
+    # New high-signal seeds are named in the How to Apply seeding list
+    assert re.search(r"7, 13, 21, 22, 23, 24, 29, 33, 35, 36, 41", catalog), (
+        "Seeding list must name the new high-signal patterns 29/33/35/36/41"
+    )
+    # The user-requested zero-budget summary-closer boilerplate is present and greppable
+    assert "that was the whole of it" in catalog
+
+
+def test_review_prompt_literal_sweep_and_cluster_rules():
+    """Review Pass 2 reinforcement: literal Grep sweep for zero-budget phrase shapes,
+    cluster escalator, tic-load gating label, persistence check, softened seed retirement."""
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+
+    assert "Literal sweep" in review and "Grep" in review, "Step B must mandate the literal Grep sweep"
+    assert "Cluster escalator" in review, "Severity mapping must include the co-occurrence cluster rule"
+    assert "Tic-load index" in review and "`tic-load`" in review, (
+        "Tic-load gating must be defined and emitted as the synthetic `tic-load` label"
+    )
+    assert "Persistence check" in review and "3 or more consecutive reviewed chapters" in review
+    assert "retire after 4 reviews" in review, "Seed retirement must be softened to 4 reviews"
+    assert "never retire" in review, "Zero-budget phrase-class seeds must never retire"
+
+    # The three density thresholds are tunable per book via book.toml [review];
+    # the prompt must name the keys and their defaults, and the setup scripts must
+    # document them in the generated book.toml.
+    for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+        assert key in review, f"review.md must name the configurable threshold {key}"
+    assert "`[review]`" in review or "[review]" in review, "review.md must point at book.toml's [review] table"
+    for script in (
+        repo_root / ".authorkit" / "scripts" / "bash" / "setup-book.sh",
+        repo_root / ".authorkit" / "scripts" / "powershell" / "setup-book.ps1",
+    ):
+        body = script.read_text(encoding="utf-8")
+        for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+            assert key in body, f"{script.name} must document {key} in the generated book.toml"
+
+
+def test_ledger_template_class_field_and_lifecycle():
+    """Ledger template: optional Class field present, lifecycle softened to 4 reviews,
+    zero-budget phrase seeds exempt from retirement."""
+    repo_root = Path(__file__).resolve().parents[2]
+    template = (repo_root / ".authorkit" / "templates" / "tic-ledger-template.md").read_text(encoding="utf-8")
+
+    assert "**Class**:" in template, "Entry template must carry the optional Class field"
+    assert "after 4 reviews" in template, "Seed retirement must say 4 reviews"
+    assert "never retire" in template, "Zero-budget phrase-class seeds must be exempt from retirement"
+
+
+def test_parse_gating_shapes_accepts_tic_load_label():
+    """The synthetic tic-load gating label must round-trip through the AutoPilot gate
+    parser like any TIC id, and must not collide with the explicit-none vocabulary."""
+    parsed = autopilot_core.parse_gating_shapes("**Gating Shapes**: tic-load, TIC-059")
+    assert parsed == ("tic-load", "tic-059")
+
+    only_load = autopilot_core.parse_gating_shapes("**Gating Shapes**: tic-load")
+    assert only_load == ("tic-load",)
+    assert "tic-load" not in autopilot_core._GATING_NONE
+
+    # And it shrinks like any shape: dropping tic-load converges.
+    assert autopilot_core.gating_set_converging(("tic-load", "tic-059"), ("tic-059",))
+    assert not autopilot_core.gating_set_converging(("tic-059",), ("tic-059", "tic-load"))
+
+
+def test_guardrails_quarantine_unchanged_and_pass2_reinforced():
+    """The drafting quarantine must survive the Pass 2 reinforcement, and the roster's
+    Pass 2 paragraph must describe the literal sweep, tic-load, and zero-budget Grep-on-revise."""
+    repo_root = Path(__file__).resolve().parents[2]
+    guardrails = (repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md").read_text(encoding="utf-8")
+
+    assert "Quarantine rule (binding)" in guardrails
+    assert "MUST NOT load" in guardrails, "Drafting quarantine wording must remain intact"
+    assert "literal sweep" in guardrails.lower(), "Pass 2 roster must mention the literal sweep"
+    assert "tic-load" in guardrails, "Pass 2 roster must mention the tic-load compounding gate"
+    assert "Greps the whole draft" in guardrails, (
+        "Revise must be told to Grep the whole draft for zero-budget phrase shapes"
+    )
+
+    write_prompt = (repo_root / ".authorkit" / "prompts" / "authorkit.write.md").read_text(encoding="utf-8")
+    assert "Grep the whole draft" in write_prompt, (
+        "write.md Revise must sweep zero-budget phrase shapes by literal search"
+    )
+
+
+# --- Campaign currency (guideline_sha stamps) ---------------------------------
+
+
+def test_campaign_sha_identity(tmp_path):
+    """The campaign identity is the guideline text + the review rules in force: empty
+    guideline -> None; same inputs stable; either the text or any review-prompt copy
+    changing produces a new sha (an authorkit upgrade invalidates old stamps)."""
+    prompt = tmp_path / ".authorkit" / "prompts" / "authorkit.review.md"
+    prompt.parent.mkdir(parents=True)
+    prompt.write_text("# Review rules v1\n", encoding="utf-8")
+
+    assert autopilot_core.campaign_sha("", tmp_path) is None
+    assert autopilot_core.campaign_sha("   ", tmp_path) is None
+
+    base = autopilot_core.campaign_sha("re-review all chapters", tmp_path)
+    assert base is not None
+    assert autopilot_core.campaign_sha("re-review all chapters", tmp_path) == base
+
+    assert autopilot_core.campaign_sha("different campaign", tmp_path) != base
+
+    prompt.write_text("# Review rules v2 (upgraded)\n", encoding="utf-8")
+    assert autopilot_core.campaign_sha("re-review all chapters", tmp_path) != base
+
+
+def test_record_review_stamps_and_preserves_guideline_sha(tmp_path):
+    """A campaign review stamps guideline_sha in the sidecar; a later non-campaign
+    review updates the entry but leaves the stamp in place (unchanged rules don't
+    un-process a chapter)."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+
+    autopilot_core.record_review(
+        book_dir, 1, draft_sha="d1", verdict="PASS", gating_shapes=(), guideline_sha="camp-a"
+    )
+    entry = autopilot_core.chapter_review_entry(book_dir, 1)
+    assert entry["guideline_sha"] == "camp-a"
+
+    autopilot_core.record_review(book_dir, 1, draft_sha="d2", verdict="PASS", gating_shapes=())
+    entry = autopilot_core.chapter_review_entry(book_dir, 1)
+    assert entry["draft_sha"] == "d2"
+    assert entry["guideline_sha"] == "camp-a"
+
+
+def test_autopilot_campaign_sweep_completes_without_byte_changes(tmp_path, monkeypatch):
+    """Regression for the stalled re-review campaign: every chapter already has a
+    current-looking review, the campaign re-reviews each and the workers change no
+    bytes (they re-confirm a PASS under the new rules). The first-time guideline
+    stamp must count as progress so the sweep reaches done instead of tripping
+    loop-health, and each chapter's sidecar entry must carry the campaign sha."""
+    book_dir = _seed_autopilot_book(
+        tmp_path,
+        chapters_md=(
+            "# Chapters\n\n"
+            "- [X] CH01 A - x\n- [X] CH02 B - x\n- [X] CH03 C - x\n- [X] CH04 D - x\n"
+        ),
+    )
+    for n in range(1, 5):
+        chap = book_dir / "chapters" / f"{n:02d}"
+        chap.mkdir(parents=True, exist_ok=True)
+        (chap / "draft.md").write_text(f"# Chapter {n:02d}\n\nProse.\n", encoding="utf-8")
+        (chap / "review.md").write_text(
+            f"# Review CH{n:02d}\n\n**Status**: PASS\n\n**Gating Shapes**: none\n",
+            encoding="utf-8",
+        )
+
+    # Workers do nothing: no draft or review bytes change all run.
+    reviews = [
+        autopilot_core.Directive(action="review", chapter=n, command=f"/authorkit.review {n}", reason="sweep")
+        for n in range(1, 5)
+    ]
+    done = autopilot_core.Directive(action="done", reason="campaign swept")
+    fake = autopilot_runner.FakeRunner([*reviews, done])
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-4", "--guideline", "re-review every chapter against the new tics"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "loop-health" not in result.output.lower()
+    assert "done" in result.output.lower()
+    assert len(fake.dispatched) == 4
+
+    repo_root = tmp_path
+    expected = autopilot_core.campaign_sha("re-review every chapter against the new tics", repo_root)
+    for n in range(1, 5):
+        entry = autopilot_core.chapter_review_entry(book_dir, n)
+        assert entry.get("guideline_sha") == expected, f"CH{n:02d} missing campaign stamp"
+
+
+def test_autopilot_campaign_exposes_guideline_current_to_planner(tmp_path, monkeypatch):
+    """After a campaign review stamps a chapter, the next planner tick's status JSON
+    must show chapter_reviews[N].guideline_current true for it and false for
+    unswept chapters — the persisted marker fresh planner sessions rely on."""
+    book_dir = _seed_autopilot_book(
+        tmp_path,
+        chapters_md="# Chapters\n\n- [X] CH01 A - x\n- [X] CH02 B - x\n",
+    )
+    for n in (1, 2):
+        chap = book_dir / "chapters" / f"{n:02d}"
+        chap.mkdir(parents=True, exist_ok=True)
+        (chap / "draft.md").write_text(f"# Chapter {n:02d}\n\nProse.\n", encoding="utf-8")
+        (chap / "review.md").write_text(
+            f"# Review CH{n:02d}\n\n**Status**: PASS\n\n**Gating Shapes**: none\n",
+            encoding="utf-8",
+        )
+
+    directives = [
+        autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="sweep"),
+        autopilot_core.Directive(action="review", chapter=2, command="/authorkit.review 2", reason="sweep"),
+        autopilot_core.Directive(action="done", reason="campaign swept"),
+    ]
+    fake = autopilot_runner.FakeRunner(directives)
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        cli.app,
+        ["autopilot", "chapters", "--range", "1-2", "--guideline", "re-review all"],
+    )
+    assert result.exit_code == 0, result.output
+
+    # Tick 1: nothing swept yet. Tick 2: CH1 stamped, CH2 not yet.
+    first = json.loads(fake.planner_inputs[0]["status_json"])["chapter_reviews"]
+    assert first["1"]["guideline_current"] is False
+    assert first["2"]["guideline_current"] is False
+    second = json.loads(fake.planner_inputs[1]["status_json"])["chapter_reviews"]
+    assert second["1"]["guideline_current"] is True
+    assert second["2"]["guideline_current"] is False
+
+
+def test_autopilot_plan_prompt_uses_persisted_campaign_marker():
+    """The planner prompt must direct campaign tracking through guideline_current and
+    must no longer tell the planner to re-derive sweep progress from content."""
+    repo_root = Path(__file__).resolve().parents[2]
+    prompt = (repo_root / ".authorkit" / "prompts" / "authorkit.autopilot-plan.md").read_text(encoding="utf-8")
+    assert "guideline_current" in prompt
+    assert "campaign-processed" in prompt
+    assert "the flag is not persisted" not in prompt, (
+        "the old re-derive-from-content rule is what made campaign sweeps oscillate"
+    )
+
+
+def test_autopilot_handles_keyboard_interrupt_gracefully(tmp_path, monkeypatch):
+    """Ctrl+C mid-worker (KeyboardInterrupt out of run_command) ends the run cleanly:
+    exit code 130, a friendly message, and a terminal 'interrupted' record in
+    autopilot.jsonl — not a raw traceback with no audit trail. The in-flight tick is
+    abandoned (never recorded), leaving the run resumable from the persisted sidecars."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 A - x\n")
+    chap = book_dir / "chapters" / "01"
+    chap.mkdir(parents=True, exist_ok=True)
+    (chap / "draft.md").write_text("# Chapter 01\n\nProse.\n", encoding="utf-8")
+
+    def on_command(_cmd):
+        raise KeyboardInterrupt
+
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="x")],
+        on_command=on_command,
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+
+    assert result.exit_code == 130, result.output
+    assert "interrupted" in result.output.lower()
+    outcomes = [
+        json.loads(l)
+        for l in (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+        if l.strip()
+    ]
+    assert any(o.get("outcome") == "interrupted" for o in outcomes)
+    # The interrupted tick's own dispatch line was never recorded (post-processing never ran).
+    assert not any(o.get("action") == "review" for o in outcomes)

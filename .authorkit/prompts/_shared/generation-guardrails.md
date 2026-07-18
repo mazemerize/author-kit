@@ -154,7 +154,9 @@ book** and split across two artifacts with a strict boundary:
   (`seed | active | dormant | retired`), and an optional constitution waiver.
   Lifecycle: active → dormant after 1 clean reviewed chapter → retired after 2
   more consecutive clean chapters; `seed` entries (bootstrap hypotheses) retire
-  if unconfirmed after 2 reviews; a rediscovered retired shape reactivates with
+  if unconfirmed after 4 reviews — except zero-budget `phrase`-class seeds
+  (exact strings, checked by literal search on every review), which never
+  retire, dormant at most; a rediscovered retired shape reactivates with
   its history. Follow `.authorkit/templates/tic-ledger-template.md`.
 - **`book/voice-pairs.md` — the only generation-side artifact.** Contrastive
   before→after pairs harvested when Revise fixes a Pass 2 finding (and from
@@ -190,11 +192,17 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
 2. **AI-Tic Audit** *(gating)* — self-learning tic discovery & contrast: a blind pass over
    the draft against the fixed origin prose (no list in hand) discovers recurring
    constructions the origin never uses, then reconciles them into `book/tic-ledger.md`
-   (trends, decay, new entries). **Discovery is unbounded; gating is convergent (carry-over
+   (trends, decay, new entries); reconciliation includes a **literal sweep** — zero-budget
+   `phrase`-class shapes (exact corpus-cliché strings) are verified by Grep, not
+   read-through. **Discovery is unbounded; gating is convergent (carry-over
    rule).** A shape is over budget (Critical) at/above its ledger entry's budget — 3 per
    chapter by default (per 1,000 words in long chapters), **any single instance for a
    zero-budget form** — or on a rising active ledger
-   entry — but on a *re-review* only the prior review's still-over-budget gating shapes gate,
+   entry; density also compounds — a paragraph carrying 3+ distinct shapes is a cluster
+   finding, and a chapter-wide **tic-load** (Σ instances÷budget) at/above the configured
+   threshold gates even with every shape individually under budget (thresholds tunable per
+   book in `book/book.toml` `[review]`: `cluster_min_shapes`, `tic_load_threshold`,
+   `persistence_chapters` — all default 3) — but on a *re-review* only the prior review's still-over-budget gating shapes gate,
    plus any regression the last revise introduced; freshly-discovered non-regression shapes
    are logged and reported as non-gating residual/seeds, not blockers, so the blind pass can
    keep finding new tics without re-opening the gate every cycle. The gate clears
@@ -205,7 +213,9 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
    instead of retrying a variant of that pair. To make the gate actually shrink, Revise drives
    a gating shape's **whole-draft** count below budget (the review's citations are a starting
    point, not the full set) — fixing only the cited spans leaves uncited instances the next
-   blind pass re-finds, so the gate never clears. (See Tic Ledger & Voice
+   blind pass re-finds, so the gate never clears; for a zero-budget `phrase`-class shape,
+   Revise Greps the whole draft for the exact strings and clears every hit before declaring
+   the finding fixed. (See Tic Ledger & Voice
    Pairs and `/authorkit.review` Pass 2 for the full rule.)
 3. **In-Chapter Logical Consistency** — *within the one chapter*: quantities/counts/ages/
    dates/durations/distances/ordinals internally consistent and arithmetically sound;

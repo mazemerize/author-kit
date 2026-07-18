@@ -33,6 +33,7 @@ from .autopilot_core import (
     detect_command_churn,
     detect_no_progress,
     detect_oscillation,
+    campaign_sha,
     directive_to_obj,
     file_md5,
     is_style_review,
@@ -256,29 +257,48 @@ def _completion_check(mode: str, book_dir: Path, chapter_range: tuple[int, int] 
     return None
 
 
-def _chapter_reviews_obj(book_dir: Path, report) -> dict:
+def _chapter_reviews_obj(book_dir: Path, report, campaign: str | None = None) -> dict:
     """Per-chapter review currency/verdict for the planner status JSON.
 
     Lets the planner pick ``revise`` over a no-op ``review`` itself (see the ladder in
     authorkit.autopilot-plan.md). Only chapters that already have a review are listed, so
     the payload stays compact. The loop's ``_resolve_review_noop`` guard is the hard
     guarantee; this is cooperation that avoids wasting a planner→convert round-trip.
+
+    Under a guideline campaign (``campaign`` = the run's ``campaign_sha``) each entry also
+    carries ``guideline_current``: was this chapter's last review dispatched under *this*
+    campaign (same guideline text + same review rules)? This is the persisted campaign
+    progress marker — without it every fresh planner session re-derived sweep progress
+    from file evidence, disagreed with the previous session's reading, and oscillated.
     """
     out: dict[str, dict] = {}
     for chapter in report.chapter_statuses:
         state = review_state(book_dir, chapter)
         if state.exists:
-            out[str(chapter)] = {"current": state.current, "verdict": state.verdict}
+            entry: dict = {"current": state.current, "verdict": state.verdict}
+            if campaign is not None:
+                entry["guideline_current"] = (
+                    chapter_review_entry(book_dir, chapter).get("guideline_sha") == campaign
+                )
+            out[str(chapter)] = entry
     return out
 
 
 def _plan_once(
-    runner, prompt: str, report, brief: str, context: str = "", guideline: str = "", *, book_dir: Path | None = None
+    runner,
+    prompt: str,
+    report,
+    brief: str,
+    context: str = "",
+    guideline: str = "",
+    *,
+    book_dir: Path | None = None,
+    campaign: str | None = None,
 ) -> Directive:
     """Run the planner against the current status and return its directive."""
     status_obj = status_report_to_obj(report)
     if book_dir is not None:
-        status_obj["chapter_reviews"] = _chapter_reviews_obj(book_dir, report)
+        status_obj["chapter_reviews"] = _chapter_reviews_obj(book_dir, report, campaign)
     status_json = to_json(status_obj)
     return runner.run_planner(prompt, status_json, brief, context=context, guideline=guideline)
 
@@ -321,6 +341,24 @@ def _resolve_review_noop(directive: Directive, chapter: int | None, book_dir: Pa
 def _today() -> str:
     """Today's date as ``YYYY-MM-DD`` for escalation filenames/records."""
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def _handle_interrupt(book_dir: Path, run_id: str, tick: int) -> None:
+    """Graceful Ctrl+C: record a terminal ``interrupted`` outcome and exit 130.
+
+    A Ctrl+C during a worker/planner subprocess raises ``KeyboardInterrupt`` in the loop
+    (the child in the same process group receives the signal too and dies), which would
+    otherwise surface as a raw traceback with no terminal record in ``autopilot.jsonl``.
+    The in-flight tick's post-processing never ran, so nothing was recorded for it — the
+    persisted draft-hash / campaign / gating sidecars leave the run resumable exactly where
+    it stopped. ``130`` is the conventional SIGINT exit code.
+    """
+    console.print(
+        f"\n[yellow]Interrupted[/yellow] at tick {tick}. The in-flight step was abandoned; "
+        "progress through the last completed tick is saved — re-run to resume."
+    )
+    log_outcome(book_dir, run_id, tick, "interrupted")
+    raise typer.Exit(code=130)
 
 
 def _write_planner_escalation(book_dir: Path, directive: Directive) -> Path:
@@ -490,6 +528,11 @@ def _run_autopilot(
     # Under a guideline campaign the all-[X] auto-done would end a re-review sweep
     # before it starts, and status-only progress would misfire when re-reviews don't
     # move statuses — so the planner owns 'done' and progress folds in draft content.
+    # `campaign` (guideline text + review rules, see campaign_sha) is the run's identity:
+    # each campaign review stamps its chapter's sidecar entry, and the planner reads the
+    # stamps back as chapter_reviews[N].guideline_current — persisted sweep progress, so
+    # fresh planner sessions stop re-deriving (and disagreeing about) where the sweep is.
+    campaign = campaign_sha(guideline, repo_root)
     if guideline and not dry_run:
         console.print(f"[dim]Author guideline active:[/dim] {guideline[:160]}")
     # chapter_reviews is a chapters-mode field (per the planner prompt's contract);
@@ -499,9 +542,14 @@ def _run_autopilot(
     # Dry-run: show the next directive (a preview), write nothing, dispatch nothing.
     if dry_run:
         report = collect_status(book_dir, repo_root)
-        directive = (None if guideline else _completion_check(mode, book_dir, chapter_range)) or _plan_once(
-            runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir
-        )
+        try:
+            directive = (None if guideline else _completion_check(mode, book_dir, chapter_range)) or _plan_once(
+                runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir, campaign=campaign
+            )
+        except KeyboardInterrupt:
+            # A preview writes nothing, so there is no run to record — just exit cleanly.
+            console.print("\n[yellow]Interrupted[/yellow] (dry-run preview).")
+            raise typer.Exit(code=130)
         console.print(
             to_json({"mode": mode, "tick": 1, "directive": directive_to_obj(directive)}),
             markup=False,
@@ -512,185 +560,201 @@ def _run_autopilot(
 
     history: list[dict] = []
     tick = 0
-    while True:
-        tick += 1
-        if tick > MAX_TICKS:
-            console.print(f"[red]Halting:[/red] safety cap of {MAX_TICKS} ticks reached.")
-            log_outcome(book_dir, run_id, tick, "max-ticks")
-            raise typer.Exit(code=1)
+    # The loop only exits via `raise typer.Exit(...)` (a done/escalate/stall/step/cap). A
+    # Ctrl+C mid-tick lands as KeyboardInterrupt out of a subprocess call — caught here so it
+    # ends with a clean message + a terminal `interrupted` record instead of a raw traceback.
+    try:
+        while True:
+            tick += 1
+            if tick > MAX_TICKS:
+                console.print(f"[red]Halting:[/red] safety cap of {MAX_TICKS} ticks reached.")
+                log_outcome(book_dir, run_id, tick, "max-ticks")
+                raise typer.Exit(code=1)
 
-        report = collect_status(book_dir, repo_root)
+            report = collect_status(book_dir, repo_root)
 
-        # Hard stops (safety, not budget).
-        if report.open_escalations:
-            ids = ", ".join(report.escalation_ids) if report.escalation_ids else f"{report.open_escalations}"
-            console.print(
-                f"[yellow]Halting:[/yellow] open escalation(s): {ids}. "
-                "Resolve via /authorkit.discuss, then re-run."
-            )
-            log_outcome(book_dir, run_id, tick, "blocked-open-escalation", escalations=report.escalation_ids)
-            raise typer.Exit(code=0)
-        if kill_switch_present(book_dir):
-            console.print("[yellow]Halting:[/yellow] kill switch present (book/runs/STOP).")
-            log_outcome(book_dir, run_id, tick, "kill-switch")
-            raise typer.Exit(code=0)
-        # Under a guideline the content fingerprint makes the status-keyed
-        # detectors near-impossible to trip (LLM rewrites are never
-        # byte-identical), so command churn is the stall signal there.
-        if (
-            detect_oscillation(history)
-            or (mode == "chapters" and detect_no_progress(history))
-            or (bool(guideline) and detect_command_churn(history))
-        ):
-            path = _write_health_escalation(book_dir)
-            console.print(
-                f"[yellow]Halting:[/yellow] loop-health trip (no progress / oscillation). Wrote {path.name}."
-            )
-            log_outcome(book_dir, run_id, tick, "loop-health", escalation=path.name)
-            raise typer.Exit(code=0)
-
-        # Decide: deterministic completion first, else ask the planner (one retry).
-        # A guideline campaign skips auto-done (the planner owns completion) so a
-        # re-review sweep over already-[X] chapters isn't ended before it starts.
-        directive = None if guideline else _completion_check(mode, book_dir, chapter_range)
-        if directive is None:
-            try:
-                directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir)
-            except (DirectiveError, RuntimeError):
-                try:
-                    directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir)
-                except (DirectiveError, RuntimeError) as exc:
-                    path = _write_planner_failure_escalation(book_dir, str(exc))
-                    console.print(
-                        f"[red]Halting:[/red] planner did not return a valid directive ({exc}). Wrote {path.name}."
-                    )
-                    log_outcome(book_dir, run_id, tick, "planner-failure", escalation=path.name)
-                    raise typer.Exit(code=1) from exc
-
-        # Terminal directives.
-        if directive.action == "done":
-            console.print(f"[green]AutoPilot done[/green] ({mode}): {directive.reason or 'nothing left in scope.'}")
-            if mode == "plot":
+            # Hard stops (safety, not budget).
+            if report.open_escalations:
+                ids = ", ".join(report.escalation_ids) if report.escalation_ids else f"{report.open_escalations}"
                 console.print(
-                    "[dim]Next: run `authorkit autopilot chapters --range A-B` to plan, draft, and review chapters.[/dim]"
+                    f"[yellow]Halting:[/yellow] open escalation(s): {ids}. "
+                    "Resolve via /authorkit.discuss, then re-run."
                 )
-            log_outcome(book_dir, run_id, tick, "done", reason=directive.reason)
-            raise typer.Exit(code=0)
-        if directive.action == "escalate":
-            path = _write_planner_escalation(book_dir, directive)
-            console.print(
-                f"[yellow]Escalation:[/yellow] wrote {path.name}. Resolve it (recommended command is in the "
-                "record), then re-run."
-            )
-            log_outcome(book_dir, run_id, tick, "escalate", escalation=path.name, reason=directive.reason)
-            raise typer.Exit(code=0)
-
-        # No-op-review guard (Bug 1): if the standing review already covers this draft and
-        # says NEEDS REVISION, dispatch the prescribed revise instead of re-reviewing an
-        # unchanged draft. `planner_action` records what the planner asked (for the log).
-        chapter = directive.chapter if directive.chapter is not None else command_chapter(directive.command)
-        directive, planner_action = _resolve_review_noop(directive, chapter, book_dir)
-        if directive.action != planner_action:
-            console.print(f"[dim]tick {tick}[/dim] [yellow]converted[/yellow] {planner_action}→{directive.action} (standing review is current).")
-
-        # Act: dispatch the one chosen command in a clean session.
-        fp_before = _content_fingerprint(book_dir) if guideline else None
-        key_before = _progress_key(mode, report, fp_before)
-        console.print(f"[dim]tick {tick}[/dim] {directive.action}: {directive.command} [dim]({directive.reason})[/dim]")
-        op = "review" if directive.action == "review" else "writer"
-        result = runner.run_command(directive.command, op=op)
-
-        report_after = collect_status(book_dir, repo_root)
-        fp_after = _content_fingerprint(book_dir) if guideline else None
-        status_changed = _progress_key(mode, report_after, fp_after) != key_before
-
-        # After a real review, record the reviewed-draft hash + verdict in the sidecar (so a
-        # later re-review of the unchanged draft is recognized as a no-op) and log the
-        # gating-shape set (so a re-opening tic gate is detectable in autopilot.jsonl). After a
-        # gating set (so the reconciliation-progress signal advances — see reconcile_stalled).
-        # Range/manuscript reviews have chapter=None and are skipped (not attributable to one).
-        # Style reviews write style-review.md, never review.md — recording one would stamp a
-        # stale craft verdict as current for the new draft hash, so they are skipped too.
-        gating_shapes: list[str] | None = None
-        gate_improved = False
-        if result.ok and chapter is not None:
-            if directive.action == "review" and not is_style_review(directive.command):
-                draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
-                state_after = review_state(book_dir, chapter)
-                # gating_shapes: () = converged (clears the signal), a tuple = the gate,
-                # None = no Gating Shapes line (contract not followed — leaves the signal
-                # untouched rather than reading it as a falsely converged empty set).
-                record_review(
-                    book_dir, chapter, draft_sha=file_md5(draft_path),
-                    verdict=state_after.verdict, gating_shapes=state_after.gating_shapes,
-                )
-                if state_after.gating_shapes is not None:
-                    gating_shapes = list(state_after.gating_shapes)
-                    # A review that reached a new gating minimum (reviews_since_improvement
-                    # reset to 0 — or converged, clearing the signal) is real progress even
-                    # when chapters.md status counts don't move. Fold it into status_changed
-                    # so the loop-health guards (detect_no_progress / detect_oscillation) see a
-                    # shrinking gate as progress and don't kill a converging reconciliation.
-                    gate_improved = int(chapter_review_entry(book_dir, chapter).get("reviews_since_improvement") or 0) == 0
-
-        status_changed = status_changed or gate_improved
-
-        entry: dict = {
-            "tick": tick,
-            "chapter": chapter,
-            "action": directive.action,
-            "planner_action": planner_action,
-            "command": directive.command,
-            "ok": result.ok,
-            "status_changed": status_changed,
-            "reason": directive.reason,
-        }
-        if gating_shapes is not None:
-            entry["gating_shapes"] = gating_shapes
-        if not result.ok:
-            entry["error"] = result.error[:500]
-            console.print(f"[yellow]Command reported failure:[/yellow] {result.error[:200]}")
-        history.append(entry)
-        log_tick(book_dir, {"run": run_id, **entry})
-
-        if commit:
-            _git_checkpoint(repo_root, directive, tick)
-
-        # Convergence backstop: a chapter whose gating set stops reaching a new minimum is a
-        # genuine quality-stall — escalate to the author rather than churn to MAX_TICKS. Common
-        # cases converge autonomously via the carry-over gating rule; this fires only when the
-        # reviser cannot self-resolve. Checked only on review ticks (the review is what advances
-        # the progress signal record_review just persisted) and read from that persisted signal,
-        # so it holds across restarts without a separate cross-run cap.
-        if mode == "chapters" and chapter is not None and directive.action == "review":
-            ch_entry = chapter_review_entry(book_dir, chapter)
-            if reconcile_stalled(ch_entry):
-                path = _write_quality_stall_escalation(
-                    book_dir,
-                    chapter,
-                    best_size=int(ch_entry.get("best_gate_size") or 0),
-                    reviews_since_improvement=int(ch_entry.get("reviews_since_improvement") or 0),
-                    gating_shapes=list(ch_entry.get("last_gate") or []),
-                )
-                log_outcome(
-                    book_dir, run_id, tick, "quality-stall",
-                    chapter=chapter, escalation=path.name,
-                    gating_shapes=list(ch_entry.get("last_gate") or []),
-                )
+                log_outcome(book_dir, run_id, tick, "blocked-open-escalation", escalations=report.escalation_ids)
+                raise typer.Exit(code=0)
+            if kill_switch_present(book_dir):
+                console.print("[yellow]Halting:[/yellow] kill switch present (book/runs/STOP).")
+                log_outcome(book_dir, run_id, tick, "kill-switch")
+                raise typer.Exit(code=0)
+            # Under a guideline the content fingerprint makes the status-keyed
+            # detectors near-impossible to trip (LLM rewrites are never
+            # byte-identical), so command churn is the stall signal there.
+            if (
+                detect_oscillation(history)
+                or (mode == "chapters" and detect_no_progress(history))
+                or (bool(guideline) and detect_command_churn(history))
+            ):
+                path = _write_health_escalation(book_dir)
                 console.print(
-                    f"[yellow]Escalation:[/yellow] CH{chapter:02d} not converging — wrote {path.name} "
-                    "(quality-stall). Resolve it, then re-run."
+                    f"[yellow]Halting:[/yellow] loop-health trip (no progress / oscillation). Wrote {path.name}."
                 )
+                log_outcome(book_dir, run_id, tick, "loop-health", escalation=path.name)
                 raise typer.Exit(code=0)
 
-        if step:
-            console.print("[dim]--step: stopping after one tick.[/dim]")
-            log_outcome(book_dir, run_id, tick, "step")
-            raise typer.Exit(code=0)
-        if mode == "plot" and tick >= max_iters:
-            console.print(f"[green]AutoPilot reached --max-iters={max_iters}[/green] (plot).")
-            log_outcome(book_dir, run_id, tick, "max-iters", max_iters=max_iters)
-            raise typer.Exit(code=0)
+            # Decide: deterministic completion first, else ask the planner (one retry).
+            # A guideline campaign skips auto-done (the planner owns completion) so a
+            # re-review sweep over already-[X] chapters isn't ended before it starts.
+            directive = None if guideline else _completion_check(mode, book_dir, chapter_range)
+            if directive is None:
+                try:
+                    directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir, campaign=campaign)
+                except (DirectiveError, RuntimeError):
+                    try:
+                        directive = _plan_once(runner, planner_prompt, report, brief, context, guideline, book_dir=reviews_dir, campaign=campaign)
+                    except (DirectiveError, RuntimeError) as exc:
+                        path = _write_planner_failure_escalation(book_dir, str(exc))
+                        console.print(
+                            f"[red]Halting:[/red] planner did not return a valid directive ({exc}). Wrote {path.name}."
+                        )
+                        log_outcome(book_dir, run_id, tick, "planner-failure", escalation=path.name)
+                        raise typer.Exit(code=1) from exc
+
+            # Terminal directives.
+            if directive.action == "done":
+                console.print(f"[green]AutoPilot done[/green] ({mode}): {directive.reason or 'nothing left in scope.'}")
+                if mode == "plot":
+                    console.print(
+                        "[dim]Next: run `authorkit autopilot chapters --range A-B` to plan, draft, and review chapters.[/dim]"
+                    )
+                log_outcome(book_dir, run_id, tick, "done", reason=directive.reason)
+                raise typer.Exit(code=0)
+            if directive.action == "escalate":
+                path = _write_planner_escalation(book_dir, directive)
+                console.print(
+                    f"[yellow]Escalation:[/yellow] wrote {path.name}. Resolve it (recommended command is in the "
+                    "record), then re-run."
+                )
+                log_outcome(book_dir, run_id, tick, "escalate", escalation=path.name, reason=directive.reason)
+                raise typer.Exit(code=0)
+
+            # No-op-review guard (Bug 1): if the standing review already covers this draft and
+            # says NEEDS REVISION, dispatch the prescribed revise instead of re-reviewing an
+            # unchanged draft. `planner_action` records what the planner asked (for the log).
+            chapter = directive.chapter if directive.chapter is not None else command_chapter(directive.command)
+            directive, planner_action = _resolve_review_noop(directive, chapter, book_dir)
+            if directive.action != planner_action:
+                console.print(f"[dim]tick {tick}[/dim] [yellow]converted[/yellow] {planner_action}→{directive.action} (standing review is current).")
+
+            # Act: dispatch the one chosen command in a clean session.
+            fp_before = _content_fingerprint(book_dir) if guideline else None
+            key_before = _progress_key(mode, report, fp_before)
+            console.print(f"[dim]tick {tick}[/dim] {directive.action}: {directive.command} [dim]({directive.reason})[/dim]")
+            op = "review" if directive.action == "review" else "writer"
+            result = runner.run_command(directive.command, op=op)
+
+            report_after = collect_status(book_dir, repo_root)
+            fp_after = _content_fingerprint(book_dir) if guideline else None
+            status_changed = _progress_key(mode, report_after, fp_after) != key_before
+
+            # After a real review, record the reviewed-draft hash + verdict in the sidecar (so a
+            # later re-review of the unchanged draft is recognized as a no-op) and log the
+            # gating-shape set (so a re-opening tic gate is detectable in autopilot.jsonl). After a
+            # gating set (so the reconciliation-progress signal advances — see reconcile_stalled).
+            # Range/manuscript reviews have chapter=None and are skipped (not attributable to one).
+            # Style reviews write style-review.md, never review.md — recording one would stamp a
+            # stale craft verdict as current for the new draft hash, so they are skipped too.
+            gating_shapes: list[str] | None = None
+            gate_improved = False
+            campaign_progress = False
+            if result.ok and chapter is not None:
+                if directive.action == "review" and not is_style_review(directive.command):
+                    draft_path = book_dir / "chapters" / f"{chapter:02d}" / "draft.md"
+                    state_after = review_state(book_dir, chapter)
+                    # A campaign review that stamps a chapter for the first time IS the sweep's
+                    # progress, even when the worker changed no bytes (re-confirming a PASS
+                    # under the new rules) — without this the loop-health guards read a
+                    # legitimate campaign step as a stalled tick.
+                    if campaign is not None:
+                        campaign_progress = (
+                            chapter_review_entry(book_dir, chapter).get("guideline_sha") != campaign
+                        )
+                    # gating_shapes: () = converged (clears the signal), a tuple = the gate,
+                    # None = no Gating Shapes line (contract not followed — leaves the signal
+                    # untouched rather than reading it as a falsely converged empty set).
+                    record_review(
+                        book_dir, chapter, draft_sha=file_md5(draft_path),
+                        verdict=state_after.verdict, gating_shapes=state_after.gating_shapes,
+                        guideline_sha=campaign,
+                    )
+                    if state_after.gating_shapes is not None:
+                        gating_shapes = list(state_after.gating_shapes)
+                        # A review that reached a new gating minimum (reviews_since_improvement
+                        # reset to 0 — or converged, clearing the signal) is real progress even
+                        # when chapters.md status counts don't move. Fold it into status_changed
+                        # so the loop-health guards (detect_no_progress / detect_oscillation) see a
+                        # shrinking gate as progress and don't kill a converging reconciliation.
+                        gate_improved = int(chapter_review_entry(book_dir, chapter).get("reviews_since_improvement") or 0) == 0
+
+            status_changed = status_changed or gate_improved or campaign_progress
+
+            entry: dict = {
+                "tick": tick,
+                "chapter": chapter,
+                "action": directive.action,
+                "planner_action": planner_action,
+                "command": directive.command,
+                "ok": result.ok,
+                "status_changed": status_changed,
+                "reason": directive.reason,
+            }
+            if gating_shapes is not None:
+                entry["gating_shapes"] = gating_shapes
+            if not result.ok:
+                entry["error"] = result.error[:500]
+                console.print(f"[yellow]Command reported failure:[/yellow] {result.error[:200]}")
+            history.append(entry)
+            log_tick(book_dir, {"run": run_id, **entry})
+
+            if commit:
+                _git_checkpoint(repo_root, directive, tick)
+
+            # Convergence backstop: a chapter whose gating set stops reaching a new minimum is a
+            # genuine quality-stall — escalate to the author rather than churn to MAX_TICKS. Common
+            # cases converge autonomously via the carry-over gating rule; this fires only when the
+            # reviser cannot self-resolve. Checked only on review ticks (the review is what advances
+            # the progress signal record_review just persisted) and read from that persisted signal,
+            # so it holds across restarts without a separate cross-run cap.
+            if mode == "chapters" and chapter is not None and directive.action == "review":
+                ch_entry = chapter_review_entry(book_dir, chapter)
+                if reconcile_stalled(ch_entry):
+                    path = _write_quality_stall_escalation(
+                        book_dir,
+                        chapter,
+                        best_size=int(ch_entry.get("best_gate_size") or 0),
+                        reviews_since_improvement=int(ch_entry.get("reviews_since_improvement") or 0),
+                        gating_shapes=list(ch_entry.get("last_gate") or []),
+                    )
+                    log_outcome(
+                        book_dir, run_id, tick, "quality-stall",
+                        chapter=chapter, escalation=path.name,
+                        gating_shapes=list(ch_entry.get("last_gate") or []),
+                    )
+                    console.print(
+                        f"[yellow]Escalation:[/yellow] CH{chapter:02d} not converging — wrote {path.name} "
+                        "(quality-stall). Resolve it, then re-run."
+                    )
+                    raise typer.Exit(code=0)
+
+            if step:
+                console.print("[dim]--step: stopping after one tick.[/dim]")
+                log_outcome(book_dir, run_id, tick, "step")
+                raise typer.Exit(code=0)
+            if mode == "plot" and tick >= max_iters:
+                console.print(f"[green]AutoPilot reached --max-iters={max_iters}[/green] (plot).")
+                log_outcome(book_dir, run_id, tick, "max-iters", max_iters=max_iters)
+                raise typer.Exit(code=0)
+    except KeyboardInterrupt:
+        _handle_interrupt(book_dir, run_id, tick)
 
 
 @autopilot_app.command("chapters")
