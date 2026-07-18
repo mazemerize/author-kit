@@ -4201,3 +4201,36 @@ def test_autopilot_plan_prompt_uses_persisted_campaign_marker():
     assert "the flag is not persisted" not in prompt, (
         "the old re-derive-from-content rule is what made campaign sweeps oscillate"
     )
+
+
+def test_autopilot_handles_keyboard_interrupt_gracefully(tmp_path, monkeypatch):
+    """Ctrl+C mid-worker (KeyboardInterrupt out of run_command) ends the run cleanly:
+    exit code 130, a friendly message, and a terminal 'interrupted' record in
+    autopilot.jsonl — not a raw traceback with no audit trail. The in-flight tick is
+    abandoned (never recorded), leaving the run resumable from the persisted sidecars."""
+    book_dir = _seed_autopilot_book(tmp_path, chapters_md="# Chapters\n\n- [D] CH01 A - x\n")
+    chap = book_dir / "chapters" / "01"
+    chap.mkdir(parents=True, exist_ok=True)
+    (chap / "draft.md").write_text("# Chapter 01\n\nProse.\n", encoding="utf-8")
+
+    def on_command(_cmd):
+        raise KeyboardInterrupt
+
+    fake = autopilot_runner.FakeRunner(
+        [autopilot_core.Directive(action="review", chapter=1, command="/authorkit.review 1", reason="x")],
+        on_command=on_command,
+    )
+    monkeypatch.setattr(autopilot_commands, "get_runner", lambda *a, **k: fake)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["autopilot", "chapters", "--range", "1-1"])
+
+    assert result.exit_code == 130, result.output
+    assert "interrupted" in result.output.lower()
+    outcomes = [
+        json.loads(l)
+        for l in (book_dir / "runs" / "autopilot.jsonl").read_text(encoding="utf-8").splitlines()
+        if l.strip()
+    ]
+    assert any(o.get("outcome") == "interrupted" for o in outcomes)
+    # The interrupted tick's own dispatch line was never recorded (post-processing never ran).
+    assert not any(o.get("action") == "review" for o in outcomes)
