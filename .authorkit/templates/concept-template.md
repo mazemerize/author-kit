@@ -3,6 +3,12 @@
 **Workspace**: `/book/`
 **Created**: [DATE]
 **Status**: Draft
+**Kind**: book
+<!-- Kind: book | collection.
+     book       = one continuous work told as a single arc/argument across numbered chapters (default).
+     collection = independent or loosely-ordered pieces that share a voice (and maybe a theme), but no
+                  single arc — an article series, an essay collection, standalone guides. Cross-piece
+                  continuity relaxes; the voice/tic/style defense stays fully on. An absent field = book. -->
 **Input**: Author description: "[USER_DESCRIPTION]"
 
 ## Premise *(mandatory)*

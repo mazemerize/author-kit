@@ -61,6 +61,7 @@ If the user input is genuinely ambiguous, ask one clarifying question — do not
    - `research.md` and relevant `research/` topic files (recursively)
    - The last 2-3 drafted chapters under `chapters/NN/draft.md`
    - `BOOK_DIR/notes/discuss-*.md` (prior discussion notes — distinct from `world/notes/`)
+   - From `concept.md`, note the **Kind** field (absent ⇒ `book`). When `collection`, apply the Project Kind relaxations from the shared generation guardrails — most relevant here to World Seed (treat `world/` as a shared glossary) and Restructure.
 
 3. **No silent writes.** Every file mutation goes through this gate:
    - State what you want to write: file path, section, and a short summary of the change.
@@ -88,6 +89,7 @@ When `concept.md` does not exist:
    - No reasonable default exists
    - **Cap at 3 markers total.** Prioritize: premise > audience > structure > style details.
 6. Fill the concept template:
+   - **Kind** — `book` for one continuous work (default); `collection` when the author describes a series of independent or loosely-linked pieces that share a voice but no single arc (an article series, an essay/blog collection, standalone guides). Infer from the description; ask one question only if genuinely ambiguous. This sets `concept.md`'s `**Kind**` field and, per the shared guardrails' Project Kind, conditions later outline/review behavior.
    - **Premise** — if no clear premise: ERROR "Cannot determine book premise"
    - **Genre & Audience** — use genre conventions for defaults
    - **Themes** — extract from description; infer from genre if not explicit
@@ -451,6 +453,8 @@ This is the "build initial world entries" path. For mid-manuscript additions, pr
 10. **Report** by category: files created, count per category, consistency warnings, gaps that could use more depth.
 
 Reference material, not prose. Be specific. Don't over-build — only entries that will actually matter to the story.
+
+*Kind `collection` (see Project Kind): `world/` is a shared glossary/reference across pieces, not a story canon — seed only recurring people, terms, and facts, favoring entries that appear in more than one piece.*
 
 ## Mode: Save Notes
 

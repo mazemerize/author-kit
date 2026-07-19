@@ -25,6 +25,7 @@
 <!--
   For FICTION: Map the story arc across the book structure
   For NON-FICTION: Map the argument or knowledge progression
+  Kind = collection: OMIT this section entirely — independent pieces share no single arc.
 -->
 
 | Phase | Chapters | Purpose |
@@ -47,6 +48,8 @@
 <!--
   ACTION REQUIRED: Replace these placeholder chapters with the actual chapter outline.
   Each chapter entry should be self-contained enough to plan and draft independently.
+  Kind = collection: leave each entry's **Connections** field empty / "N/A" — pieces do not
+  set up or pay off one another.
 -->
 
 ### Part 1: [Part Title] *(if applicable)*
@@ -89,6 +92,7 @@
 <!--
   For FICTION: Track each major character's arc across chapters
   For NON-FICTION: Track how key concepts develop across chapters
+  Kind = collection: OMIT this section — each piece owns its subjects; there is no cross-piece progression.
 -->
 
 ### [Character/Concept 1]
@@ -111,6 +115,11 @@
 
 ## Thematic Thread Map
 
+<!--
+  Kind = collection: OMIT this table. A shared editorial theme across pieces may be noted in the
+  Summary as a single line, but without the Introduced → Developed → Resolved lifecycle.
+-->
+
 | Theme | Introduced | Developed | Resolved |
 |-------|-----------|-----------|----------|
 | [Theme 1] | CH01 | CH05, CH09, CH14 | CH21 |
@@ -123,6 +132,8 @@
   Only populated for partial/incremental outlines (when the outline was generated
   for a subset of chapters using `/authorkit.write outline` for a partial outline or similar).
   Remove this section entirely for full outlines.
+  Kind = collection: OMIT — there are no cross-piece threads or arcs to carry forward;
+  "extend" simply appends more independent entries.
 
   This section captures the state of all narrative threads at the end of the last
   outlined section, providing context for the next `/authorkit.write outline extend` session.

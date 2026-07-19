@@ -56,7 +56,7 @@ If the input is genuinely ambiguous (e.g., just a number with no context), defau
 
 3. **Always-loaded context**:
    - `.authorkit/memory/constitution.md` (writing principles — the style bible)
-   - `concept.md` (voice, tone, themes)
+   - `concept.md` (voice, tone, themes) — also read its **Kind** field (absent ⇒ `book`). When `collection`, apply the Project Kind relaxations from the shared generation guardrails (they affect Outline mode and Reconcile below; drafting, revision, and the voice/tic machinery are unchanged).
    - `chapters.md` if it exists (chapter status and dependencies)
    - `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` (refreshed below before any drafting/revising/help)
 
@@ -89,6 +89,7 @@ Triggered when `outline.md` doesn't exist or the input explicitly asks for outli
 2. Load `BOOK_CONCEPT` and constitution. Load the OUTLINE template (already copied by the script). Load `research.md` and `research/` topic files if present (scope `general`, `outline`, and chapter-targeted files).
 3. **Concept clarity gate (soft)**: scan `concept.md` for `[NEEDS CLARIFICATION]` markers or an unresolved `## Clarifications` section. If any are found, list them inline and recommend `/authorkit.discuss` to resolve, but proceed by default. The author may explicitly stop and run clarify if they prefer.
 4. Execute the outline workflow using the template:
+   - **Project kind (read first).** Read `concept.md`'s **Kind** field (absent ⇒ `book`). For a **`collection`** (see Project Kind in the shared guardrails), the outline covers independent pieces with no shared arc: **skip** arc / argument-flow mapping (Phase 1), cross-chapter pacing, character-arc & thematic-thread mapping, Continuation Notes, and the Arc + Disclosure-horizon validations (Phase 2); leave each entry's *Connections* empty/N/A; produce only self-contained per-piece entries (title, purpose, summary, key points, subjects/characters, closing beat). A shared editorial theme is allowed without the Introduced→Developed→Resolved lifecycle. Everything below assumes `book` unless noted.
    - **Phase 0 — Research & World-Building check**:
      - If `world/` exists (built earlier via `/authorkit.discuss`): read all entries as primary context. Refresh `research.md` as a supplementary summary index for findings that don't fit `world/`. Generate `characters.md` as a summary index pointing to `world/characters/`, plus any characters not yet in `world/`. Validate `world/` against `concept.md` — flag inconsistencies. If `world/` feels incomplete, suggest `/authorkit.discuss` (World Seed) to deepen.
      - If `world/` doesn't exist: identify research needs from the concept (settings, historical/technical claims, character backgrounds). Generate or refresh `research.md` entries with Decision / Rationale / Sources. Generate `characters.md` profiles (fiction: full profiles with arc; non-fiction: concept definitions and prerequisite knowledge). For complex world-building genres, suggest `/authorkit.discuss` (World Seed) before structural design.
@@ -372,6 +373,8 @@ Passage help does NOT run Reconcile — it's a scalpel edit, not a fresh draft.
 ## Mode: Reconcile (auto-runs after Draft / Revise)
 
 After a Full-mode draft or a complete chapter (or a revision), reconcile state automatically. The author can decline this when prompted, but the default is to run it.
+
+*Kind `collection` (see Project Kind): `world/` is a shared glossary, so still extract recurring people/terms/facts in Phase 1 — but `(CHxx)` tags are per-piece namespacing, not a timeline. In Phase 2, refresh only this piece's own summary fields; leave *Connections* empty/N/A and do not resynthesize any cross-piece arc. Phases 3–4b are unchanged.*
 
 ### Phase 1: Extract world details from the chapter
 

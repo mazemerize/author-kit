@@ -55,7 +55,7 @@ A range invocation runs the chapter craft review on each chapter in the range, t
 
 3. **Load core context** (used by both modes). Load the fixed references *first* and hold them as the bar **before** reading the chapter under review, so the standard is set in advance rather than calibrated to the prose in front of you:
    - `.authorkit/memory/constitution.md` — all writing principles (the fixed bar)
-   - `concept.md` — premise, themes, characters/subjects, voice & tone, scope
+   - `concept.md` — premise, themes, characters/subjects, voice & tone, scope, and the **Kind** field (absent ⇒ `book`). When `collection`, apply the Project Kind relaxations from the shared generation guardrails — they gate specific craft passes (4, 5) and drift passes (see below). The gating passes 1–2 (voice/tic) and passes 3, 6, 7 are unchanged.
    - **Origin reference (the fixed drift baseline — global voice)** — resolve the voice origin: if the constitution's `## Voice Origin` names exemplar chapter(s) (`From CHnn:`) covering this stage, load those, **and load any `### Voice Exemplars` excerpts present there** (author prose samples that are part of the origin); otherwise default to the *earliest* (lowest-numbered) approved (`[X]`) chapters, still folding in any excerpts. Two or more approved: load the earliest one or two drafts; exactly one approved: load that one draft; none approved: the origin is the constitution + the concept's voice & tone section + any `### Voice Exemplars` excerpts (the excerpts are the concrete voice bar before any chapter is approved). This origin governs *global* voice and does **not** move as the book grows. If you judge a different chapter to be a better voice exemplar (e.g. the opening is an atypical prologue), *propose* pinning it via `/authorkit.discuss` (Constitution mode) — never silently switch the bar, which would let drift hide behind a convenient anchor.
    - `STYLE_ANCHOR` at `BOOK_DIR/style-anchor.md` — cadence, diction/register, imagery density, dialogue profile, drift flags. Use it as a continuity aid, but remember it is only a *derived* view of the origin (and may be stale or hand-edited): where it disagrees with the constitution or the origin, the constitution and origin win.
 
@@ -184,6 +184,8 @@ The self-learning tic pass (see the shared guardrails' *Tic Ledger & Voice Pairs
 
 Vs prior **drafted** chapters and `world/` `## Current State` — the canonical now-truth (`## History` tells whether a discrepancy is a genuine contradiction or an established later-chapter evolution). The cross-chapter bullets apply only when previous drafted chapters exist, but the **World & canon consistency** bullet runs whenever `world/` exists — **including on chapter 1**, whose draft must already agree with the `(CONCEPT)`-seeded world files. Score this pass N/A only when there are no previous chapters *and* no `world/`.
 
+*Kind `collection` (see Project Kind): run **only** the World & canon consistency bullet (per-piece); **skip** the flow/contradiction, quantitative-drift-across-chapters, backstory-verification, knowledge-boundary, plot-arc-convergence, and voice-texture-continuity bullets — independent pieces have no shared timeline. Score N/A when there is no `world/`.*
+
 - **Flow & contradictions**: does this chapter follow naturally from the prior relevant ones? Any contradiction with what earlier chapters established?
 - **Quantitative drift across chapters**: a quantity/fact committed in an earlier chapter (nine guards, age forty, a two-day journey) must not silently change here. Flag any referent whose value differs without an in-story change. **Critical** for a hard contradiction.
 - **Backstory verification**: for every factual claim this chapter makes about events from prior chapters ("he had done X in CH03"), grep the actual draft text of that chapter and verify it. Do not trust the plan or outline — verify against the drafted prose. Especially arrival details, exact lines of dialogue, who instructed whom.
@@ -195,6 +197,8 @@ Vs prior **drafted** chapters and `world/` `## Current State` — the canonical 
 #### Pass 5 — Disclosure Horizon
 
 Per the Disclosure Horizon Protocol. Scan for the chapter revealing a plot fact the outline/plan assigns to a *later* chapter — narrator-prophecy / proleptic flash-forward ("what she would only understand years later…") that names an undisclosed future, or a "later XXX, but for now YYY" where XXX is not yet known to the reader. Distinguish from **allowed** planted foreshadowing (an image/object that pays off later without naming the payoff). A reader-visible spoiler of a later reveal is **Critical**; a softer proleptic leak is **Important**.
+
+*Kind `collection` (see Project Kind): **skip this pass** (score N/A) — independent pieces have no later chapter to leak into.*
 
 #### Pass 6 — Standalone Readability
 
@@ -340,6 +344,8 @@ For not-yet-drafted chapters: check if their claims about already-drafted chapte
 
 #### 1e. Outline Aggregate-Section Resynthesis (`outline.md`)
 
+*Kind `collection` (see Project Kind): **skip 1e** — a collection's outline does not carry these aggregate sections, so there is nothing to resynthesize.*
+
 Steps 1a–1d check the *per-chapter* outline entries. The synthesized cross-cutting sections drift separately, because reconcile only refreshes the chapter that was just drafted and never re-derives these:
 
 - **Narrative Arc / Argument Flow** table — do the phase→chapter mappings still match how the drafted chapters actually function?
@@ -370,6 +376,8 @@ These are **consolidation candidates**: the fix refreshes `## Current State` to 
 ### Step 2: Detection Passes
 
 Focus on high-signal findings. Limit to 50 total findings (excluding drift findings from step 1).
+
+**Project kind (read first).** For a **`collection`** (see Project Kind in the shared guardrails), **skip** the cross-piece continuity passes **A**, **D**, **G**, **J**, and **K** entirely. **Relax** **B** and **C** to a shared-persona / shared-theme check across pieces (drop foreshadowing-payoff and cross-piece arc expectations), and **F** to *within a single piece*. Run **E**, **E1**, **H**, **I** (as glossary consistency), and **L** unchanged. `book` runs every pass.
 
 **Sub-agent fan-out (when available).** These detection passes are independent and operate over the whole manuscript, so when the runtime offers parallel sub-agents, dispatch each pass (A–L) as its own sub-agent against a baseline the parent resolves once (fixed origin, roster, `book/tic-ledger.md`, the chapter set), then aggregate, dedup, and cap at 50. Otherwise run them sequentially. Either way the passes and severities are the same.
 
