@@ -383,7 +383,11 @@ For a deeper verification pass (consistency between world/ and the manuscript, d
 
 Findings are rated by severity (Critical, High, Medium, Low) with specific file paths and actionable recommendations.
 
-The AI-tic gate (review Pass 2) also applies three density rules beyond per-shape budgets: a chapter-wide **tic-load** index that gates when many below-budget tics compound, a **cluster** rule for paragraphs carrying several distinct shapes, and a **persistence** check for shapes recurring below budget across consecutive chapters. All three thresholds default to 3 and can be tightened or relaxed per book via the `[review]` table in `book/book.toml` (see the baseline below).
+The AI-tic gate (review Pass 2) also applies three density rules beyond per-shape budgets: a chapter-wide **tic-load** index that gates when many below-budget tics compound, a **cluster** rule for paragraphs carrying several distinct shapes, and a **persistence** check for shapes recurring below budget across consecutive chapters. `cluster_min_shapes` and `persistence_chapters` default to 3; `tic_load_mean_threshold` defaults to 0.75. All are tunable per book via the `[review]` table in `book/book.toml` (see the baseline below).
+
+The tic-load index is the **mean** budget utilization across tracked shapes — `Σ(instances ÷ budget) ÷ N` — deliberately not a sum. The tic ledger is an unbounded discovery log that only grows, so a summed index would tighten the gate as the ledger filled up, scoring the same unchanged chapter worse the later it was reviewed. A mean is invariant to `N`: adding a below-threshold entry can only lower it. (Catching one rampant shape is not this index's job — that already gates on its own budget.)
+
+The gate is self-calibrating via an **origin canary**: the index is computed for the fixed voice origin chapter first, and if the origin cannot clear the configured threshold, review reports the miscalibration and declines to gate on tic-load. The same test applies to individual budgets — a budget at or below the origin's own measured rate for that shape is mis-set, because it penalizes prose for sounding like the book's own voice. The general principle: **a bar the fixed origin cannot clear is measuring the ruler, not the manuscript.**
 
 ### Entity body: Current State + History
 
@@ -513,7 +517,10 @@ reading_wpm = 200
 
 # Tic-gate density thresholds for /authorkit.review Pass 2 (all optional; lower = stricter).
 # [review]
-# tic_load_threshold = 3.0     # chapter-wide compounding load that gates (sum of instances/budget)
+# tic_load_mean_threshold = 0.75  # chapter-wide compounding: MEAN budget utilization across
+#                                 # tracked shapes (sum of instances/budget divided by their
+#                                 # count), so a growing tic ledger never tightens the gate on
+#                                 # its own. A ratio, not a count -- sane values are 0.5-1.0.
 # cluster_min_shapes = 3       # distinct tic shapes in one paragraph that make a cluster finding
 # persistence_chapters = 3     # consecutive chapters a below-budget tic may recur before flagged
 
@@ -740,6 +747,58 @@ book/
 - Verify the selected voice/model and try regenerating with `--force`.
 - Customize the narration instructions template at `.authorkit/templates/publishing/audio-instructions.txt` or provide your own via `[audio].instructions` in `book.toml`.
 - OpenAI recommends `marin` (the shipped default) or `cedar` for best quality.
+
+---
+
+## Changelog
+
+### Tic-load index: sum → mean, plus an origin-canary calibration rule
+
+**Old formula.** `load = Σ (instances ÷ budget)` over active, non-waived, non-zero-budget
+shapes, gating at `tic_load_threshold` (default 3.0).
+
+**Why it was wrong.** The sum was unnormalized but the threshold was constant, so the index
+scaled with the *number of tracked shapes* rather than with the quality of the prose. A shape
+sitting exactly at budget contributes 1.0, so N compliant shapes score N. Because the tic
+ledger is a discovery log — blind discovery is unbounded and entries leave only via a slow
+decay path — N grows monotonically, so **the gate tightened over the life of a book with no
+change to the manuscript**, and the same unchanged chapter scored worse the later it was
+reviewed. Measured on a real 22-chapter book, the fixed voice origin chapter — the chapter the
+whole manuscript's voice is graded against — scored **9.58 against its configured threshold of
+1**, i.e. the origin could not pass its own test. Chapters were being edited to satisfy a
+miscalibrated ruler.
+
+**New formula.** `load = Σ (instances ÷ budget) ÷ N` — the mean budget utilization — gating at
+`tic_load_mean_threshold` (default **0.75**). Invariant to N: adding a below-threshold entry
+can only lower the index. Detecting a single rampant shape was never this index's job (that
+gates on its own budget via the severity mapping); compounding is all it measures, and a mean
+measures compounding correctly. On the same book the origin chapter now scores **0.68 (N=14)**
+and passes.
+
+**Config rename.** `tic_load_threshold` → `tic_load_mean_threshold`. The old key is **no longer
+read**. This is deliberate: the two keys mean different things, and values in the wild (1 and
+3.0) are meaningless as mean ratios, so silently reinterpreting them would have changed what
+every existing book's config asserts. An unmigrated `book/book.toml` simply falls back to the
+new default. To migrate, delete the old key and — only if you had tuned it — set
+`tic_load_mean_threshold` to a ratio in 0.5–1.0 (lower is stricter).
+
+**New invariant — the origin canary.** Whatever threshold is configured, Pass 2 first computes
+the index for the resolved voice origin chapter. If the origin fails, the threshold is mis-set,
+not the prose: review reports the miscalibration and does not gate on tic-load. The same test
+now applies to individual ledger budgets — a budget at or below the origin's own measured rate
+for that shape is mis-set by definition, since it taxes every correctly-written chapter with a
+contribution no revision can remove. The principle, which generalizes past this index:
+**a bar the fixed origin cannot clear is measuring the ruler, not the manuscript.**
+
+**Also fixed.** Ledger reconciliation (Step B) now allocates new `TIC-NNN` ids as
+`max(existing id) + 1` scanned across **all** sections including Retired, and re-checks for
+duplicate ids before every write-back. Taking the high-water mark from the live sections alone
+re-issued numbers already spent by retired entries; the reference book had 127 entries under
+only 118 distinct ids, with six ids covering two genuinely different shapes each.
+
+**Upgrade note.** Editing the review prompt rotates AutoPilot's `guideline_sha`, which
+invalidates existing per-chapter review stamps and triggers a re-review sweep. That is intended
+for a gate-semantics change — prior verdicts were computed under the old formula.
 
 ---
 

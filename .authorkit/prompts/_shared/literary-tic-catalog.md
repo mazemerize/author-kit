@@ -44,8 +44,12 @@ studies, Wikipedia's *Signs of AI writing* field guide):
 - **Density over presence.** A single instance of any non-zero-budget shape is
   voice, not a tell. The signal is clustering — several shapes in one
   paragraph, or one shape recurring across a manuscript. Budgets, the cluster
-  rule, and the tic-load index (review Pass 2's severity mapping) encode this;
-  never flag an isolated under-budget instance as if it were diagnostic.
+  rule, and the tic-load index — the *mean* budget utilization across tracked
+  shapes, so that tracking more shapes never by itself tightens the gate
+  (review Pass 2's severity mapping) — encode this; never flag an isolated
+  under-budget instance as if it were diagnostic. A budget set at or below the
+  origin's own measured rate for that shape is mis-set: it penalizes prose for
+  sounding like the book's own voice.
 - **Structure over vocabulary.** `structural` and `constructional` tells
   (clause symmetry, scene-shape repetition, negation-correction, tailing
   appositives) are stable across model generations; `lexical` tells rotate

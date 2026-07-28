@@ -4003,7 +4003,7 @@ def test_review_prompt_literal_sweep_and_cluster_rules():
     # The three density thresholds are tunable per book via book.toml [review];
     # the prompt must name the keys and their defaults, and the setup scripts must
     # document them in the generated book.toml.
-    for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+    for key in ("tic_load_mean_threshold", "cluster_min_shapes", "persistence_chapters"):
         assert key in review, f"review.md must name the configurable threshold {key}"
     assert "`[review]`" in review or "[review]" in review, "review.md must point at book.toml's [review] table"
     for script in (
@@ -4011,8 +4011,88 @@ def test_review_prompt_literal_sweep_and_cluster_rules():
         repo_root / ".authorkit" / "scripts" / "powershell" / "setup-book.ps1",
     ):
         body = script.read_text(encoding="utf-8")
-        for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+        for key in ("tic_load_mean_threshold", "cluster_min_shapes", "persistence_chapters"):
             assert key in body, f"{script.name} must document {key} in the generated book.toml"
+        assert "tic_load_threshold = " not in body, (
+            f"{script.name} must not seed the legacy sum-semantics key into new book.toml files"
+        )
+
+
+def test_tic_load_index_is_a_mean_not_a_sum():
+    """The tic-load index must be normalized by the number of contributing shapes.
+
+    The tic ledger is an unbounded discovery log, so an un-normalized sum compared
+    against a constant threshold tightens the gate as the ledger grows -- the same
+    unchanged chapter scores worse the later it is reviewed. Guards the formula, the
+    renamed key, and the retirement of the old sum-semantics key.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    guardrails = (repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md").read_text(
+        encoding="utf-8"
+    )
+    catalog = (repo_root / ".authorkit" / "prompts" / "_shared" / "literary-tic-catalog.md").read_text(
+        encoding="utf-8"
+    )
+
+    # The formula is a mean: the sum is divided by the count of contributing shapes.
+    assert "Σ (instances ÷ budget) ÷ N" in review, "Pass 2 must define tic-load as a mean"
+    assert "mean budget utilization" in review.lower()
+
+    # The renamed key replaces the old one everywhere it is *configured*.
+    assert "tic_load_mean_threshold" in review
+    for text, name in ((review, "review.md"), (guardrails, "guardrails")):
+        assert "tic_load_threshold = " not in text, f"{name} must not present the legacy key as settable"
+
+    # N must be well-defined even though most real ledger entries omit `Budget:`.
+    assert "well-defined" in review or "always well-defined" in review, (
+        "The spec must state that every contributing shape has an effective budget, so N is defined"
+    )
+
+    # The mirrored summaries must not still describe a sum.
+    assert "not a sum" in guardrails or "÷ N" in guardrails, "Guardrails roster must mirror the mean"
+    assert "mean" in catalog.lower(), "Seed catalog cross-reference must mirror the mean"
+
+
+def test_origin_canary_calibration_rule():
+    """A bar the fixed origin cannot clear is measuring the ruler, not the manuscript.
+
+    Pass 2 must compute the index for the resolved voice origin before gating, and must
+    refuse to gate on tic-load when the origin itself fails. The same test must apply to
+    individual budgets, which is what makes a rate budget equal to the origin's own rate
+    a defect rather than a permanent tax on compliant prose.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    template = (repo_root / ".authorkit" / "templates" / "tic-ledger-template.md").read_text(encoding="utf-8")
+
+    assert "origin-canary" in review.lower(), "Pass 2 must carry the origin-canary pre-check"
+    assert "measuring the ruler, not the manuscript" in review, "The general principle must be stated plainly"
+    # It is a pre-check that suppresses the gate, not merely a reported observation.
+    assert "do not gate on tic-load" in review
+
+    # Budgets are calibrated against the origin too (the em-dash baseline-tax class of bug).
+    assert "mis-set by definition" in review
+
+    # The cached canary result has a documented home in the ledger header.
+    assert "**Origin Load**:" in template, "Ledger template must carry the cached origin-canary field"
+
+
+def test_step_b_cannot_mint_a_colliding_tic_id():
+    """New ids come from the max across ALL sections, including Retired.
+
+    Scanning only the live sections re-issues numbers already spent by retired entries,
+    which files two different shapes under one id.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    template = (repo_root / ".authorkit" / "templates" / "tic-ledger-template.md").read_text(encoding="utf-8")
+
+    assert "max(existing id) + 1" in review, "Step B must specify the allocation rule"
+    assert "never per-section" in review
+    assert "Retired" in review
+    assert "Duplicate-id check" in review, "Step B write-back must re-check for collisions"
+    assert "max(existing id) + 1" in template, "The ledger template must carry the same rule"
 
 
 def test_ledger_template_class_field_and_lifecycle():
