@@ -422,6 +422,8 @@ The AI-tic gate (review Pass 2) also applies three density rules beyond per-shap
 
 The tic-load index is the **mean** budget utilization across tracked shapes — `Σ(instances ÷ budget) ÷ N` — deliberately not a sum. The tic ledger is an unbounded discovery log that only grows, so a summed index would tighten the gate as the ledger filled up, scoring the same unchanged chapter worse the later it was reviewed. A mean is invariant to `N`: adding a below-threshold entry can only lower it. (Catching one rampant shape is not this index's job — that already gates on its own budget.)
 
+`N` is the size of the tracked active set — every active, non-waived, non-zero-budget ledger entry, **including the ones with no instances in the chapter being reviewed**. Counting only the shapes that actually appear would make `N` vary chapter to chapter and re-introduce the coupling the mean exists to remove.
+
 The gate is self-calibrating via an **origin canary**: the index is computed for the fixed voice origin chapter first, and if the origin cannot clear the configured threshold, review reports the miscalibration and declines to gate on tic-load. The same test applies to individual budgets — a budget at or below the origin's own measured rate for that shape is mis-set, because it penalizes prose for sounding like the book's own voice. The general principle: **a bar the fixed origin cannot clear is measuring the ruler, not the manuscript.**
 
 ### Entity body: Current State + History
