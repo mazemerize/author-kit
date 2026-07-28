@@ -11,6 +11,7 @@ An open-source toolkit that brings structured, template-driven principles to boo
 - [What is Author Kit?](#what-is-author-kit)
 - [Get Started](#get-started)
 - [The Four Commands](#the-four-commands)
+- [Project Kind (book | collection)](#project-kind-book--collection)
 - [World Maintenance](#world-maintenance)
 - [Book Export, Audiobook and Statistics](#book-export-audiobook-and-statistics)
 - [Project Structure](#project-structure)
@@ -113,7 +114,7 @@ authorkit init . --ai claude,copilot,codex --script sh --ignore-agent-tools
 
 ### 2. Start with a conversation
 
-`/authorkit.discuss` is the entry point for everything that isn't pure manuscript writing. On a fresh repo, it brainstorms with you and produces `concept.md` (premise, audience, voice, themes, scope) plus the `book/` workspace. On an existing repo, it clarifies ambiguities, propagates cross-cutting changes, restructures chapters, updates the constitution, and more — always read-only by default, every write proposed and confirmed first.
+`/authorkit.discuss` is the entry point for everything that isn't pure manuscript writing. On a fresh repo, it brainstorms with you and produces `concept.md` (premise, audience, voice, themes, scope, and the project [kind](#project-kind-book--collection)) plus the `book/` workspace. On an existing repo, it clarifies ambiguities, propagates cross-cutting changes, restructures chapters, updates the constitution, and more — always read-only by default, every write proposed and confirmed first.
 
 ```bash
 /authorkit.discuss A mystery novel set in a crumbling Victorian observatory where an astronomer discovers that the star catalogue compiled by the previous director contains a hidden code.
@@ -323,6 +324,40 @@ authorkit autopilot chapters --range 1-8 \
 - **Audit & control:** every tick is logged to `book/runs/autopilot.jsonl`; drop a `book/runs/STOP` file to halt after the current tick.
 
 See [docs/autopilot.md](docs/autopilot.md) for the full design and [docs/autopilot-implementation.md](docs/autopilot-implementation.md) for the build plan.
+
+---
+
+## Project Kind (`book` | `collection`)
+
+Not everything you write is one continuous work. Author Kit's defaults assume a single arc told across numbered chapters — cross-chapter continuity, plot threads, a disclosure horizon. For an article series, an essay collection, or a set of standalone guides, that machinery fights you: it keeps trying to weave pieces into a story they were never meant to tell.
+
+The **kind** field in `concept.md` says which you're writing:
+
+```markdown
+**Kind**: book
+```
+
+- **`book`** *(default)* — one continuous work: a single arc or argument across numbered chapters. All continuity machinery is on.
+- **`collection`** — independent or loosely-ordered pieces sharing an author voice (and optionally a theme), but no single arc. Each numbered unit stands alone.
+
+`/authorkit.discuss` infers the kind from your description when it first writes `concept.md`, and asks only if it's genuinely ambiguous. **If the field is absent, the project is treated as a `book`** — existing projects are unaffected.
+
+### What relaxes for a `collection`
+
+| Area | Behavior |
+|---|---|
+| **Outline** | No cross-piece arc. Omits the narrative-arc, character-arc, thematic-thread, and continuation sections; per-entry *Connections* stay empty. |
+| **Chapter review** | Skips the Disclosure Horizon pass and Pass 4's cross-chapter bullets (flow, quantitative drift, backstory, knowledge boundaries, plot-arc convergence). |
+| **Drift sweep** | Skips continuity, pacing, plot-thread, quantitative-ledger, and premature-disclosure passes; narrows character/theme checks to shared-persona and shared-theme, and argument coherence to within one piece. |
+| **`world/`** | An optional shared glossary for recurring people, terms, and facts — not a narrative canon. `(CHxx)` tags namespace by piece rather than marking a timeline. |
+
+### What does not relax
+
+**The voice, tic, and style defense is identical for both kinds** — it is the main reason to run a collection through Author Kit at all. One author voice across the pieces is the whole point, so the fixed voice origin, the style-fidelity pass, the AI-tic audit, and the tic ledger all behave exactly as they do for a book. Voice-texture continuity still applies to any persona or register that recurs across pieces.
+
+### Substrate is unchanged
+
+The on-disk layout stays `chapters/NN/`, `chapters.md`, and `CHxx` tags for both kinds — for a collection, a "chapter" is simply one piece. Nothing is renamed, so export, stats, audio, and AutoPilot work identically. In conversation the commands will call a unit a "piece" or "article" when the kind is `collection`.
 
 ---
 

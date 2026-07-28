@@ -4095,6 +4095,97 @@ def test_step_b_cannot_mint_a_colliding_tic_id():
     assert "max(existing id) + 1" in template, "The ledger template must carry the same rule"
 
 
+# --- Project kind (book | collection) -----------------------------------------
+
+
+def _authorkit_asset(*parts):
+    return (Path(__file__).resolve().parents[2] / ".authorkit").joinpath(*parts).read_text(encoding="utf-8")
+
+
+def test_project_kind_is_defined_once_in_the_shared_guardrails():
+    """The canonical Project Kind definition lives in the guardrails, which are injected
+    into every rendered generation prompt at init -- so each command site only needs a
+    pointer, not its own copy of the rules."""
+    guardrails = _authorkit_asset("prompts", "_shared", "generation-guardrails.md")
+
+    assert "Project Kind (book | collection)" in guardrails
+    # Absent field must mean `book`, or every existing project changes behavior on upgrade.
+    assert "If the field is absent, treat the project as `book`" in guardrails
+    # The substrate deliberately does not fork.
+    assert "Vocabulary & substrate are unchanged for both kinds" in guardrails
+
+    # The guardrails are what actually reach a rendered command.
+    assert "generation-guardrails.md" in str(cli.SHARED_GUARDRAILS_PATH)
+    for prompt in ("authorkit.review.md", "authorkit.write.md", "authorkit.discuss.md"):
+        assert prompt in cli.GUARDRAIL_PROMPT_ALLOWLIST, f"{prompt} must receive the Project Kind block"
+
+
+def test_collection_kind_relaxations_are_marked_at_every_site():
+    """Each place that assumes cross-piece continuity must carry its own collection rider,
+    since the model acts on the local instruction, not on the definition alone."""
+    review = _authorkit_asset("prompts", "authorkit.review.md")
+    write = _authorkit_asset("prompts", "authorkit.write.md")
+    discuss = _authorkit_asset("prompts", "authorkit.discuss.md")
+    concept_tpl = _authorkit_asset("templates", "concept-template.md")
+    outline_tpl = _authorkit_asset("templates", "outline-template.md")
+
+    # Concept carries the field; `book` is the written default.
+    assert "**Kind**: book" in concept_tpl
+
+    # Outline template marks every aggregate section a collection omits.
+    assert outline_tpl.count("Kind = collection") >= 4, (
+        "Arc, character-arc, thematic-thread and continuation sections must each be marked"
+    )
+
+    # Review: craft passes 4 and 5, drift-sweep roster, and step 1e.
+    assert "Kind `collection`" in review
+    assert "**skip this pass** (score N/A)" in review, "Pass 5 (Disclosure Horizon) must be skipped"
+    assert "**skip 1e**" in review, "Outline aggregate resynthesis must be skipped in lockstep"
+    assert "**Project kind (read first).**" in review, "The drift sweep roster must gate on kind"
+
+    # Write: outline mode and reconcile.
+    assert "**Project kind (read first).**" in write, "Outline mode must gate on kind"
+    assert "Kind `collection`" in write, "Reconcile must carry the glossary rider"
+
+    # Discuss: conceive sets it, world seed reads it.
+    assert "Kind" in discuss and "collection" in discuss
+
+
+def test_collection_kind_never_relaxes_the_voice_defense():
+    """Regression guard. The whole justification for running a collection through Author
+    Kit is the voice/tic/style defense, and the guardrails promise it is identical for
+    both kinds. Pass 4's collection rider once skipped voice-texture continuity, which
+    silently broke that promise -- and contradicted the drift sweep, which keeps a
+    shared-persona check, and world/, which seeds recurring people across pieces.
+    """
+    guardrails = _authorkit_asset("prompts", "_shared", "generation-guardrails.md")
+    review = _authorkit_asset("prompts", "authorkit.review.md")
+
+    assert "Do not weaken the style / tic / voice machinery" in guardrails
+    assert "Passes 1, 2, 3, 6, 7 run unchanged" in guardrails, (
+        "The gating voice/tic passes must stay on for a collection"
+    )
+
+    # Pass 4's rider must KEEP voice texture, not skip it.
+    rider = next(line for line in review.splitlines() if line.startswith("*Kind `collection`") and "Pass" not in line[:20] and "world" in line.lower())
+    assert "and Voice texture continuity" in rider, "Pass 4 must keep voice-texture continuity"
+    skip_clause = rider.split("**Keep**")[0]
+    assert "voice-texture" not in skip_clause.lower(), (
+        "voice-texture continuity must not appear in the collection skip list"
+    )
+
+    # The canonical list and the implementation must agree on what is skipped.
+    for bullet in (
+        "flow/contradiction",
+        "quantitative-drift-across-chapters",
+        "backstory-verification",
+        "knowledge-boundary",
+        "plot-arc-convergence",
+    ):
+        assert bullet in guardrails, f"guardrails must name {bullet} as skipped"
+        assert bullet in skip_clause, f"review.md Pass 4 must skip {bullet}"
+
+
 def test_ledger_template_class_field_and_lifecycle():
     """Ledger template: optional Class field present, lifecycle softened to 4 reviews,
     zero-budget phrase seeds exempt from retirement."""
