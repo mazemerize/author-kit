@@ -4185,6 +4185,27 @@ def test_collection_kind_never_relaxes_the_voice_defense():
         assert bullet in guardrails, f"guardrails must name {bullet} as skipped"
         assert bullet in skip_clause, f"review.md Pass 4 must skip {bullet}"
 
+    # Every place that describes Pass 4 for a collection must agree that voice texture is
+    # KEPT -- not just that the skip lists match. The guardrails describe Pass 4 twice (the
+    # Project Kind block and the Analysis Passes roster). An unqualified "run only its
+    # World & canon consistency bullet" in either one silently excludes voice texture while
+    # the skip lists still agree, so comparing skip lists alone does not catch it.
+    for excluding_phrase in (
+        "run only its **World & canon consistency**",
+        "run only the world/canon cross-check",
+        "skip every cross-chapter bullet",
+    ):
+        assert excluding_phrase not in guardrails, (
+            f"{excluding_phrase!r} excludes voice-texture continuity from Pass 4"
+        )
+    # And both descriptors must name it positively.
+    assert "**and its Voice texture continuity bullet**" in guardrails, (
+        "The Project Kind block must state that Pass 4 keeps voice-texture continuity"
+    )
+    assert "voice-texture continuity" in guardrails, (
+        "The Analysis Passes roster must state that a collection keeps voice-texture continuity"
+    )
+
 
 def test_ledger_template_class_field_and_lifecycle():
     """Ledger template: optional Class field present, lifecycle softened to 4 reviews,
