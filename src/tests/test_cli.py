@@ -4077,6 +4077,16 @@ def test_origin_canary_calibration_rule():
     # The cached canary result has a documented home in the ledger header.
     assert "**Origin Load**:" in template, "Ledger template must carry the cached origin-canary field"
 
+    # A mandatory pre-check must define its degenerate cases, or the first review of a
+    # fresh book hits an instruction it cannot follow: before any chapter is approved the
+    # resolved origin is the constitution + exemplars, with no chapter to measure.
+    assert "When the resolved origin is not a chapter" in review, (
+        "The canary must say what to do before any chapter is approved"
+    )
+    assert "When the chapter under review *is* the resolved origin" in review, (
+        "The canary must resolve the self-referential case (reviewing the origin itself)"
+    )
+
 
 def test_step_b_cannot_mint_a_colliding_tic_id():
     """New ids come from the max across ALL sections, including Retired.
