@@ -166,10 +166,8 @@ reading_wpm = 200
 
 # Tic-gate density thresholds for /authorkit.review Pass 2 (all optional; lower = stricter).
 # [review]
-# tic_load_mean_threshold = 0.75  # chapter-wide compounding: MEAN budget utilization across
-#                                 # tracked shapes (sum of instances/budget divided by their
-#                                 # count), so a growing tic ledger never tightens the gate on
-#                                 # its own. A ratio, not a count -- sane values are 0.5-1.0.
+# tic_load_mean_threshold = 0.75  # chapter-wide compounding — mean budget utilization across
+#                                 # tracked shapes; a ratio, not a count (sane values 0.5–1.0)
 # cluster_min_shapes = 3       # distinct tic shapes in one paragraph that make a cluster finding
 # persistence_chapters = 3     # consecutive chapters a below-budget tic may recur before flagged
 

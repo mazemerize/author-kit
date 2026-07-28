@@ -4187,9 +4187,17 @@ def test_collection_kind_never_relaxes_the_voice_defense():
         "The gating voice/tic passes must stay on for a collection"
     )
 
-    # Pass 4's rider must KEEP voice texture, not skip it.
-    rider = next(line for line in review.splitlines() if line.startswith("*Kind `collection`") and "Pass" not in line[:20] and "world" in line.lower())
+    # Pass 4's rider must KEEP voice texture, not skip it. Select it explicitly rather
+    # than by a positional heuristic, so a reworded rider fails with a useful message
+    # instead of a bare StopIteration.
+    riders = [ln for ln in review.splitlines() if ln.startswith("*Kind `collection`")]
+    assert riders, "review.md must carry per-pass collection riders"
+    pass4 = [ln for ln in riders if "World & canon consistency" in ln]
+    assert len(pass4) == 1, f"expected exactly one Pass 4 collection rider, found {len(pass4)}"
+    rider = pass4[0]
+
     assert "and Voice texture continuity" in rider, "Pass 4 must keep voice-texture continuity"
+    assert "**Keep**" in rider, "Pass 4 rider must name what it keeps, not only what it skips"
     skip_clause = rider.split("**Keep**")[0]
     assert "voice-texture" not in skip_clause.lower(), (
         "voice-texture continuity must not appear in the collection skip list"
