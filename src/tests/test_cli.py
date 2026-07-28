@@ -4045,8 +4045,19 @@ def test_tic_load_index_is_a_mean_not_a_sum():
         assert "tic_load_threshold = " not in text, f"{name} must not present the legacy key as settable"
 
     # N must be well-defined even though most real ledger entries omit `Budget:`.
-    assert "well-defined" in review or "always well-defined" in review, (
+    assert "always well-defined" in review, (
         "The spec must state that every contributing shape has an effective budget, so N is defined"
+    )
+
+    # The denominator must be unambiguous. "Shapes in this draft" reads two ways -- every
+    # tracked active entry, or only those with instances -- and on the reference book the
+    # same chapter scores 0.685 or 1.198 under the two readings, flipping the voice origin
+    # from pass to fail and disabling the gate on every book via the canary.
+    assert "including those with zero instances this chapter" in review, (
+        "N must explicitly include zero-instance entries"
+    )
+    assert "the number of shapes that happen to appear" in review, (
+        "The spec must rule out the present-shapes-only reading of N"
     )
 
     # The mirrored summaries must not still describe a sum.
