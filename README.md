@@ -787,11 +787,13 @@ book/
 
 ## Changelog
 
-### Project kind (`book` | `collection`)
+### 0.7.0
+
+#### Project kind (`book` | `collection`)
 
 New `Kind` field in `concept.md` relaxing cross-piece continuity for article series, essay collections, and standalone guides. See [Project Kind](#project-kind-book--collection) for what relaxes and what deliberately does not. **Additive and backward-compatible** — an absent field means `book`, so existing projects behave exactly as before and need no migration.
 
-### Tic-load index: sum → mean, plus an origin-canary calibration rule
+#### Tic-load index: sum → mean, plus an origin-canary calibration rule
 
 **Old formula.** `load = Σ (instances ÷ budget)` over active, non-waived, non-zero-budget
 shapes, gating at `tic_load_threshold` (default 3.0).
