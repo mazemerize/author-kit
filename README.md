@@ -11,6 +11,7 @@ An open-source toolkit that brings structured, template-driven principles to boo
 - [What is Author Kit?](#what-is-author-kit)
 - [Get Started](#get-started)
 - [The Four Commands](#the-four-commands)
+- [Project Kind (book | collection)](#project-kind-book--collection)
 - [World Maintenance](#world-maintenance)
 - [Book Export, Audiobook and Statistics](#book-export-audiobook-and-statistics)
 - [Project Structure](#project-structure)
@@ -113,7 +114,7 @@ authorkit init . --ai claude,copilot,codex --script sh --ignore-agent-tools
 
 ### 2. Start with a conversation
 
-`/authorkit.discuss` is the entry point for everything that isn't pure manuscript writing. On a fresh repo, it brainstorms with you and produces `concept.md` (premise, audience, voice, themes, scope) plus the `book/` workspace. On an existing repo, it clarifies ambiguities, propagates cross-cutting changes, restructures chapters, updates the constitution, and more — always read-only by default, every write proposed and confirmed first.
+`/authorkit.discuss` is the entry point for everything that isn't pure manuscript writing. On a fresh repo, it brainstorms with you and produces `concept.md` (premise, audience, voice, themes, scope, and the project [kind](#project-kind-book--collection)) plus the `book/` workspace. On an existing repo, it clarifies ambiguities, propagates cross-cutting changes, restructures chapters, updates the constitution, and more — always read-only by default, every write proposed and confirmed first.
 
 ```bash
 /authorkit.discuss A mystery novel set in a crumbling Victorian observatory where an astronomer discovers that the star catalogue compiled by the previous director contains a hidden code.
@@ -326,6 +327,40 @@ See [docs/autopilot.md](docs/autopilot.md) for the full design and [docs/autopil
 
 ---
 
+## Project Kind (`book` | `collection`)
+
+Not everything you write is one continuous work. Author Kit's defaults assume a single arc told across numbered chapters — cross-chapter continuity, plot threads, a disclosure horizon. For an article series, an essay collection, or a set of standalone guides, that machinery fights you: it keeps trying to weave pieces into a story they were never meant to tell.
+
+The **kind** field in `concept.md` says which you're writing:
+
+```markdown
+**Kind**: book
+```
+
+- **`book`** *(default)* — one continuous work: a single arc or argument across numbered chapters. All continuity machinery is on.
+- **`collection`** — independent or loosely-ordered pieces sharing an author voice (and optionally a theme), but no single arc. Each numbered unit stands alone.
+
+`/authorkit.discuss` infers the kind from your description when it first writes `concept.md`, and asks only if it's genuinely ambiguous. **If the field is absent, the project is treated as a `book`** — existing projects are unaffected.
+
+### What relaxes for a `collection`
+
+| Area | Behavior |
+|---|---|
+| **Outline** | No cross-piece arc. Omits the narrative-arc, character-arc, thematic-thread, and continuation sections; per-entry *Connections* stay empty. |
+| **Chapter review** | Skips the Disclosure Horizon pass and Pass 4's cross-chapter bullets (flow, quantitative drift, backstory, knowledge boundaries, plot-arc convergence). |
+| **Drift sweep** | Skips continuity, pacing, plot-thread, quantitative-ledger, and premature-disclosure passes; narrows character/theme checks to shared-persona and shared-theme, and argument coherence to within one piece. |
+| **`world/`** | An optional shared glossary for recurring people, terms, and facts — not a narrative canon. `(CHxx)` tags namespace by piece rather than marking a timeline. |
+
+### What does not relax
+
+**The voice, tic, and style defense is identical for both kinds** — it is the main reason to run a collection through Author Kit at all. One author voice across the pieces is the whole point, so the fixed voice origin, the style-fidelity pass, the AI-tic audit, and the tic ledger all behave exactly as they do for a book. Voice-texture continuity still applies to any persona or register that recurs across pieces.
+
+### Substrate is unchanged
+
+The on-disk layout stays `chapters/NN/`, `chapters.md`, and `CHxx` tags for both kinds — for a collection, a "chapter" is simply one piece. Nothing is renamed, so export, stats, audio, and AutoPilot work identically. In conversation the commands will call a unit a "piece" or "article" when the kind is `collection`.
+
+---
+
 ## World Maintenance
 
 Author Kit includes a dedicated world-building system that tracks every detail of your book's world — characters, places, organizations, history, and systems — across the entire manuscript.
@@ -383,7 +418,15 @@ For a deeper verification pass (consistency between world/ and the manuscript, d
 
 Findings are rated by severity (Critical, High, Medium, Low) with specific file paths and actionable recommendations.
 
-The AI-tic gate (review Pass 2) also applies three density rules beyond per-shape budgets: a chapter-wide **tic-load** index that gates when many below-budget tics compound, a **cluster** rule for paragraphs carrying several distinct shapes, and a **persistence** check for shapes recurring below budget across consecutive chapters. All three thresholds default to 3 and can be tightened or relaxed per book via the `[review]` table in `book/book.toml` (see the baseline below).
+The AI-tic gate (review Pass 2) also applies three density rules beyond per-shape budgets: a chapter-wide **tic-load** index that gates when many below-budget tics compound, a **cluster** rule for paragraphs carrying several distinct shapes, and a **persistence** check for shapes recurring below budget across consecutive chapters. `cluster_min_shapes` and `persistence_chapters` default to 3; `tic_load_mean_threshold` defaults to 0.75. All are tunable per book via the `[review]` table in `book/book.toml` (see the baseline below).
+
+> **Upgrading a book written before 0.7.0:** the tic-load index used to be an unnormalized sum configured by `tic_load_threshold`. That key is **no longer read** — its values (1, 3.0) are meaningless as mean ratios, so reinterpreting them would silently change what your config asserts. Delete the old key; a book that keeps it just falls back to the 0.75 default. Only set `tic_load_mean_threshold` if you had actually tuned the old one.
+
+The tic-load index is the **mean** budget utilization across tracked shapes — `Σ(instances ÷ budget) ÷ N` — deliberately not a sum. The tic ledger is an unbounded discovery log that only grows, so a summed index would tighten the gate as the ledger filled up, scoring the same unchanged chapter worse the later it was reviewed. A mean is invariant to `N`: adding a below-threshold entry can only lower it. (Catching one rampant shape is not this index's job — that already gates on its own budget.)
+
+`N` is the size of the tracked active set — every active, non-waived, non-zero-budget ledger entry, **including the ones with no instances in the chapter being reviewed**. Counting only the shapes that actually appear would make `N` vary chapter to chapter and re-introduce the coupling the mean exists to remove.
+
+The gate is self-calibrating via an **origin canary**: the index is computed for the fixed voice origin chapter first, and if the origin cannot clear the configured threshold, review reports the miscalibration and declines to gate on tic-load. The same test applies to individual budgets — a budget at or below the origin's own measured rate for that shape is mis-set, because it penalizes prose for sounding like the book's own voice. The general principle: **a bar the fixed origin cannot clear is measuring the ruler, not the manuscript.**
 
 ### Entity body: Current State + History
 
@@ -513,7 +556,8 @@ reading_wpm = 200
 
 # Tic-gate density thresholds for /authorkit.review Pass 2 (all optional; lower = stricter).
 # [review]
-# tic_load_threshold = 3.0     # chapter-wide compounding load that gates (sum of instances/budget)
+# tic_load_mean_threshold = 0.75  # chapter-wide compounding — mean budget utilization across
+#                                 # tracked shapes; a ratio, not a count (sane values 0.5–1.0)
 # cluster_min_shapes = 3       # distinct tic shapes in one paragraph that make a cluster finding
 # persistence_chapters = 3     # consecutive chapters a below-budget tic may recur before flagged
 

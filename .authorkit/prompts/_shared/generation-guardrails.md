@@ -1,3 +1,20 @@
+### Project Kind (book | collection)
+
+Every project has a **kind**, recorded as the `**Kind**:` field in `concept.md`. **If the field is absent, treat the project as `book`** — this preserves all default behavior for existing projects.
+
+- **`book`** *(default)* — one continuous work: a single arc (or argument) told across numbered chapters, with cross-chapter continuity, threads, and a disclosure horizon. All continuity machinery is on. This is what every command implements by default; the rest of this file assumes `book` unless it says otherwise.
+- **`collection`** — independent or loosely-ordered pieces that share an author voice (and optionally a broad theme and a shared reference), but **not** a single dramatic arc: an article series, an essay collection, a set of standalone guides. Each numbered unit is self-contained. The voice/tic/style defense stays **fully on** — it is the whole reason to run a collection through Author Kit; only the *cross-piece continuity* apparatus relaxes.
+
+**Vocabulary & substrate are unchanged for both kinds.** The on-disk layout stays `chapters/NN/`, `chapters.md`, and `CHxx` tags regardless of kind — for a `collection`, a "chapter" is simply one piece (article / essay / part). Do not rename anything; the substrate is an implementation detail. In author-facing prose you may call a unit a "piece" or "article" when the kind is `collection`.
+
+**Collection relaxations (apply only when kind = `collection`).** Wherever the default flow assumes cross-piece continuity, relax it:
+
+- **Outline (`/authorkit.write` Outline mode).** Do not synthesize a single cross-piece arc. Omit the outline's aggregate continuity sections — *Narrative Arc / Argument Flow*, *Character Arcs / Concept Progression*, *Thematic Thread Map*, *Continuation Notes* — and leave each entry's *Connections* (setup/payoff) empty or "N/A". Keep the per-piece fields (purpose, summary, key points, subjects/characters, closing beat). Skip cross-chapter pacing and the disclosure-horizon validation. A shared editorial theme across pieces is allowed, but without the Introduced → Developed → Resolved lifecycle.
+- **Review — craft roster (Analysis Passes).** **Pass 4 (Cross-Chapter & Plot-Arc)**: run its **World & canon consistency** bullet (per-piece, against `world/`) **and its Voice texture continuity bullet** (which still governs any persona, subject, or register recurring across pieces — the voice machinery does not relax); skip the cross-chapter flow/contradiction, quantitative-drift-across-chapters, backstory-verification, knowledge-boundary, and plot-arc-convergence bullets. **Pass 5 (Disclosure Horizon)**: **skip** — N/A, no later piece owns a reveal. Passes 1, 2, 3, 6, 7 run unchanged.
+- **Review — manuscript drift sweep (Step 2).** Skip the continuity passes **A (Continuity & Timeline)**, **D (Pacing Analysis)**, **G (Plot Thread Tracking)**, **J (Quantitative Continuity Ledger)**, and **K (Premature Disclosure)**. Relax **B (Character Consistency)** and **C (Theme & Motif)** to a shared-persona / shared-theme check across pieces (drop foreshadowing-payoff and cross-piece arc expectations). Relax **F (Argument Coherence)** to *within a single piece*. Keep **E / E1 (voice & drift trajectory)**, **H (parked decisions)**, **I (world consistency — read as glossary consistency)**, and **L (scaffolding leakage — it reinforces per-piece independence)**. In **Step 1**, skip **1e (Outline Aggregate-Section Resynthesis)** in lockstep, since those outline sections are not produced.
+- **World (`/authorkit.write` Reconcile, `/authorkit.discuss` World Seed).** `world/` is an **optional shared glossary / reference** for recurring people, terms, and facts across pieces — not a narrative-continuity canon. `(CHxx)` tags act as per-piece namespacing, not a timeline; "previous chapter carry-over" is optional.
+- **Voice origin stays shared (unchanged).** A `collection` carries **one author voice** by default, so the single fixed origin (earliest approved pieces) still governs every piece. Do not weaken the style / tic / voice machinery — it is identical for both kinds.
+
 ### Reader-Facing Surface
 
 - The reader of the finished book sees **only the drafted chapters** (the manuscript exported by `authorkit book build`). Every other artifact — `concept.md`, `outline.md`, `chapters.md`, `world/`, `research/`, chapter plans, reviews, and the constitution — is **internal scaffolding that never ships**.
@@ -199,10 +216,16 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
    chapter by default (per 1,000 words in long chapters), **any single instance for a
    zero-budget form** — or on a rising active ledger
    entry; density also compounds — a paragraph carrying 3+ distinct shapes is a cluster
-   finding, and a chapter-wide **tic-load** (Σ instances÷budget) at/above the configured
-   threshold gates even with every shape individually under budget (thresholds tunable per
-   book in `book/book.toml` `[review]`: `cluster_min_shapes`, `tic_load_threshold`,
-   `persistence_chapters` — all default 3) — but on a *re-review* only the prior review's still-over-budget gating shapes gate,
+   finding, and a chapter-wide **tic-load** — the *mean* budget utilization
+   `Σ(instances÷budget) ÷ N`, not a sum, so the index stays invariant as the discovery
+   ledger grows — at/above the configured threshold gates even with every shape
+   individually under budget (thresholds tunable per book in `book/book.toml` `[review]`:
+   `cluster_min_shapes` and `persistence_chapters`, both default 3;
+   `tic_load_mean_threshold`, default 0.75). The tic-load gate is calibrated by an
+   **origin canary**: the index is computed for the fixed voice origin chapter first, and
+   if the origin cannot clear the threshold the threshold is mis-set, not the prose —
+   review reports it and does not gate on tic-load. A bar the fixed origin cannot clear is
+   measuring the ruler, not the manuscript. On a *re-review* only the prior review's still-over-budget gating shapes gate,
    plus any regression the last revise introduced; freshly-discovered non-regression shapes
    are logged and reported as non-gating residual/seeds, not blockers, so the blind pass can
    keep finding new tics without re-opening the gate every cycle. The gate clears
@@ -227,9 +250,12 @@ runs them on new prose, and AutoPilot inherits all three. The passes, in order (
    referenced *draft* (not the outline), knowledge boundaries across chapters, and plot-arc
    convergence (a thread advanced here matches where prior chapters left it). The world/canon
    cross-check runs whenever `world/` exists — including on chapter 1, against the
-   `(CONCEPT)`-seeded entries; only the cross-chapter items need prior chapters.
+   `(CONCEPT)`-seeded entries; only the cross-chapter items need prior chapters. *Kind
+   `collection`: run the world/canon cross-check and voice-texture continuity; skip the
+   plot/timeline cross-chapter bullets (see Project Kind).*
 5. **Disclosure Horizon** — no premature disclosure / proleptic narration leaking
-   future-chapter content. (See Disclosure Horizon Protocol.)
+   future-chapter content. (See Disclosure Horizon Protocol.) *Kind `collection`: N/A — skip
+   this pass; independent pieces have no later chapter to leak into.*
 6. **Standalone Readability** — the chapter stands on its own without the scaffolding. (See
    Reader-Facing Surface → Standalone Readability self-check.)
 7. **Craft & Structure** — plan adherence, pacing, show-vs-tell, dialogue, description,

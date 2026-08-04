@@ -3,6 +3,7 @@
 **Book**: [BOOK TITLE]
 **Updated**: [YYYY-MM-DD]
 **Origin Reference**: [voice-origin pin | earliest approved CHs | voice exemplars]
+**Origin Load**: [cached tic-load index of the origin chapter, e.g. `0.42 (N=14, as of CH07 review)` — review Pass 2's origin-canary pre-check. Recompute only when the contributing set, its budgets, or the threshold changes; if this reaches `tic_load_mean_threshold` the threshold is mis-set, not the prose.]
 
 <!-- The living, book-specific catalog of AI-typical prose tics, maintained by
      /authorkit.review (Pass 2 — AI-Tic Audit). Entries are DISCOVERED by blind
@@ -31,7 +32,12 @@
                   under ## Retired Entries. A rediscovered retired shape
                   reactivates with its history intact.
 
-     IDs are permanent and never reused. -->
+     IDs are permanent and never reused. Allocate a new id as max(existing id) + 1
+     scanned across ALL sections of this file — Active, Seed AND Retired — never
+     per-section: retired entries have already spent their numbers, so taking the
+     high-water mark from the live sections alone re-issues ids and files two
+     different shapes under one id. Review Step B re-checks for duplicate ids
+     before every write-back. -->
 
 ## Active Entries
 

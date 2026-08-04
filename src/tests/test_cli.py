@@ -4003,7 +4003,7 @@ def test_review_prompt_literal_sweep_and_cluster_rules():
     # The three density thresholds are tunable per book via book.toml [review];
     # the prompt must name the keys and their defaults, and the setup scripts must
     # document them in the generated book.toml.
-    for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+    for key in ("tic_load_mean_threshold", "cluster_min_shapes", "persistence_chapters"):
         assert key in review, f"review.md must name the configurable threshold {key}"
     assert "`[review]`" in review or "[review]" in review, "review.md must point at book.toml's [review] table"
     for script in (
@@ -4011,8 +4011,229 @@ def test_review_prompt_literal_sweep_and_cluster_rules():
         repo_root / ".authorkit" / "scripts" / "powershell" / "setup-book.ps1",
     ):
         body = script.read_text(encoding="utf-8")
-        for key in ("tic_load_threshold", "cluster_min_shapes", "persistence_chapters"):
+        for key in ("tic_load_mean_threshold", "cluster_min_shapes", "persistence_chapters"):
             assert key in body, f"{script.name} must document {key} in the generated book.toml"
+        assert "tic_load_threshold = " not in body, (
+            f"{script.name} must not seed the legacy sum-semantics key into new book.toml files"
+        )
+
+
+def test_tic_load_index_is_a_mean_not_a_sum():
+    """The tic-load index must be normalized by the number of contributing shapes.
+
+    The tic ledger is an unbounded discovery log, so an un-normalized sum compared
+    against a constant threshold tightens the gate as the ledger grows -- the same
+    unchanged chapter scores worse the later it is reviewed. Guards the formula, the
+    renamed key, and the retirement of the old sum-semantics key.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    guardrails = (repo_root / ".authorkit" / "prompts" / "_shared" / "generation-guardrails.md").read_text(
+        encoding="utf-8"
+    )
+    catalog = (repo_root / ".authorkit" / "prompts" / "_shared" / "literary-tic-catalog.md").read_text(
+        encoding="utf-8"
+    )
+
+    # The formula is a mean: the sum is divided by the count of contributing shapes.
+    assert "Σ (instances ÷ budget) ÷ N" in review, "Pass 2 must define tic-load as a mean"
+    assert "mean budget utilization" in review.lower()
+
+    # The renamed key replaces the old one everywhere it is *configured*.
+    assert "tic_load_mean_threshold" in review
+    for text, name in ((review, "review.md"), (guardrails, "guardrails")):
+        assert "tic_load_threshold = " not in text, f"{name} must not present the legacy key as settable"
+
+    # N must be well-defined even though most real ledger entries omit `Budget:`.
+    assert "always well-defined" in review, (
+        "The spec must state that every contributing shape has an effective budget, so N is defined"
+    )
+
+    # The denominator must be unambiguous. "Shapes in this draft" reads two ways -- every
+    # tracked active entry, or only those with instances -- and on the reference book the
+    # same chapter scores 0.685 or 1.198 under the two readings, flipping the voice origin
+    # from pass to fail and disabling the gate on every book via the canary.
+    assert "including those with zero instances this chapter" in review, (
+        "N must explicitly include zero-instance entries"
+    )
+    assert "the number of shapes that happen to appear" in review, (
+        "The spec must rule out the present-shapes-only reading of N"
+    )
+
+    # The mirrored summaries must not still describe a sum.
+    assert "not a sum" in guardrails or "÷ N" in guardrails, "Guardrails roster must mirror the mean"
+    assert "mean" in catalog.lower(), "Seed catalog cross-reference must mirror the mean"
+
+
+def test_origin_canary_calibration_rule():
+    """A bar the fixed origin cannot clear is measuring the ruler, not the manuscript.
+
+    Pass 2 must compute the index for the resolved voice origin before gating, and must
+    refuse to gate on tic-load when the origin itself fails. The same test must apply to
+    individual budgets, which is what makes a rate budget equal to the origin's own rate
+    a defect rather than a permanent tax on compliant prose.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    template = (repo_root / ".authorkit" / "templates" / "tic-ledger-template.md").read_text(encoding="utf-8")
+
+    assert "origin-canary" in review.lower(), "Pass 2 must carry the origin-canary pre-check"
+    assert "measuring the ruler, not the manuscript" in review, "The general principle must be stated plainly"
+    # It is a pre-check that suppresses the gate, not merely a reported observation.
+    assert "do not gate on tic-load" in review
+
+    # Budgets are calibrated against the origin too (the em-dash baseline-tax class of bug).
+    assert "mis-set by definition" in review
+
+    # The cached canary result has a documented home in the ledger header.
+    assert "**Origin Load**:" in template, "Ledger template must carry the cached origin-canary field"
+
+    # A mandatory pre-check must define its degenerate cases, or the first review of a
+    # fresh book hits an instruction it cannot follow: before any chapter is approved the
+    # resolved origin is the constitution + exemplars, with no chapter to measure.
+    assert "When the resolved origin is not a chapter" in review, (
+        "The canary must say what to do before any chapter is approved"
+    )
+    assert "When the chapter under review *is* the resolved origin" in review, (
+        "The canary must resolve the self-referential case (reviewing the origin itself)"
+    )
+
+
+def test_step_b_cannot_mint_a_colliding_tic_id():
+    """New ids come from the max across ALL sections, including Retired.
+
+    Scanning only the live sections re-issues numbers already spent by retired entries,
+    which files two different shapes under one id.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    review = (repo_root / ".authorkit" / "prompts" / "authorkit.review.md").read_text(encoding="utf-8")
+    template = (repo_root / ".authorkit" / "templates" / "tic-ledger-template.md").read_text(encoding="utf-8")
+
+    assert "max(existing id) + 1" in review, "Step B must specify the allocation rule"
+    assert "never per-section" in review
+    assert "Retired" in review
+    assert "Duplicate-id check" in review, "Step B write-back must re-check for collisions"
+    assert "max(existing id) + 1" in template, "The ledger template must carry the same rule"
+
+
+# --- Project kind (book | collection) -----------------------------------------
+
+
+def _authorkit_asset(*parts):
+    return (Path(__file__).resolve().parents[2] / ".authorkit").joinpath(*parts).read_text(encoding="utf-8")
+
+
+def test_project_kind_is_defined_once_in_the_shared_guardrails():
+    """The canonical Project Kind definition lives in the guardrails, which are injected
+    into every rendered generation prompt at init -- so each command site only needs a
+    pointer, not its own copy of the rules."""
+    guardrails = _authorkit_asset("prompts", "_shared", "generation-guardrails.md")
+
+    assert "Project Kind (book | collection)" in guardrails
+    # Absent field must mean `book`, or every existing project changes behavior on upgrade.
+    assert "If the field is absent, treat the project as `book`" in guardrails
+    # The substrate deliberately does not fork.
+    assert "Vocabulary & substrate are unchanged for both kinds" in guardrails
+
+    # The guardrails are what actually reach a rendered command.
+    assert "generation-guardrails.md" in str(cli.SHARED_GUARDRAILS_PATH)
+    for prompt in ("authorkit.review.md", "authorkit.write.md", "authorkit.discuss.md"):
+        assert prompt in cli.GUARDRAIL_PROMPT_ALLOWLIST, f"{prompt} must receive the Project Kind block"
+
+
+def test_collection_kind_relaxations_are_marked_at_every_site():
+    """Each place that assumes cross-piece continuity must carry its own collection rider,
+    since the model acts on the local instruction, not on the definition alone."""
+    review = _authorkit_asset("prompts", "authorkit.review.md")
+    write = _authorkit_asset("prompts", "authorkit.write.md")
+    discuss = _authorkit_asset("prompts", "authorkit.discuss.md")
+    concept_tpl = _authorkit_asset("templates", "concept-template.md")
+    outline_tpl = _authorkit_asset("templates", "outline-template.md")
+
+    # Concept carries the field; `book` is the written default.
+    assert "**Kind**: book" in concept_tpl
+
+    # Outline template marks every aggregate section a collection omits.
+    assert outline_tpl.count("Kind = collection") >= 4, (
+        "Arc, character-arc, thematic-thread and continuation sections must each be marked"
+    )
+
+    # Review: craft passes 4 and 5, drift-sweep roster, and step 1e.
+    assert "Kind `collection`" in review
+    assert "**skip this pass** (score N/A)" in review, "Pass 5 (Disclosure Horizon) must be skipped"
+    assert "**skip 1e**" in review, "Outline aggregate resynthesis must be skipped in lockstep"
+    assert "**Project kind (read first).**" in review, "The drift sweep roster must gate on kind"
+
+    # Write: outline mode and reconcile.
+    assert "**Project kind (read first).**" in write, "Outline mode must gate on kind"
+    assert "Kind `collection`" in write, "Reconcile must carry the glossary rider"
+
+    # Discuss: conceive sets it, world seed reads it.
+    assert "Kind" in discuss and "collection" in discuss
+
+
+def test_collection_kind_never_relaxes_the_voice_defense():
+    """Regression guard. The whole justification for running a collection through Author
+    Kit is the voice/tic/style defense, and the guardrails promise it is identical for
+    both kinds. Pass 4's collection rider once skipped voice-texture continuity, which
+    silently broke that promise -- and contradicted the drift sweep, which keeps a
+    shared-persona check, and world/, which seeds recurring people across pieces.
+    """
+    guardrails = _authorkit_asset("prompts", "_shared", "generation-guardrails.md")
+    review = _authorkit_asset("prompts", "authorkit.review.md")
+
+    assert "Do not weaken the style / tic / voice machinery" in guardrails
+    assert "Passes 1, 2, 3, 6, 7 run unchanged" in guardrails, (
+        "The gating voice/tic passes must stay on for a collection"
+    )
+
+    # Pass 4's rider must KEEP voice texture, not skip it. Select it explicitly rather
+    # than by a positional heuristic, so a reworded rider fails with a useful message
+    # instead of a bare StopIteration.
+    riders = [ln for ln in review.splitlines() if ln.startswith("*Kind `collection`")]
+    assert riders, "review.md must carry per-pass collection riders"
+    pass4 = [ln for ln in riders if "World & canon consistency" in ln]
+    assert len(pass4) == 1, f"expected exactly one Pass 4 collection rider, found {len(pass4)}"
+    rider = pass4[0]
+
+    assert "and Voice texture continuity" in rider, "Pass 4 must keep voice-texture continuity"
+    assert "**Keep**" in rider, "Pass 4 rider must name what it keeps, not only what it skips"
+    skip_clause = rider.split("**Keep**")[0]
+    assert "voice-texture" not in skip_clause.lower(), (
+        "voice-texture continuity must not appear in the collection skip list"
+    )
+
+    # The canonical list and the implementation must agree on what is skipped.
+    for bullet in (
+        "flow/contradiction",
+        "quantitative-drift-across-chapters",
+        "backstory-verification",
+        "knowledge-boundary",
+        "plot-arc-convergence",
+    ):
+        assert bullet in guardrails, f"guardrails must name {bullet} as skipped"
+        assert bullet in skip_clause, f"review.md Pass 4 must skip {bullet}"
+
+    # Every place that describes Pass 4 for a collection must agree that voice texture is
+    # KEPT -- not just that the skip lists match. The guardrails describe Pass 4 twice (the
+    # Project Kind block and the Analysis Passes roster). An unqualified "run only its
+    # World & canon consistency bullet" in either one silently excludes voice texture while
+    # the skip lists still agree, so comparing skip lists alone does not catch it.
+    for excluding_phrase in (
+        "run only its **World & canon consistency**",
+        "run only the world/canon cross-check",
+        "skip every cross-chapter bullet",
+    ):
+        assert excluding_phrase not in guardrails, (
+            f"{excluding_phrase!r} excludes voice-texture continuity from Pass 4"
+        )
+    # And both descriptors must name it positively.
+    assert "**and its Voice texture continuity bullet**" in guardrails, (
+        "The Project Kind block must state that Pass 4 keeps voice-texture continuity"
+    )
+    assert "voice-texture continuity" in guardrails, (
+        "The Analysis Passes roster must state that a collection keeps voice-texture continuity"
+    )
 
 
 def test_ledger_template_class_field_and_lifecycle():
