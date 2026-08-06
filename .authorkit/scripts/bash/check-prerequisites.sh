@@ -43,6 +43,7 @@ if $PATHS_ONLY; then
   else
     echo "REPO_ROOT: $REPO_ROOT"
     echo "BOOK_DIR: $BOOK_DIR"
+    echo "BOOK_LANGUAGE: $BOOK_LANGUAGE"
     echo "BOOK_CONCEPT: $BOOK_CONCEPT"
     echo "STYLE_ANCHOR: $STYLE_ANCHOR"
     echo "OUTLINE: $OUTLINE"
@@ -103,9 +104,10 @@ if $JSON_MODE; then
     json_docs=$(printf '"%s",' "${docs[@]}")
     json_docs="[${json_docs%,}]"
   fi
-  printf '{"BOOK_DIR":"%s","STYLE_ANCHOR":"%s","AVAILABLE_DOCS":%s}\n' "$BOOK_DIR" "$STYLE_ANCHOR" "$json_docs"
+  printf '{"BOOK_DIR":"%s","BOOK_LANGUAGE":"%s","STYLE_ANCHOR":"%s","AVAILABLE_DOCS":%s}\n' "$BOOK_DIR" "$BOOK_LANGUAGE" "$STYLE_ANCHOR" "$json_docs"
 else
   echo "BOOK_DIR:$BOOK_DIR"
+  echo "BOOK_LANGUAGE:$BOOK_LANGUAGE"
   echo "STYLE_ANCHOR:$STYLE_ANCHOR"
   echo "AVAILABLE_DOCS:"
   # `check_file` returns 1 when the file is missing — that's expected for an

@@ -248,11 +248,17 @@ else
   fi
 fi
 
+# Read the language back from the file we just wrote rather than from the
+# input variables: on the update path only an explicitly-passed --language was
+# applied, so the file is the only place that knows the effective value.
+RESOLVED_LANGUAGE="$(get_book_language "$BOOK_DIR")"
+
 if $JSON_MODE; then
-  printf '{"BOOK_DIR":"%s","CONCEPT_FILE":"%s","STYLE_ANCHOR":"%s","BOOK_TOML":"%s","HAS_GIT":%s}\n' \
-    "$BOOK_DIR" "$BOOK_CONCEPT" "$STYLE_ANCHOR" "$BOOK_TOML" "$HAS_GIT"
+  printf '{"BOOK_DIR":"%s","BOOK_LANGUAGE":"%s","CONCEPT_FILE":"%s","STYLE_ANCHOR":"%s","BOOK_TOML":"%s","HAS_GIT":%s}\n' \
+    "$BOOK_DIR" "$RESOLVED_LANGUAGE" "$BOOK_CONCEPT" "$STYLE_ANCHOR" "$BOOK_TOML" "$HAS_GIT"
 else
   echo "BOOK_DIR: $BOOK_DIR"
+  echo "BOOK_LANGUAGE: $RESOLVED_LANGUAGE"
   echo "CONCEPT_FILE: $BOOK_CONCEPT"
   echo "STYLE_ANCHOR: $STYLE_ANCHOR"
   echo "BOOK_TOML: $BOOK_TOML"

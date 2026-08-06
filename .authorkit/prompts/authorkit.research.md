@@ -40,7 +40,7 @@ By default this command writes only research artifacts. **World sync is offered 
 
 ## Outline
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root (the `scripts:` frontmatter selects the right shell-flavor flags). Parse `BOOK_DIR` and `BOOK_CONCEPT`. All paths must be absolute.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root (the `scripts:` frontmatter selects the right shell-flavor flags). Parse `BOOK_DIR`, `BOOK_LANGUAGE`, and `BOOK_CONCEPT`. All paths must be absolute. Per the shared guardrails' *Language Protocol* (absent `BOOK_LANGUAGE` ⇒ `en-US`), write topic notes and any `world/` sync bodies in the book's prose language — sources may be in any language, and quoted source text stays verbatim with its language noted.
 
 2. **Parse user intent and optional directives**:
    - Infer topic, scope, and source preferences from free-form text first.

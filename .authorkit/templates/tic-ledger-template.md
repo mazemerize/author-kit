@@ -42,9 +42,10 @@
 ## Active Entries
 
 ### TIC-001: [short name of the construction]
-**Discovered**: [CHnn review, YYYY-MM-DD] ([N] instances) | **Seeded from**: [catalog #NN, bootstrap entries only — omit for discovered entries]
+**Discovered**: [CHnn review, YYYY-MM-DD] ([N] instances) | **Seeded from**: [catalog #NN (lang), or tic-catalog-<lang> #XX-nn for a language-only entry — bootstrap entries only; omit for discovered entries]
 **Shape**: [one-line description of the construction]
 **Class**: [lexical | phrase | constructional | structural — optional; `phrase` entries with exact strings are checked by literal search (Grep) in review Step B]
+**Lang**: [universal | language subtag (`en`, `fr`, …) — optional, defaults to `universal`. A shape seeded from the catalog is `universal`; an entry whose content is exact strings (seeded from a `tic-catalog-<lang>.md` pack, or discovered in the prose) belongs to that language. Only entries matching the book's language (or `universal`) are swept and counted.]
 **Budget**: [N per chapter | N per 1,000 words | 0 = flag on sight. Seeded entries inherit the seed catalog's budget; discovered entries default to 3 per chapter (0.75/1,000 words in chapters over ~4,000 words)]
 **From this book**: "[quoted instance from a draft]" ([CHnn])
 **Origin does instead**: "[counter-example from the origin prose — how the origin accomplishes the same job]"

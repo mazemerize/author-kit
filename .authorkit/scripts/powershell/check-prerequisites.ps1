@@ -63,6 +63,7 @@ if ($PathsOnly) {
     } else {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
         Write-Output "BOOK_DIR: $($paths.BOOK_DIR)"
+        Write-Output "BOOK_LANGUAGE: $($paths.BOOK_LANGUAGE)"
         Write-Output "BOOK_CONCEPT: $($paths.BOOK_CONCEPT)"
         Write-Output "STYLE_ANCHOR: $($paths.STYLE_ANCHOR)"
         Write-Output "OUTLINE: $($paths.OUTLINE)"
@@ -112,11 +113,13 @@ if ($IncludeChapters -and (Test-Path $paths.CHAPTERS)) {
 if ($Json) {
     [PSCustomObject]@{
         BOOK_DIR       = $paths.BOOK_DIR
+        BOOK_LANGUAGE  = $paths.BOOK_LANGUAGE
         STYLE_ANCHOR   = $paths.STYLE_ANCHOR
         AVAILABLE_DOCS = $docs
     } | ConvertTo-Json -Compress
 } else {
     Write-Output "BOOK_DIR:$($paths.BOOK_DIR)"
+    Write-Output "BOOK_LANGUAGE:$($paths.BOOK_LANGUAGE)"
     Write-Output "STYLE_ANCHOR:$($paths.STYLE_ANCHOR)"
     Write-Output "AVAILABLE_DOCS:"
 

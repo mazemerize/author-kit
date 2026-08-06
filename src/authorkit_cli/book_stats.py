@@ -35,8 +35,17 @@ class ChapterStats:
     est_audio_minutes: float
 
 
+# Characters a line of dialogue can open with, across the conventions Author Kit
+# manuscripts actually use: straight and typographic quotes (English), guillemets
+# (French, Russian, Spanish), low-9 quotes (German, Polish), and the em/en dash
+# that opens a reply in French, Spanish, Russian and Polish typography.
+# The ASCII hyphen is deliberately absent: this reads raw markdown, where `- `
+# opens a list item far more often than a line of speech.
+DIALOGUE_OPENERS = ('"', "'", "“", "‘", "„", "«", "‹", "—", "–")
+
+
 def _count_dialogue_lines(markdown: str) -> int:
-    """Count non-empty lines that open with a quotation mark (dialogue heuristic).
+    """Count non-empty lines that open with a dialogue mark (heuristic).
 
     Args:
         markdown: Raw chapter markdown text.
@@ -45,7 +54,7 @@ def _count_dialogue_lines(markdown: str) -> int:
         int: Number of lines identified as dialogue.
     """
     lines = [line.strip() for line in markdown.splitlines() if line.strip()]
-    return sum(1 for line in lines if line.startswith('"') or line.startswith("'"))
+    return sum(1 for line in lines if line.startswith(DIALOGUE_OPENERS))
 
 
 def _mutagen_duration_seconds(path: Path) -> float:

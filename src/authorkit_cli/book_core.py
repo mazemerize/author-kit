@@ -21,6 +21,55 @@ WORLD_DIR_NAME = "world"
 CHAPTERS_DIR_NAME = "chapters"
 DIST_DIR_NAME = "dist"
 
+# Language tag used when book.toml declares none. Every project created before
+# the field mattered keeps behaving as an English one.
+DEFAULT_LANGUAGE = "en-US"
+
+# Best-effort primary-subtag -> display name map. Deliberately partial: it
+# exists so `language = "French"` can be stored as a tag and so callers can show
+# a human name, NOT to police which languages are allowed. Anything unknown
+# passes through untouched.
+_LANGUAGE_NAMES = {
+    "en": "English",
+    "fr": "French",
+    "de": "German",
+    "es": "Spanish",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "nl": "Dutch",
+    "sv": "Swedish",
+    "da": "Danish",
+    "no": "Norwegian",
+    "fi": "Finnish",
+    "pl": "Polish",
+    "cs": "Czech",
+    "ro": "Romanian",
+    "ru": "Russian",
+    "uk": "Ukrainian",
+    "tr": "Turkish",
+    "ar": "Arabic",
+    "he": "Hebrew",
+    "hi": "Hindi",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese",
+}
+# Reverse lookup for plain-name input, plus the endonyms an author is likely to
+# type for their own language.
+_LANGUAGE_TAGS = {name.lower(): tag for tag, name in _LANGUAGE_NAMES.items()} | {
+    "français": "fr",
+    "francais": "fr",
+    "deutsch": "de",
+    "español": "es",
+    "espanol": "es",
+    "italiano": "it",
+    "português": "pt",
+    "portugues": "pt",
+    "nederlands": "nl",
+    "polski": "pl",
+    "svenska": "sv",
+}
+
 @dataclass(slots=True)
 class ChapterDraft:
     """Represent one chapter draft file."""
@@ -156,6 +205,42 @@ def _coerce_optional_float(value: object, *, field: str, config_path: Path) -> f
     )
 
 
+def _coerce_language(value: object, *, field: str, config_path: Path) -> str:
+    """Coerce ``[book] language`` to a language tag, or raise BookConfigError.
+
+    Absent/empty means :data:`DEFAULT_LANGUAGE`. A plain language name
+    (``"French"``, ``"français"``) is normalized to its subtag so the value is
+    usable as pandoc's ``lang:`` and as an ID3 ``TLAN`` tag; anything the map
+    doesn't know passes through unchanged, since this is not a whitelist. Wrong
+    *types* still error loudly — ``language = true`` would otherwise reach the
+    manuscript frontmatter as the string ``"True"``.
+    """
+    if value is None:
+        return DEFAULT_LANGUAGE
+    if isinstance(value, bool) or not isinstance(value, str):
+        raise BookConfigError(
+            f"`{field}` in {config_path} must be a language tag or name (a string), got {value!r}.",
+            config_path=config_path,
+        )
+    text = value.strip()
+    if not text:
+        return DEFAULT_LANGUAGE
+    return _LANGUAGE_TAGS.get(text.lower(), text)
+
+
+def language_display_name(language: str) -> str:
+    """Human-readable name for a language tag, falling back to the tag itself.
+
+    ``fr-FR`` and ``fr`` both resolve to ``French``; an unmapped tag is returned
+    as-is so callers always have something to show.
+    """
+    text = (language or "").strip()
+    if not text:
+        return language_display_name(DEFAULT_LANGUAGE)
+    subtag = re.split(r"[-_]", text, maxsplit=1)[0].lower()
+    return _LANGUAGE_NAMES.get(subtag, text)
+
+
 def _ensure_table(value, *, field: str, config_path: Path) -> dict:
     """Coerce a config section to a table, erroring like the numeric coercers.
 
@@ -217,7 +302,7 @@ def parse_book_config(book_dir: Path) -> BookConfig:
 
     title = normalize_name(str(book_section.get("title") or book_dir.name))
     author = normalize_name(str(book_section.get("author") or "Unknown Author"))
-    language = str(book_section.get("language") or "en-US")
+    language = _coerce_language(book_section.get("language"), field="book.language", config_path=config_path)
     subtitle = normalize_name(str(book_section.get("subtitle") or ""))
 
     default_formats_raw = build_section.get("default_formats") or ["docx"]

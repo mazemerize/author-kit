@@ -50,7 +50,7 @@ If the user input is genuinely ambiguous, ask one clarifying question — do not
 
 ## Always-on Behavior
 
-1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR and AVAILABLE_DOCS. All paths must be absolute. If the script returns no BOOK_DIR (fresh repo, no `book/` workspace), enter **Conceive** mode below — do not error.
+1. **Setup**: Run `{{SCRIPT_CHECK_PREREQ}}` from repo root and parse BOOK_DIR, BOOK_LANGUAGE and AVAILABLE_DOCS. All paths must be absolute. If the script returns no BOOK_DIR (fresh repo, no `book/` workspace), enter **Conceive** mode below — do not error. Resolve `BOOK_LANGUAGE` (absent ⇒ `en-US`) per the shared guardrails' *Language Protocol* and write concept prose, world bodies, and discussion notes in that language.
 
 2. **Load whatever is available** (none are required except for specific modes):
    - `concept.md`, `outline.md`, `chapters.md`, `characters.md`
@@ -79,7 +79,8 @@ If the user input is genuinely ambiguous, ask one clarifying question — do not
 
 When `concept.md` does not exist:
 
-1. Run `setup-book` if the workspace itself doesn't exist (use the `{{SCRIPT_SETUP_BOOK}}` token — substituted at install time). Parse the JSON for `BOOK_DIR`, `CONCEPT_FILE`, `STYLE_ANCHOR`, `BOOK_TOML`, `HAS_GIT`. Do not create or rename git branches.
+1. Run `setup-book` if the workspace itself doesn't exist (use the `{{SCRIPT_SETUP_BOOK}}` token — substituted at install time). Parse the JSON for `BOOK_DIR`, `BOOK_LANGUAGE`, `CONCEPT_FILE`, `STYLE_ANCHOR`, `BOOK_TOML`, `HAS_GIT`. Do not create or rename git branches.
+   - **Set the prose language here** — this is the one place it is decided. Infer it from the author's description (the language they are writing to you in, or an explicit "the book is in X"), and pass it to the script as `--language <tag>` (`-Language <tag>` in PowerShell) so it lands in `book/book.toml`'s `[book] language`. Default to `en-US` and do not ask when the description is English with no signal otherwise; ask one question only when the signal is genuinely mixed (e.g. an English description of a French-language novel). The language lives in `book.toml` only — do **not** duplicate it as a concept field.
 2. Load `.authorkit/templates/concept-template.md` to know the required sections.
 3. Treat the user input as the initial book description. If empty, ask one open question: *"What's the book about? A sentence or two is enough."*
 4. Extract key concepts: genre, characters/subjects, setting, themes, tone, conflict/thesis.
@@ -420,6 +421,7 @@ Update the book constitution at `.authorkit/memory/constitution.md`. This is the
    - **Tic Waivers**: patterns the author sanctions as deliberate voice (or bans outright) — each must name the shape explicitly (by example or description; vague register language is not a waiver). Review records each waiver on the matching entry in `book/tic-ledger.md` (the living, book-specific tic catalog it maintains; the shipped `.authorkit/prompts/_shared/literary-tic-catalog.md` is only the bootstrap seed) and reports rather than flags the waived shape
    - **Content Boundaries**: sensitivity guidelines, research accuracy, content warnings
    - **Structural Rules**: chapter length targets, scene transitions, cliffhanger policy
+   - **Language-specific voice rules** (non-English books): register conventions the prose language forces a choice on — address form (`tu`/`vous`, `du`/`Sie`), dialogue punctuation style, tense conventions for narration (e.g. passé simple vs passé composé). The *language itself* is not a constitution principle: it lives in `book/book.toml` `[book] language` (see the shared guardrails' *Language Protocol*). If the author asks to change the book's language here, route it to `book.toml` instead, and treat it as an author decision affecting future prose only — surface the mismatch with existing drafts and never propose a silent retranslation.
 6. Each principle must be **actionable and testable** during chapter review. Include DO/DON'T examples where useful. The author may need fewer or more principles than the template provides — adjust accordingly.
 7. Validate before writing: no remaining unexplained tokens; principles declarative and testable; dates ISO `YYYY-MM-DD`; each principle could be used as a review criterion.
 8. Propose the write, get approval, then overwrite `.authorkit/memory/constitution.md`.

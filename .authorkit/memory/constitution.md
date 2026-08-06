@@ -9,7 +9,13 @@
      a principle below, by example or description (e.g. "polysyndeton is part
      of the voice"); review records the waiver on the matching ledger entry.
      Vague wording like "literary register" is not a waiver. Generation never
-     sees the ledger — it learns the voice from book/voice-pairs.md. -->
+     sees the ledger — it learns the voice from book/voice-pairs.md.
+
+     Prose language is NOT set here: it lives in book/book.toml `[book]
+     language` (absent = en-US) and reaches every command as BOOK_LANGUAGE.
+     What does belong here are the voice rules a language forces a choice on —
+     address form (tu/vous, du/Sie), dialogue punctuation style, narrative
+     tense convention (e.g. passé simple vs passé composé). -->
 
 ### [PRINCIPLE_1_NAME]
 <!-- Example: I. Narrative Voice -->
