@@ -3982,8 +3982,11 @@ def test_catalog_new_patterns_and_budget_table():
     assert re.search(r"7, 13, 21, 22, 23, 24, 29, 33, 35, 36, 41", catalog), (
         "Seeding list must name the new high-signal patterns 29/33/35/36/41"
     )
-    # The user-requested zero-budget summary-closer boilerplate is present and greppable
-    assert "that was the whole of it" in catalog
+    # The user-requested zero-budget summary-closer boilerplate is still shipped and
+    # greppable -- it lives in the English pack now, since the string is a realization
+    # and this file holds shapes only.
+    en_pack = (repo_root / ".authorkit" / "prompts" / "_shared" / "tic-catalog-en.md").read_text(encoding="utf-8")
+    assert "that was the whole of it" in en_pack
 
 
 def test_review_prompt_literal_sweep_and_cluster_rules():
@@ -4502,62 +4505,96 @@ def test_language_riders_are_marked_at_every_command_site():
     assert "do **not** duplicate it as a concept field" in discuss
 
 
-def test_tic_catalog_scopes_language_bound_patterns():
-    """The tic catalog mixes universal shapes with English strings. A non-English book must
-    seed only what can match: seeding a dead non-zero-budget entry (28) would join N in the
-    tic-load mean and drag the index down, which is the coupling that index exists to avoid."""
+def test_tic_catalog_holds_shapes_not_realizations():
+    """The catalog defines shapes; every language's realization lives in its own pack. If a
+    corpus string leaks back into the catalog, English stops being a language like any other
+    and the pack mechanism goes back to being exercised only by non-English books."""
     catalog = _authorkit_asset("prompts", "_shared", "literary-tic-catalog.md")
 
-    assert "## Language Scope" in catalog
-    # The two string-bound patterns carry the marker.
-    assert "**Class:** lexical · **Volatility: high** · **Lang: en**" in catalog, "pattern 28"
-    assert "**Class:** phrase · **Lang: en**" in catalog, "pattern 29"
-    # Non-English seeding rule names the pack convention and the fallback.
+    assert "## Language Scope & Packs" in catalog
     assert "tic-catalog-<lang>.md" in catalog
     assert "primary subtag" in catalog
-    assert "No pack for the language?" in catalog
+    assert "No pack for the book's language?" in catalog
     # Em-dash budget must not flag dash-led dialogue as a tic.
     assert "Typography-conditional" in catalog
 
-
-def test_french_tic_pack_ships_and_stays_quarantined():
-    """The French pack is a review-side seed like the English catalog: installed with the
-    prompts, never referenced by the drafting command (pattern descriptions in a drafting
-    context prime the constructions they prohibit)."""
-    pack = _authorkit_asset("prompts", "_shared", "tic-catalog-fr.md")
-
-    assert "**Lang: fr**" in pack
-    assert "Never load this file while drafting" in pack
-    # The pack's highest-value tier: zero-budget greppable strings.
-    assert "**Class:** phrase · **Lang: fr** · **Budget: 0**" in pack
-    # Volatile lexical tier is never seeded, same rule as the English canon.
-    assert "**Volatility: high**" in pack and "never seeded" in pack
-    # French typography must not be counted as an em-dash tic.
-    assert "do **not** count toward universal pattern 20" in pack
-
-    write = _authorkit_asset("prompts", "authorkit.write.md")
-    assert "tic-catalog-fr" not in write, "drafting must never load the French pack"
-
-    review = _authorkit_asset("prompts", "authorkit.review.md")
-    assert "tic-catalog-<lang>.md" in review, "review Pass 2 must know how to find a language pack"
+    # No English corpus strings, lexical canon, or exact-string examples may remain here.
+    for string in (
+        "hung in the air",
+        "little did",
+        "heart skipped a beat",
+        "released a breath",
+        "the way one names",
+        "delve, tapestry",
+        "part of her wanted to stay",
+    ):
+        assert string not in catalog, f"{string!r} is an English realization -- it belongs in tic-catalog-en.md"
 
 
-def test_french_tic_pack_is_installed_and_managed():
-    """`_shared/` is copied wholesale at init, so the pack must land in the project and be
-    tracked in the manifest -- otherwise a later re-init would not clean it up."""
+def test_language_packs_are_symmetric():
+    """English and French are the same kind of thing: a pack per language, keyed by the same
+    shape numbers, seeded by the same rule. Every numbered pack section must name a shape the
+    catalog actually defines, or the ledger's `Seeded from` provenance points at nothing."""
+    catalog = _authorkit_asset("prompts", "_shared", "literary-tic-catalog.md")
+    shapes = {int(m.group(1)) for m in re.finditer(r"^### (\d+)\.", catalog, re.M)}
+
+    for lang in ("en", "fr"):
+        pack = _authorkit_asset("prompts", "_shared", f"tic-catalog-{lang}.md")
+        assert f"**Lang: {lang}**" in pack
+        assert "Never load this file while drafting" in pack, f"{lang} pack must carry the quarantine"
+        assert "Volatility: high" in pack and "never seeded" in pack.lower(), (
+            f"{lang} pack's lexical canon must stay out of default seeding"
+        )
+        # Zero-budget exact strings are the pack's highest-value tier.
+        assert "Budget: 0" in pack, f"{lang} pack must carry zero-budget exact strings"
+
+        keyed = {int(m.group(1)) for m in re.finditer(r"^## (\d+)\.", pack, re.M)}
+        assert keyed, f"{lang} pack must key its sections by shape number"
+        assert keyed <= shapes, (
+            f"{lang} pack realizes shapes the catalog does not define: {sorted(keyed - shapes)}"
+        )
+        # Both packs realize the two shapes that are nothing but strings.
+        assert {28, 29} <= keyed, f"{lang} pack must supply the lexical and stock-phrase canons"
+
+    # Language-only entries use their own prefixed ids, never a bare shape number.
+    fr_pack = _authorkit_asset("prompts", "_shared", "tic-catalog-fr.md")
+    assert re.search(r"^## FR-\d+\.", fr_pack, re.M), "French-only shapes must carry FR-nn ids"
+
+
+def test_tic_packs_are_installed_managed_and_quarantined():
+    """`_shared/` is copied wholesale at init, so both packs must land in the project and be
+    tracked in the manifest -- otherwise a later re-init would not clean them up. Neither may
+    be referenced from the drafting command's own body."""
     with isolated_filesystem():
         result = runner.invoke(cli.app, ["init", "--here", "--ai", "claude", "--script", "sh", "--no-git", "--force"])
         assert result.exit_code == 0, result.output
-        assert Path(".authorkit/prompts/_shared/tic-catalog-fr.md").exists()
         manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
-        assert ".authorkit/prompts/_shared/tic-catalog-fr.md" in manifest["managed_paths"]
-        # The rendered drafting command still names no catalog in its own body. (The
-        # injected guardrails block precedes "## User Input" and may mention the paths;
-        # the quarantine is about the command body, matching the seed-catalog test.)
+        for lang in ("en", "fr"):
+            rel = f".authorkit/prompts/_shared/tic-catalog-{lang}.md"
+            assert Path(rel).exists(), f"{rel} must be installed"
+            assert rel in manifest["managed_paths"], f"{rel} must be tracked in the manifest"
+
+        # The rendered drafting command names no catalog in its own body. (The injected
+        # guardrails block precedes "## User Input" and may mention the paths; the
+        # quarantine is about the command body, matching the seed-catalog test.)
         rendered_write = Path(".claude/commands/authorkit.write.md").read_text(encoding="utf-8")
         write_body = rendered_write.split("## User Input", 1)[1]
-        assert "tic-catalog-fr" not in write_body
-        assert "literary-tic-catalog" not in write_body
+        for name in ("tic-catalog-en", "tic-catalog-fr", "literary-tic-catalog"):
+            assert name not in write_body, f"drafting must never load {name}"
+
+
+def test_review_seeds_shapes_plus_the_books_language_pack():
+    """Seeding must run the same way for every language, English included -- that symmetry is
+    the whole point of splitting realizations out of the catalog."""
+    review = _authorkit_asset("prompts", "authorkit.review.md")
+
+    assert "tic-catalog-<lang>.md" in review
+    assert "primary subtag" in review
+    assert "This applies to English exactly as it does to every other language" in review
+    # The literal sweep is scoped to the book's own pack.
+    assert "book's own language pack" in review
+    # And a missing pack degrades to shapes-only rather than borrowing another language's.
+    assert "Never substitute another language's pack" in review
 
 
 def test_scripts_surface_book_language_in_both_flavors():

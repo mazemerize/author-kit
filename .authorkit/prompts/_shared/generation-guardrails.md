@@ -22,8 +22,8 @@ Every project has a **prose language**, recorded as `language` in `book/book.tom
 - **Written in the book's language**: the manuscript and everything that ships (chapter drafts, chapter titles, epigraphs), **and** the author-facing content of the scaffolding — `outline.md` entries, `chapters/NN/plan.md` bodies, `concept.md` prose, `world/` entry bodies, `research/` notes, review findings prose, discussion notes. The author reads these; they are not machine input.
 - **Always English, never translated** — the structural layer the commands and AutoPilot read back: file and directory names, template section headings, YAML frontmatter keys, status markers `[ ]` `[P]` `[D]` `[R]` `[X]`, evolution tags `(CONCEPT)` / `(CHxx)` / `(CHxx-rev)` / `(AMEND-…)`, `CHxx` ids, `TIC-NNN` ids and tic-ledger field names, severity labels, verdict labels (`APPROVED` / `NEEDS REVISION`), and the review's `**Gating Shapes**:` line. These are greppable contracts: a translated label silently breaks convergence detection and the carry-over rule.
 - **Quotes are verbatim.** Prose quoted into a review, `book/tic-ledger.md`, or `book/voice-pairs.md` keeps its original language — never translate a quoted instance, a counter-example, or a voice pair. The voice origin and `book/style-anchor.md` are built from the book's own prose and are therefore in the book's language by construction.
-- **Typography follows the target language**, not English defaults: French guillemets `« »` with non-breaking spaces and dash-led dialogue, German `„ "`, Spanish `¿ ¡`, and each language's own quotation, spacing, and dash conventions. Punctuation-shaped tic budgets are read against those conventions (see the seed catalog's *Language Scope*) — dialogue punctuation is typography, not a tic.
-- **Tic defense is language-scoped.** The seed catalog's structural and constructional patterns transfer to any language (the shape is the target, not the English example); its `Lang: en` entries — the lexical canon and the greppable exact-string clichés — apply only to English books, and a non-English book seeds instead from `.authorkit/prompts/_shared/tic-catalog-<lang>.md` when one ships for its language. The quarantine is unchanged: no catalog, no pack, and no ledger ever enters a drafting context.
+- **Typography follows the target language**, not English defaults: French guillemets `« »` with non-breaking spaces and dash-led dialogue, German `„ "`, Spanish `¿ ¡`, and each language's own quotation, spacing, and dash conventions. Punctuation-shaped tic budgets are read against those conventions (see the seed catalog's *Language Scope & Packs*) — dialogue punctuation is typography, not a tic.
+- **Tic defense is language-scoped, symmetrically.** `.authorkit/prompts/_shared/literary-tic-catalog.md` defines the *shapes* and is language-neutral; how each shape is realized — its examples, exact strings, and lexical canon — lives in that language's pack, `tic-catalog-<lang>.md`, resolved on the primary subtag (`en-US` → `en`, `fr-CA` → `fr`). **English is not a special case**: its realizations are in `tic-catalog-en.md` like any other language's. A book with no pack for its language seeds the shapes alone and relies on blind discovery. The quarantine is unchanged: no catalog, no pack, and no ledger ever enters a drafting context.
 - **A language change mid-book is an author decision.** If `BOOK_LANGUAGE` disagrees with the language of the existing drafts, say so and ask — never silently retranslate existing prose, and never start drafting in a different language than the manuscript without flagging it.
 - The Entropy Protocol is unaffected: `authorkit entropy name` seeds phonemes from a culture signal, which is chosen for the setting and is independent of the prose language.
 
@@ -197,9 +197,10 @@ book** and split across two artifacts with a strict boundary:
   exclusively as Active voice pairs. Review and revision (which read existing
   prose rather than generate fresh register) hold the ledger.
 - **The shipped catalog is a bootstrap seed only.**
-  `.authorkit/prompts/_shared/literary-tic-catalog.md` seeds the first ledger
-  entries when a book has no `book/tic-ledger.md` yet; once the ledger exists,
-  the ledger — not the catalog — is normative.
+  `.authorkit/prompts/_shared/literary-tic-catalog.md` (shapes) plus the book's
+  `tic-catalog-<lang>.md` (realizations) seed the first ledger entries when a
+  book has no `book/tic-ledger.md` yet; once the ledger exists, the ledger —
+  not the catalog or the pack — is normative.
 - **Constitution waivers stay explicit.** The author sanctions a pattern by
   naming it in the constitution (by example or description — a generic
   "literary register" note is not a waiver; a legacy waiver naming a

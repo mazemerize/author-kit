@@ -396,15 +396,19 @@ Typography follows your language, not English defaults — guillemets and dash-l
 
 ### The tic defense in another language
 
-The [AI-tic audit](#the-four-commands) is the part that needs language awareness, because half of it is made of English strings. The shipped seed catalog now marks each pattern:
+The [AI-tic audit](#the-four-commands) is the part that needs language awareness, because half of a tic catalog is made of strings. A tic has two layers, and Author Kit keeps them in separate files:
 
-- **Universal** patterns — the structural and constructional tells (negation-correction, decoder narration, epiphany cadence, templated scene shape) — are attractors of the *model*, not of English. They seed any book; the English examples illustrate the shape, and the shape is what's matched.
-- **`Lang: en`** patterns — the lexical canon (*delve, tapestry*) and the greppable corpus clichés (*"hung in the air"*) — are skipped entirely for a non-English book. They can't match, and seeding a dead entry would distort the tic-load index.
-- **Typography-conditional** patterns — em-dash density — are counted by your language's conventions: a dash that opens a line of French dialogue is punctuation, not a tic.
+- **The shape** — the move the model reaches for: negation-correction, decoder narration, epiphany cadence, templated scene shape. That's an attractor of the *model*, not of any language, and it surfaces wherever the model writes. The 47 shapes live in `.authorkit/prompts/_shared/literary-tic-catalog.md`, which is language-neutral.
+- **The realization** — the words that shape takes in one language: *"hung in the air"* in English, *« un frisson lui parcourut l'échine »* in French. Those live in per-language packs, `.authorkit/prompts/_shared/tic-catalog-<lang>.md`.
 
-A book then seeds from its **language pack** if one ships: `.authorkit/prompts/_shared/tic-catalog-<lang>.md`, matched on the primary subtag (`fr-CA` → `fr`). **French ships today** (`tic-catalog-fr.md`) with its own greppable clichés (*« un frisson lui parcourut l'échine »*), its own lexical canon, and French-specific constructions (*« ce n'était pas X, mais Y »*, expressive incises, characterization by nominalisation).
+Every book seeds from **the shapes plus its own language pack**, resolved on the primary subtag (`en-GB` → `en`, `fr-CA` → `fr`). **English is not a special case** — its examples, its lexical canon (*delve, tapestry*) and its greppable clichés are in `tic-catalog-en.md`, exactly as French's are in `tic-catalog-fr.md`. Both ship today.
 
-With no pack for your language, the universal patterns seed and blind discovery builds the rest from your own drafts — that's the designed fallback, and it's what the tic ledger exists for. To add a pack, copy `tic-catalog-fr.md`, keep the section shape, and replace the strings; review picks it up automatically once the file name matches your subtag.
+Two consequences worth knowing:
+
+- A pack is never borrowed across languages. An English cliché can't occur in French prose, so sweeping for it buys nothing — and seeding it as a tracked entry would drag down the tic-load index, which averages across every tracked shape.
+- Punctuation-shaped budgets follow your typography. The em-dash budget doesn't fire on French dash-led dialogue; each pack states its own conventions.
+
+With no pack for your language, the shapes seed and blind discovery builds the rest from your own drafts — the designed fallback, and what the tic ledger exists for. To add a pack: copy `tic-catalog-fr.md` or `tic-catalog-en.md`, keep the section numbering (each `## NN` realizes shape NN, and `XX-nn` sections are for constructions unique to your language), and replace the content. Review picks it up automatically once the filename matches your subtag.
 
 ### Also worth knowing
 
@@ -672,8 +676,9 @@ Audio narration instructions:
 |   |-- authorkit.*.md
 |   `-- _shared/                     # Cross-prompt guardrails included by multiple commands
 |       |-- generation-guardrails.md # Injected into every command at init
-|       |-- literary-tic-catalog.md  # Tic seed catalog (English + universal shapes)
-|       `-- tic-catalog-fr.md        # French tic seed pack (see Writing in Another Language)
+|       |-- literary-tic-catalog.md  # Tic shape definitions (language-neutral)
+|       |-- tic-catalog-en.md        # English realizations (see Writing in Another Language)
+|       `-- tic-catalog-fr.md        # French realizations
 |-- instructions/                    # Canonical instruction templates
 |   |-- claude.md.tmpl
 |   |-- copilot.md.tmpl
