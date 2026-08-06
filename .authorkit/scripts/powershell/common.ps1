@@ -50,6 +50,24 @@ function Get-BookDir {
     Join-Path $RepoRoot $AUTHORKIT_BOOK_DIR
 }
 
+function Get-BookLanguage {
+    # The book's prose language, from book/book.toml `[book] language`. Same
+    # extraction as setup-book.ps1's Read-ExistingTomlValue (that script owns
+    # writing the field; this one only reports it). Missing file or key means
+    # en-US, which keeps every project created before the field mattered
+    # behaving as before.
+    param([string]$BookDir)
+    $bookToml = Join-Path $BookDir 'book.toml'
+    if (Test-Path -Path $bookToml -PathType Leaf) {
+        $content = Get-Content -Path $bookToml -Raw -Encoding UTF8
+        if ($content -match '(?m)^language\s*=\s*"([^"]*)"\s*$') {
+            $value = $matches[1].Trim()
+            if ($value) { return $value }
+        }
+    }
+    return 'en-US'
+}
+
 function Get-BookPaths {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
@@ -61,6 +79,7 @@ function Get-BookPaths {
         CURRENT_BRANCH = $currentBranch
         HAS_GIT        = $hasGit
         BOOK_DIR       = $bookDir
+        BOOK_LANGUAGE  = Get-BookLanguage -BookDir $bookDir
         BOOK_CONCEPT   = Join-Path $bookDir 'concept.md'
         STYLE_ANCHOR   = Join-Path $bookDir 'style-anchor.md'
         OUTLINE        = Join-Path $bookDir 'outline.md'
@@ -76,13 +95,14 @@ function Get-BookPaths {
 function Get-BookPathsJson {
     $paths = Get-BookPaths
     [PSCustomObject]@{
-        REPO_ROOT    = $paths.REPO_ROOT
-        BOOK_DIR     = $paths.BOOK_DIR
-        BOOK_CONCEPT = $paths.BOOK_CONCEPT
-        STYLE_ANCHOR = $paths.STYLE_ANCHOR
-        OUTLINE      = $paths.OUTLINE
-        CHAPTERS     = $paths.CHAPTERS
-        HAS_GIT      = $paths.HAS_GIT
+        REPO_ROOT     = $paths.REPO_ROOT
+        BOOK_DIR      = $paths.BOOK_DIR
+        BOOK_LANGUAGE = $paths.BOOK_LANGUAGE
+        BOOK_CONCEPT  = $paths.BOOK_CONCEPT
+        STYLE_ANCHOR  = $paths.STYLE_ANCHOR
+        OUTLINE       = $paths.OUTLINE
+        CHAPTERS      = $paths.CHAPTERS
+        HAS_GIT       = $paths.HAS_GIT
     } | ConvertTo-Json -Compress
 }
 

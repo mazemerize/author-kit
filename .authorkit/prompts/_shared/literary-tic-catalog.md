@@ -65,6 +65,36 @@ studies, Wikipedia's *Signs of AI writing* field guide):
   training-corpus clichés, stable across models precisely because they come
   from the corpus, not the model.
 
+## Language Scope
+
+This catalog was written against **English** model prose. Its patterns are not
+equally portable, so each falls in one of three tiers — the tier decides what a
+non-English book seeds and sweeps (see *Non-English books* under *How to
+Apply*):
+
+- **Universal** *(default — every entry without a `Lang:` field)*. The
+  `structural` and `constructional` tells: clause symmetry, negation-correction,
+  reflexive deepening, decoder narration, templated scene shape, epiphany
+  cadence. These are attractors of the *model*, not of English, and they surface
+  in any language it writes. **The English examples illustrate the shape; the
+  shape is the target.** Match the construction as it is realized in the book's
+  language, never the English wording.
+- **`Lang: en`** — entries whose content *is* English strings: the lexical
+  canon (28) and the greppable stock-phrase canon (29), plus the zero-budget
+  exact-string forms carried inside 15, 21, 24 and 35. They are artifacts of an
+  English training corpus and have **no meaning in another language**: in a
+  non-English book they are never seeded, never swept, and never counted.
+  (Seeding them anyway is not harmless — a permanently-zero non-zero-budget
+  entry like 28 joins `N` in the tic-load mean and drags the index down, which
+  is exactly the coupling that index exists to avoid.) Their language-specific
+  equivalents come from that language's pack.
+- **Typography-conditional** — entries whose unit of measure is punctuation:
+  20 (em-dash interruption density) and any dialogue-punctuation-shaped form.
+  **Count only what the language's own conventions make a stylistic choice.**
+  Where the em-dash or guillemets *mark dialogue* (French, Spanish, Russian,
+  Polish…), dialogue-marking punctuation is typography and does not count
+  toward the budget; only interruptive dashes inside narration do.
+
 ## The Patterns
 
 ### 1. "The [noun] of a [noun] who [past habitual]" — character-by-aphorism
@@ -291,6 +321,9 @@ person.
 **Budget:** at most **three per 1,000 words** combined across the stock set.
 "Released a breath (s)he didn't know (s)he'd been holding" (any phrasing):
 **budget 0** — it is the single most recognizable AI-prose cliché.
+*(The stock set and the zero-budget phrasing are `Lang: en` exact strings; the
+somatic-rotation shape itself is universal. Non-English books take the strings
+from their language pack.)*
 
 ### 16. Appositive thematic tail
 
@@ -375,6 +408,12 @@ which is exactly what the constitution waiver mechanism is for.
 **Budget:** at most **four per 1,000 words**, no more than **two in a single
 paragraph**, unless the constitution names the em-dash as a voice choice.
 
+*Typography-conditional (see Language Scope).* In languages where the em-dash
+opens dialogue (French, Spanish, Russian, Polish…), a dialogue-marking dash is
+punctuation, not a gesture: count only interruptive dashes inside narration.
+Applying the English budget to dash-led dialogue flags the language's standard
+typography as a tic and would gate every correctly-typeset chapter.
+
 ### 21. Composure beats and trailing minimizers — the "let it go" family
 
 Narration that closes a beat by performing the character's (or the narrator's
@@ -404,7 +443,8 @@ exempt — the ban is on narration measuring itself.
 **Budget:** at most **one per chapter** as a narration beat-closer, never the
 same phrasing twice in a manuscript. The "(and) that was the whole of it" /
 "and that was all (of it)" phrasing family: **budget 0** — pure summary-closer
-boilerplate, greppable exact strings (see pattern 29).
+boilerplate, greppable exact strings (see pattern 29). *(That phrasing family
+is `Lang: en`; the composure-beat shape is universal.)*
 
 ### 22. Decoder narration — POV-as-analyst
 
@@ -465,7 +505,8 @@ thesis statement; a habit of them turns every figure into a proverb about themse
 
 **Fix:** let the character's actions and choices establish the creed; cut the summary.
 **Budget:** at most **one per character per chapter**, and **never** the "…was the whole of
-his X" closer absent an explicit constitution waiver.
+his X" closer absent an explicit constitution waiver. *(That closer is a `Lang: en` exact
+string; the creed-maxim shape is universal.)*
 
 ### 25. Participial / absolute-phrase scene-setting openers
 
@@ -523,7 +564,7 @@ becomes a verbal habit for any moment of hesitation.
 
 ### 28. Vocabulary canon — the rotating "AI word" list
 
-**Class:** lexical · **Volatility: high**
+**Class:** lexical · **Volatility: high** · **Lang: en**
 
 Words overused to the point of self-parody in AI prose. The list rotates
 model-to-model and season-to-season — "delve" was the 2023–24 canon and has
@@ -547,7 +588,7 @@ default — enters a ledger only via blind discovery.
 
 ### 29. Stock-phrase canon — greppable corpus clichés
 
-**Class:** phrase
+**Class:** phrase · **Lang: en**
 
 Exact strings inherited from the mass of genre fiction in every model's
 training corpus — stable across model generations precisely because they come
@@ -687,7 +728,8 @@ stock shorthand that tells the emotion while pretending to show it.
 
 **Fix:** give the character an action, a line, or a named feeling.
 **Budget:** at most **two per chapter**; the "eyes glinted with [abstraction]"
-form: **budget 0**.
+form: **budget 0**. *(That exact form is `Lang: en`; ocular agency itself is
+universal.)*
 
 ### 36. Portentous one-liner scene enders
 
@@ -936,6 +978,31 @@ literal Step B sweep costs nothing regardless of ledger status.
 `Volatility: high` entries (28) are never seeded — they enter a ledger only
 via blind discovery. After seeding, this file is out of the loop.
 
+**Non-English books.** Read `BOOK_LANGUAGE` (the shared guardrails' *Language
+Protocol*; absent ⇒ `en-US`) before seeding. When the book's language is not
+English:
+
+- Seed the **universal** entries from the list above, minus every `Lang: en`
+  one — so patterns 7, 13, 21, 22, 23, 24, 33, 35, 36 and 41 seed as shapes,
+  while 29 and the zero-budget exact-string forms inside 15, 21, 24 and 35 do
+  not. Record each seeded entry's `Lang:` as `universal` on the ledger.
+- **Also seed from the language pack** `.authorkit/prompts/_shared/tic-catalog-<lang>.md`
+  when one ships for that language, matched on the **primary subtag** (`fr-CA`,
+  `fr-FR` and `French` all resolve to `fr`). The pack supplies the strings and
+  constructions this catalog cannot: that language's greppable corpus clichés
+  (zero-budget, `phrase`-class), its lexical canon, and its own constructional
+  tells. Seed pack entries with `Lang: <subtag>` and the pack's budgets, under
+  the same rules — `Volatility: high` entries never seed.
+- **No pack for the language?** Seed the universal entries only and say so in
+  the review: the first chapters run with no language-specific string sweep
+  while blind discovery builds the ledger from this book's own drafts. That is
+  the designed fallback, not a failure — discovery is what the ledger is for.
+- The literal Step B sweep follows the same scoping: sweep the *book's*
+  language strings (pack entries plus discovered `phrase` entries), never the
+  English ones. An English string cannot occur in French prose, so sweeping it
+  costs a search and buys nothing — and seeding it as a tracked entry actively
+  distorts the tic-load mean.
+
 **Why the ledger outranks this catalog.** These budgets catch *known* patterns
 of the models this file was written against; they do not certify fidelity, and
 a chapter can respect every budget here and still read as AI-authored against
@@ -955,6 +1022,11 @@ consulted again when seeding a rediscovered pattern. Severity and gating are
 defined in the review prompt's Pass 2 severity mapping.
 
 ## Quick-reference budget table
+
+Budgets below are for English books. In a non-English book the `Lang: en` rows
+(28, 29, and the zero-budget string forms noted inside 15, 21, 24, 35) do not
+apply at all, and the language pack's own table supplies their replacements;
+row 20 is counted per the typography rule in *Language Scope*.
 
 | # | Pattern | Default budget |
 |---|---------|----------------|

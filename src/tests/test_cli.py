@@ -16,6 +16,7 @@ import pytest
 import authorkit_cli as cli
 import authorkit_cli.book_core as book_core
 import authorkit_cli.book_commands as book_commands
+import authorkit_cli.book_stats as book_stats
 import authorkit_cli.book_audio as book_audio
 import authorkit_cli.book_render as book_render
 import authorkit_cli.autopilot_core as autopilot_core
@@ -4455,3 +4456,184 @@ def test_autopilot_handles_keyboard_interrupt_gracefully(tmp_path, monkeypatch):
     assert any(o.get("outcome") == "interrupted" for o in outcomes)
     # The interrupted tick's own dispatch line was never recorded (post-processing never ran).
     assert not any(o.get("action") == "review" for o in outcomes)
+
+
+def test_language_protocol_is_defined_once_in_the_shared_guardrails():
+    """The canonical prose-language rule lives in the guardrails, which are injected into
+    every rendered generation prompt at init -- so each command site only needs a pointer.
+    The absent-field default is load-bearing: without it every existing project would
+    change behavior on upgrade."""
+    guardrails = _authorkit_asset("prompts", "_shared", "generation-guardrails.md")
+
+    assert "Language Protocol" in guardrails
+    assert "If the field is absent, empty, or unreadable, treat the language as `en-US`" in guardrails
+    # book.toml is the single source of truth, surfaced by the setup scripts.
+    assert "`BOOK_LANGUAGE`" in guardrails
+    assert "book/book.toml" in guardrails
+
+    # The machine-read layer must be named explicitly -- these are greppable contracts.
+    for label in ("**Gating Shapes**:", "`TIC-NNN`", "`(CHxx)`", "`[P]`"):
+        assert label in guardrails, f"{label} must be listed as staying English"
+
+    # Quoted prose is never translated, or the ledger stops matching the drafts.
+    assert "Quotes are verbatim" in guardrails
+
+    # The guardrails are what actually reach a rendered command.
+    for prompt in ("authorkit.write.md", "authorkit.review.md", "authorkit.discuss.md", "authorkit.research.md"):
+        assert prompt in cli.GUARDRAIL_PROMPT_ALLOWLIST, f"{prompt} must receive the Language Protocol block"
+
+
+def test_language_riders_are_marked_at_every_command_site():
+    """The model acts on the local instruction, not on the shared definition alone, so
+    every command must parse BOOK_LANGUAGE in its own setup step and carry its own rider."""
+    write = _authorkit_asset("prompts", "authorkit.write.md")
+    review = _authorkit_asset("prompts", "authorkit.review.md")
+    discuss = _authorkit_asset("prompts", "authorkit.discuss.md")
+    research = _authorkit_asset("prompts", "authorkit.research.md")
+
+    for name, body in (("write", write), ("review", review), ("discuss", discuss), ("research", research)):
+        assert "BOOK_LANGUAGE" in body, f"{name} must parse BOOK_LANGUAGE in setup"
+        assert "Language Protocol" in body, f"{name} must point at the shared protocol"
+
+    # Drafting writes in the language directly -- Pass B is a voice pass, not a translation.
+    assert "Pass B is a voice pass, never a translation pass" in write
+    # Discuss is where the language is decided, and it lands in book.toml only.
+    assert "--language" in discuss, "Conceive must pass the language through to setup-book"
+    assert "do **not** duplicate it as a concept field" in discuss
+
+
+def test_tic_catalog_scopes_language_bound_patterns():
+    """The tic catalog mixes universal shapes with English strings. A non-English book must
+    seed only what can match: seeding a dead non-zero-budget entry (28) would join N in the
+    tic-load mean and drag the index down, which is the coupling that index exists to avoid."""
+    catalog = _authorkit_asset("prompts", "_shared", "literary-tic-catalog.md")
+
+    assert "## Language Scope" in catalog
+    # The two string-bound patterns carry the marker.
+    assert "**Class:** lexical · **Volatility: high** · **Lang: en**" in catalog, "pattern 28"
+    assert "**Class:** phrase · **Lang: en**" in catalog, "pattern 29"
+    # Non-English seeding rule names the pack convention and the fallback.
+    assert "tic-catalog-<lang>.md" in catalog
+    assert "primary subtag" in catalog
+    assert "No pack for the language?" in catalog
+    # Em-dash budget must not flag dash-led dialogue as a tic.
+    assert "Typography-conditional" in catalog
+
+
+def test_french_tic_pack_ships_and_stays_quarantined():
+    """The French pack is a review-side seed like the English catalog: installed with the
+    prompts, never referenced by the drafting command (pattern descriptions in a drafting
+    context prime the constructions they prohibit)."""
+    pack = _authorkit_asset("prompts", "_shared", "tic-catalog-fr.md")
+
+    assert "**Lang: fr**" in pack
+    assert "Never load this file while drafting" in pack
+    # The pack's highest-value tier: zero-budget greppable strings.
+    assert "**Class:** phrase · **Lang: fr** · **Budget: 0**" in pack
+    # Volatile lexical tier is never seeded, same rule as the English canon.
+    assert "**Volatility: high**" in pack and "never seeded" in pack
+    # French typography must not be counted as an em-dash tic.
+    assert "do **not** count toward universal pattern 20" in pack
+
+    write = _authorkit_asset("prompts", "authorkit.write.md")
+    assert "tic-catalog-fr" not in write, "drafting must never load the French pack"
+
+    review = _authorkit_asset("prompts", "authorkit.review.md")
+    assert "tic-catalog-<lang>.md" in review, "review Pass 2 must know how to find a language pack"
+
+
+def test_french_tic_pack_is_installed_and_managed():
+    """`_shared/` is copied wholesale at init, so the pack must land in the project and be
+    tracked in the manifest -- otherwise a later re-init would not clean it up."""
+    with isolated_filesystem():
+        result = runner.invoke(cli.app, ["init", "--here", "--ai", "claude", "--script", "sh", "--no-git", "--force"])
+        assert result.exit_code == 0, result.output
+        assert Path(".authorkit/prompts/_shared/tic-catalog-fr.md").exists()
+        manifest = json.loads(Path(".authorkit/install-manifest.json").read_text(encoding="utf-8"))
+        assert ".authorkit/prompts/_shared/tic-catalog-fr.md" in manifest["managed_paths"]
+        # The rendered drafting command still names no catalog in its own body. (The
+        # injected guardrails block precedes "## User Input" and may mention the paths;
+        # the quarantine is about the command body, matching the seed-catalog test.)
+        rendered_write = Path(".claude/commands/authorkit.write.md").read_text(encoding="utf-8")
+        write_body = rendered_write.split("## User Input", 1)[1]
+        assert "tic-catalog-fr" not in write_body
+        assert "literary-tic-catalog" not in write_body
+
+
+def test_scripts_surface_book_language_in_both_flavors():
+    """Commands read the language from their setup script's output, so both script flavors
+    must emit BOOK_LANGUAGE -- including the --paths-only shape, which /authorkit.research
+    uses and which returns from an early branch."""
+    for flavor, names in (
+        ("bash", ("common.sh", "check-prerequisites.sh", "setup-book.sh")),
+        ("powershell", ("common.ps1", "check-prerequisites.ps1", "setup-book.ps1")),
+    ):
+        for name in names:
+            body = _authorkit_asset("scripts", flavor, name)
+            assert "BOOK_LANGUAGE" in body, f"{flavor}/{name} must surface BOOK_LANGUAGE"
+
+    # Both output shapes in the bash common helper, not just the eval'd one.
+    common_sh = _authorkit_asset("scripts", "bash", "common.sh")
+    assert common_sh.count("BOOK_LANGUAGE") >= 2
+    assert "get_book_language()" in common_sh
+    common_ps = _authorkit_asset("scripts", "powershell", "common.ps1")
+    assert "function Get-BookLanguage" in common_ps
+
+
+def test_book_config_language_defaults_and_normalizes(tmp_path):
+    """Absent language means en-US (existing projects unchanged); a plain name is stored as
+    a tag so it works as pandoc's `lang:` and an ID3 TLAN value; unknown values pass through
+    because this is not a whitelist."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+
+    (book_dir / "book.toml").write_text('[book]\ntitle = "T"\n', encoding="utf-8")
+    assert book_core.parse_book_config(book_dir).language == "en-US"
+
+    (book_dir / "book.toml").write_text('[book]\nlanguage = "  "\n', encoding="utf-8")
+    assert book_core.parse_book_config(book_dir).language == "en-US"
+
+    (book_dir / "book.toml").write_text('[book]\nlanguage = "French"\n', encoding="utf-8")
+    assert book_core.parse_book_config(book_dir).language == "fr"
+
+    (book_dir / "book.toml").write_text('[book]\nlanguage = "fr-FR"\n', encoding="utf-8")
+    assert book_core.parse_book_config(book_dir).language == "fr-FR"
+
+    (book_dir / "book.toml").write_text('[book]\nlanguage = "tlh-Piqd"\n', encoding="utf-8")
+    assert book_core.parse_book_config(book_dir).language == "tlh-Piqd"
+
+
+def test_book_config_rejects_non_string_language(tmp_path):
+    """`language = true` previously became the string "True" in the manuscript frontmatter.
+    A wrong type must fail loudly like the numeric fields do."""
+    book_dir = tmp_path / "book"
+    book_dir.mkdir()
+    (book_dir / "book.toml").write_text("[book]\nlanguage = true\n", encoding="utf-8")
+    with pytest.raises(book_core.BookConfigError, match="book.language"):
+        book_core.parse_book_config(book_dir)
+
+
+def test_language_display_name_resolves_subtag():
+    """Prompts get the raw tag; anything wanting a human name resolves it here, with the
+    tag itself as the fallback so there is always something to show."""
+    assert book_core.language_display_name("fr-FR") == "French"
+    assert book_core.language_display_name("fr") == "French"
+    assert book_core.language_display_name("pt_BR") == "Portuguese"
+    assert book_core.language_display_name("tlh") == "tlh"
+    assert book_core.language_display_name("") == "English"
+
+
+def test_dialogue_ratio_counts_non_english_dialogue_marks():
+    """A French manuscript reported 0.00 dialogue because only straight quotes counted.
+    Guillemets and dash-led replies are dialogue; a markdown bullet is not."""
+    french = (
+        "# Chapitre\n\n"
+        "« Tu es en retard », dit-elle.\n\n"
+        "— Je sais.\n\n"
+        "Il posa son manteau.\n\n"
+        "- une puce de liste, pas du dialogue\n"
+    )
+    assert book_stats._count_dialogue_lines(french) == 2
+
+    english = '# Chapter\n\n"You are late," she said.\n\nHe hung his coat.\n'
+    assert book_stats._count_dialogue_lines(english) == 1

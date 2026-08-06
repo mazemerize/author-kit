@@ -232,17 +232,24 @@ reading_wpm = 200
     }
 }
 
+# Read the language back from the file we just wrote rather than from the
+# input parameters: on the update path only an explicitly-passed -Language was
+# applied, so the file is the only place that knows the effective value.
+$resolvedLanguage = Get-BookLanguage -BookDir $bookDir
+
 if ($Json) {
     $obj = [PSCustomObject]@{
-        BOOK_DIR     = $bookDir
-        CONCEPT_FILE = $conceptFile
-        STYLE_ANCHOR = $styleAnchorFile
-        BOOK_TOML    = $bookTomlPath
-        HAS_GIT      = $paths.HAS_GIT
+        BOOK_DIR      = $bookDir
+        BOOK_LANGUAGE = $resolvedLanguage
+        CONCEPT_FILE  = $conceptFile
+        STYLE_ANCHOR  = $styleAnchorFile
+        BOOK_TOML     = $bookTomlPath
+        HAS_GIT       = $paths.HAS_GIT
     }
     $obj | ConvertTo-Json -Compress
 } else {
     Write-Output "BOOK_DIR: $bookDir"
+    Write-Output "BOOK_LANGUAGE: $resolvedLanguage"
     Write-Output "CONCEPT_FILE: $conceptFile"
     Write-Output "STYLE_ANCHOR: $styleAnchorFile"
     Write-Output "BOOK_TOML: $bookTomlPath"

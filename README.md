@@ -12,6 +12,7 @@ An open-source toolkit that brings structured, template-driven principles to boo
 - [Get Started](#get-started)
 - [The Four Commands](#the-four-commands)
 - [Project Kind (book | collection)](#project-kind-book--collection)
+- [Writing in Another Language](#writing-in-another-language)
 - [World Maintenance](#world-maintenance)
 - [Book Export, Audiobook and Statistics](#book-export-audiobook-and-statistics)
 - [Project Structure](#project-structure)
@@ -361,6 +362,59 @@ The on-disk layout stays `chapters/NN/`, `chapters.md`, and `CHxx` tags for both
 
 ---
 
+## Writing in Another Language
+
+Author Kit writes your book in whatever language you declare. The toolkit itself — commands, prompts, templates, CLI output — stays in English; only the *output* changes.
+
+One field decides it, in `book/book.toml`:
+
+```toml
+[book]
+language = "fr-FR"
+```
+
+A BCP-47 tag (`fr-FR`, `de`, `pt-BR`) or a plain name (`French`, `français`) both work. `/authorkit.discuss` sets it when it first creates the workspace, inferring the language from how you describe the book; you can also pass it directly:
+
+```bash
+.authorkit/scripts/bash/setup-book.sh --language fr-FR
+```
+
+**If the field is absent, the project is English** (`en-US`) — existing projects are unaffected.
+
+### What changes
+
+| In your language | Always English |
+|---|---|
+| Chapter drafts, chapter titles, epigraphs — everything that ships | File and directory names, template section headings, YAML keys |
+| `outline.md` entries, `chapters/NN/plan.md`, `concept.md` prose | Status markers `[ ] [P] [D] [R] [X]`, evolution tags `(CHxx)`, chapter ids |
+| `world/` entry bodies, `research/` notes, discussion notes | `TIC-NNN` ids, ledger field names, severity and verdict labels |
+| Review findings prose | The review's `**Gating Shapes**:` line |
+
+The English column is the machine-read layer: the commands and AutoPilot grep those labels to decide whether a chapter converged. Translating them would break the loop, so they stay fixed. Prose quoted into a review, the tic ledger, or the voice pairs is always kept **verbatim** in its original language.
+
+Typography follows your language, not English defaults — guillemets and dash-led dialogue in French, `„ "` in German, `¿ ¡` in Spanish.
+
+### The tic defense in another language
+
+The [AI-tic audit](#the-four-commands) is the part that needs language awareness, because half of it is made of English strings. The shipped seed catalog now marks each pattern:
+
+- **Universal** patterns — the structural and constructional tells (negation-correction, decoder narration, epiphany cadence, templated scene shape) — are attractors of the *model*, not of English. They seed any book; the English examples illustrate the shape, and the shape is what's matched.
+- **`Lang: en`** patterns — the lexical canon (*delve, tapestry*) and the greppable corpus clichés (*"hung in the air"*) — are skipped entirely for a non-English book. They can't match, and seeding a dead entry would distort the tic-load index.
+- **Typography-conditional** patterns — em-dash density — are counted by your language's conventions: a dash that opens a line of French dialogue is punctuation, not a tic.
+
+A book then seeds from its **language pack** if one ships: `.authorkit/prompts/_shared/tic-catalog-<lang>.md`, matched on the primary subtag (`fr-CA` → `fr`). **French ships today** (`tic-catalog-fr.md`) with its own greppable clichés (*« un frisson lui parcourut l'échine »*), its own lexical canon, and French-specific constructions (*« ce n'était pas X, mais Y »*, expressive incises, characterization by nominalisation).
+
+With no pack for your language, the universal patterns seed and blind discovery builds the rest from your own drafts — that's the designed fallback, and it's what the tic ledger exists for. To add a pack, copy `tic-catalog-fr.md`, keep the section shape, and replace the strings; review picks it up automatically once the file name matches your subtag.
+
+### Also worth knowing
+
+- `authorkit book build` writes your language into the manuscript frontmatter (`lang:`), which drives hyphenation in docx and epub; `authorkit book audio` tags it in the MP3 metadata, and the TTS models narrate multilingually.
+- `authorkit book stats` counts guillemet- and dash-opened lines as dialogue, so the dialogue ratio is meaningful in any of these conventions.
+- Word-count targets and `reading_wpm` / `speaking_rate_wpm` are English-calibrated defaults. French runs roughly 10–20% longer than English for the same content — adjust them in `book.toml` if the estimates matter to you.
+- Changing the language mid-book affects future prose only. The commands will flag the mismatch with your existing drafts; they will never silently retranslate them.
+
+---
+
 ## World Maintenance
 
 Author Kit includes a dedicated world-building system that tracks every detail of your book's world — characters, places, organizations, history, and systems — across the entire manuscript.
@@ -535,7 +589,7 @@ Defaults and behavior:
 [book]
 title = "..."
 author = "..."
-language = "en-US"
+language = "en-US"   # prose language + export metadata — see "Writing in Another Language"
 subtitle = ""
 
 [build]
@@ -617,6 +671,9 @@ Audio narration instructions:
 |-- prompts/                         # Canonical source for all authorkit prompts
 |   |-- authorkit.*.md
 |   `-- _shared/                     # Cross-prompt guardrails included by multiple commands
+|       |-- generation-guardrails.md # Injected into every command at init
+|       |-- literary-tic-catalog.md  # Tic seed catalog (English + universal shapes)
+|       `-- tic-catalog-fr.md        # French tic seed pack (see Writing in Another Language)
 |-- instructions/                    # Canonical instruction templates
 |   |-- claude.md.tmpl
 |   |-- copilot.md.tmpl
